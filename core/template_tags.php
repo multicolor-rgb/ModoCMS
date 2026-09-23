@@ -103,3 +103,36 @@ function get_recent_posts(int $limit = 6): array {
 
     return $stmt->fetchAll();
 }
+
+
+/**
+ * Outputs header scripts (Google Analytics, GTM, verification meta tags) and triggers the 'theme-header' action hook.
+ */
+function theme_header(): void {
+    // 1. Injected custom scripts configured in Settings
+    $headScripts = \Core\Router::getOption('custom_head_scripts', '');
+    if (!empty($headScripts)) {
+        echo $headScripts . "\n";
+    }
+
+    // 2. Action hook for plugins and modules
+    if (class_exists('Hooks')) {
+        \Hooks::doAction('theme-header');
+    }
+}
+
+/**
+ * Outputs footer scripts (live chat widgets, remarketing, conversion tracking) and triggers the 'theme-footer' action hook.
+ */
+function theme_footer(): void {
+    // 1. Injected custom scripts configured in Settings
+    $footerScripts = \Core\Router::getOption('custom_footer_scripts', '');
+    if (!empty($footerScripts)) {
+        echo $footerScripts . "\n";
+    }
+
+    // 2. Action hook for plugins and modules
+    if (class_exists('Hooks')) {
+        \Hooks::doAction('theme-footer');
+    }
+}

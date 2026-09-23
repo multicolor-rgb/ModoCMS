@@ -124,7 +124,7 @@ $recentContent = $db->query("
         <!-- Analytics & Popular Pages Card -->
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
-                <h2 style="font-size: 15px; font-weight: 700;"><?= _e('Traffic (Last 7 Days)') ?></h2>
+                <h2 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;"><?= _e('Traffic (Last 7 Days)') ?></h2>
                 <span class="badge" style="background: var(--primary-subtle); color: var(--primary);"><?= _e('Daily Unique') ?></span>
             </div>
 
@@ -154,12 +154,12 @@ $recentContent = $db->query("
                 <table class="pro-table" style="margin-top: 8px;">
                     <tbody>
                         <?php if (empty($topPages)): ?>
-                            <tr><td style="color: var(--text-muted); font-size: 12px;"><?= _e('No visit records available for this week.') ?></td></tr>
+                            <tr><td style="color: var(--text-muted); font-size: 12px; padding: 12px 0; border: none;"><?= _e('No visit records available for this week.') ?></td></tr>
                         <?php else: ?>
                             <?php foreach ($topPages as $tp): ?>
                                 <tr>
-                                    <td style="font-family: monospace; font-size: 12px; padding: 6px 0; border: none;"><?= Security::sanitize($tp['path']) ?></td>
-                                    <td style="text-align: right; font-weight: 600; padding: 6px 0; border: none;"><?= $tp['hits'] ?> <?= _e('views') ?></td>
+                                    <td style="font-family: monospace; font-size: 12px; padding: 6px 0; border: none; color: var(--text-main);"><?= Security::sanitize($tp['path']) ?></td>
+                                    <td style="text-align: right; font-weight: 600; padding: 6px 0; border: none; color: var(--text-main);"><?= $tp['hits'] ?> <?= _e('views') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -171,7 +171,7 @@ $recentContent = $db->query("
         <!-- Recent Content Card -->
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h2 style="font-size: 15px; font-weight: 700;"><?= _e('Recently Updated') ?></h2>
+                <h2 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;"><?= _e('Recently Updated') ?></h2>
                 <a href="pages.php" style="font-size: 12px; color: var(--primary); text-decoration: none; font-weight: 600;"><?= _e('View All') ?> &rarr;</a>
             </div>
 
@@ -194,7 +194,7 @@ $recentContent = $db->query("
                                     <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">/<?= Security::sanitize($rc['slug']) ?></div>
                                 </td>
                                 <td>
-                                    <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 11px;">
+                                    <span class="badge" style="background: var(--bg-surface, #1e293b); color: var(--text-muted); font-size: 11px; border: 1px solid var(--border-subtle);">
                                         <?= $rc['type'] === 'post' ? _e('Post') : _e('Page') ?>
                                     </span>
                                 </td>
@@ -219,7 +219,7 @@ $recentContent = $db->query("
     <div>
         <!-- Quick Draft Widget -->
         <div class="card">
-            <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 6px;"><?= _e('Quick Draft') ?></h2>
+            <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);"><?= _e('Quick Draft') ?></h2>
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;"><?= _e('Capture an idea quickly. It will be saved as an unpublished blog post draft.') ?></p>
 
             <form method="POST" action="">
@@ -242,8 +242,8 @@ $recentContent = $db->query("
 
         <!-- System & Environment Information Widget -->
         <div class="card">
-            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;"><?= _e('Environment') ?></h3>
-            <ul style="list-style: none; font-size: 13px; display: flex; flex-direction: column; gap: 8px; color: var(--text-muted);">
+            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-main);"><?= _e('Environment') ?></h3>
+            <ul style="list-style: none; font-size: 13px; display: flex; flex-direction: column; gap: 8px; color: var(--text-muted); padding: 0; margin: 0;">
                 <li style="display: flex; justify-content: space-between;">
                     <span><?= _e('PHP Version') ?>:</span> <strong style="color: var(--text-main);"><?= PHP_VERSION ?></strong>
                 </li>

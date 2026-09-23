@@ -5,7 +5,7 @@ namespace Core;
 
 /**
  * Class Router
- * Handles request dispatching, subfolder detection, nested page hierarchies, blog tags, and multilingual routing.
+ * Handles request dispatching, subfolder detection, nested page hierarchies, blog tags, traffic tracking, and multilingual routing.
  */
 final class Router {
     private array $registeredRoutes = [];
@@ -18,9 +18,8 @@ final class Router {
         $this->registeredRoutes['POST'][$path] = $callback;
     }
 
-/**
+    /**
      * Resolves the base installation subfolder (e.g. "/cleancms" or empty string if in root).
-     
      */
     public static function getBaseSubdirectory(): string {
         $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
@@ -35,7 +34,76 @@ final class Router {
         return $baseDir;
     }
 
+    /**
+     * Logs visitor traffic to SQLite 'visits' table.
+     * Enforces strict rate limit: maximum 1 counted visit per unique IP hash every 24 hours.
+     */
+    public static function trackVisit(): void {
+        if (defined('IN_ADMIN')) {
+            return;
+        }
+
+        $rawUri = $_SERVER['REQUEST_URI'] ?? '/';
+        $uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
+
+        // Ignore admin routes
+        if (str_starts_with($uriPath, '/admin')) {
+            return;
+        }
+
+        // Ignore static assets
+        $extension = strtolower(pathinfo($uriPath, PATHINFO_EXTENSION));
+        if (in_array($extension, ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'woff', 'woff2', 'map', 'txt'], true)) {
+            return;
+        }
+
+        // Ignore web crawlers and automated bots
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        if (preg_match('/bot|crawl|slurp|spider|mediapartners/i', $userAgent)) {
+            return;
+        }
+
+        try {
+            $db = Database::getConnection();
+
+            // Stała sól aplikacji do haszowania IP (zachowuje spójność hasha w oknie 24h bez ujawniania surowego IP)
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+            $ipHash = hash('sha256', $ipAddress . 'clean_cms_salt');
+
+            // Sprawdzenie, czy ten adres IP został już zarejestrowany w ciągu ostatnich 24 godzin
+            $checkStmt = $db->prepare("
+                SELECT id 
+                FROM visits 
+                WHERE ip_hash = :ip 
+                  AND visited_at >= datetime('now', '-24 hours') 
+                LIMIT 1
+            ");
+            $checkStmt->execute([':ip' => $ipHash]);
+
+            // Jeśli użytkownik już był w ciągu 24h, nie naliczaj kolejnej wizyty
+            if ($checkStmt->fetchColumn()) {
+                return;
+            }
+
+            // Pierwsza wizyta tego IP w ciągu ostatnich 24h — zapisujemy z pełnym znacznikiem czasu
+            $insertStmt = $db->prepare("
+                INSERT INTO visits (path, ip_hash, user_agent, visited_at)
+                VALUES (:path, :ip, :ua, datetime('now'))
+            ");
+            $insertStmt->execute([
+                ':path' => $uriPath,
+                ':ip'   => $ipHash,
+                ':ua'   => substr($userAgent, 0, 255)
+            ]);
+        } catch (\Throwable $e) {
+            // Ciche zignorowanie błędu, by nie przerywać renderowania strony
+        }
+    }
+
     public function dispatch(): void {
+        // Track valid visitor views
+        self::trackVisit();
+
         $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 

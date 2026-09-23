@@ -35,16 +35,24 @@ final class Auth {
     ];
 
     /**
-     * Verifies login credentials and regenerates the session ID to prevent Session Fixation.
+     * Verifies login credentials (username or email) and regenerates session ID to prevent Session Fixation.
      */
-    public static function login(string $username, string $password): bool {
+    public static function login(string $identifier, string $password): bool {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT id, username, password_hash, email, role, admin_lang FROM users WHERE username = :u LIMIT 1");
-        $stmt->execute([':u' => $username]);
+        
+        $stmt = $db->prepare("
+            SELECT id, username, password_hash, email, role, admin_lang 
+            FROM users 
+            WHERE username = :id OR email = :id 
+            LIMIT 1
+        ");
+        $stmt->execute([':id' => $identifier]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
-            session_regenerate_id(true);
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
             $_SESSION['user_id'] = (int)$user['id'];
             $_SESSION['user_name'] = $user['username'];
             $_SESSION['user_email'] = $user['email'];
