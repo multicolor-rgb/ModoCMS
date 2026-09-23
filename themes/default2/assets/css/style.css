@@ -1,0 +1,212 @@
+/* =========================================================
+   Nazwa-motywu — arkusz stylów motywu Clean CMS
+   Oparty na Bootstrap 5.3.8, czcionka: Inter (Google Fonts)
+   ========================================================= */
+
+:root {
+    --theme-font: 'Inter', system-ui, -apple-system, sans-serif;
+    --theme-radius: 0.85rem;
+    --theme-transition: 0.2s ease-in-out;
+
+    --bs-primary: #0d6efd;
+    --bs-primary-rgb: 13, 110, 253;
+}
+
+html, body {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--theme-font);
+    color: #212529;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.site-content {
+    flex: 1 0 auto;
+}
+
+.skip-link {
+    position: absolute;
+    top: -3rem;
+    left: 1rem;
+    z-index: 2000;
+    background: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+}
+.skip-link:focus {
+    top: 1rem;
+}
+
+.site-header .navbar-brand {
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    padding: 0.6rem 1rem;
+    border-radius: 0.5rem;
+    transition: color var(--theme-transition), background-color var(--theme-transition);
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+    color: #fff !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.35);
+}
+
+.page-hero {
+    position: relative;
+    min-height: 320px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.page-hero-post {
+    min-height: 380px;
+}
+
+.page-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.75) 100%);
+}
+
+.page-hero-title {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    max-width: 45rem;
+}
+
+.archive-hero {
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.page-title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.entry-content {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: #343a40;
+}
+
+.entry-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--theme-radius);
+    margin: 1.5rem 0;
+}
+
+.entry-content h2,
+.entry-content h3 {
+    margin-top: 2rem;
+    font-weight: 700;
+}
+
+.entry-content a {
+    color: var(--bs-primary);
+    text-decoration-thickness: 1px;
+}
+
+.entry-content blockquote {
+    border-left: 4px solid var(--bs-primary);
+    padding: 0.75rem 1.25rem;
+    background: #f8f9fa;
+    border-radius: 0 var(--theme-radius) var(--theme-radius) 0;
+    color: #495057;
+}
+
+.post-card {
+    border-radius: var(--theme-radius);
+    overflow: hidden;
+    transition: transform var(--theme-transition), box-shadow var(--theme-transition);
+}
+
+.post-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 1rem 2rem rgba(0,0,0,0.1) !important;
+}
+
+.post-card-img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.post-card-img-placeholder {
+    height: 200px;
+    background-color: #e9ecef;
+}
+
+.post-card-title:hover {
+    color: var(--bs-primary) !important;
+}
+
+.sidebar-widget {
+    position: sticky;
+    top: 90px;
+}
+
+.sidebar-link:hover {
+    color: var(--bs-primary) !important;
+}
+
+.footer-link:hover,
+.footer-nav a:hover {
+    color: #fff !important;
+    text-decoration: underline;
+}
+
+.footer-nav a,
+.footer-nav ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.footer-nav a {
+    color: var(--bs-secondary-color, #adb5bd);
+    text-decoration: none;
+    display: inline-block;
+    padding: 0.15rem 0;
+}
+
+.btn-back-to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+
+.btn-back-to-top.show {
+    display: flex;
+}
+
+.error-code {
+    font-size: clamp(4rem, 12vw, 7rem);
+    line-height: 1;
+}
+
+@media (max-width: 767.98px) {
+    .page-hero,
+    .page-hero-post {
+        min-height: 220px;
+    }
+    .sidebar-widget {
+        position: static;
+    }
+}

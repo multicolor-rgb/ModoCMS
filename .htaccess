@@ -1,0 +1,52 @@
+# Disable directory listing and enable symbolic links
+Options -Indexes +FollowSymLinks
+ServerSignature Off
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Block direct access to database files, logs, hidden files, and SQLite caches
+<FilesMatch "(^\..*|\.sqlite.*|\.db|\.sql|\.log|\.ini|\.json)$">
+    Require all denied
+</FilesMatch>
+
+# Block direct access to data and languages directories
+RedirectMatch 403 ^.*/data/.*$
+RedirectMatch 403 ^.*/languages/.*$
+
+# Rewrite Engine Configuration
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /cleancms/
+
+    # Enforce trailing slash on /admin directory requests
+    RewriteRule ^admin$ admin/ [R=301,L]
+
+    # Rule A: Single-folder request -> nested-folder physical file
+    # Example: plugins/autoLightbox/glightbox/g.js -> plugins/autoLightbox/autoLightbox/glightbox/g.js
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^.*/plugins/([^/]+)/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} -U
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{DOCUMENT_ROOT}/cleancms/plugins/$1/$1/$2 -f
+    RewriteRule ^plugins/([^/]+)/(.*)$ plugins/$1/$1/$2 [L]
+
+    # Rule B: Nested-folder request -> flat-folder physical file
+    # Example: plugins/autoLightbox/autoLightbox/glightbox/g.js -> plugins/autoLightbox/glightbox/g.js
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{DOCUMENT_ROOT}/cleancms/plugins/$1/$2 -f
+    RewriteRule ^plugins/([^/]+)/\1/(.*)$ plugins/$1/$2 [L]
+
+    # Serve existing physical files and directories directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route all frontend traffic through the front controller
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>
