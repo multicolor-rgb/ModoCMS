@@ -133,6 +133,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Trigger action for plugins to save custom fields/meta
+    if (class_exists('Hooks')) {
+        \Hooks::doAction('admin-save-page', $id);
+    }
+
     header('Location: page-edit.php?id=' . $id . '&saved=1');
     exit;
 }
@@ -229,6 +234,9 @@ require_once __DIR__ . '/views/header.php';
                     <textarea id="editor" name="content"><?= htmlspecialchars($item['content'], ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
             </div>
+
+            <!-- Hook point for external plugins in editor content area -->
+            <?php if (class_exists('Hooks')) { \Hooks::doAction('admin-edit-form-content', $id); } ?>
 
             <div class="card">
                 <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 16px;"><?= _e('SEO & Social Meta Tags') ?></h2>
@@ -328,15 +336,18 @@ require_once __DIR__ . '/views/header.php';
                     </button>
                 </div>
             </div>
+
+            <!-- Hook point for external plugins in sidebar -->
+            <?php if (class_exists('Hooks')) { \Hooks::doAction('admin-edit-form', $id); } ?>
         </div>
     </div>
 </form>
 
-<div id="media-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
-    <div style="background: var(--bg-card, #ffffff); width: 90%; max-width: 820px; max-height: 85vh; border-radius: var(--radius-md, 8px); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); overflow: hidden;">
+<div id="media-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="card" style="width: 90%; max-width: 820px; max-height: 85vh; padding: 0; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; background: var(--bg-card, #111827);">
         <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; font-size: 16px; font-weight: 700;"><?= _e('Select Media from Library') ?></h3>
-            <button type="button" id="close-modal-btn" style="background: transparent; border: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--text-muted);">&times;</button>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main);"><?= _e('Select Media from Library') ?></h3>
+            <button type="button" id="close-modal-btn" style="background: transparent; border: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--text-muted);">&times;</button>
         </div>
         <div style="padding: 20px; overflow-y: auto; flex: 1;">
             <?php if (empty($existingMedia)): ?>
@@ -346,9 +357,9 @@ require_once __DIR__ . '/views/header.php';
             <?php else: ?>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px;">
                     <?php foreach ($existingMedia as$media): ?>
-                        <div class="media-pick-item" data-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" style="cursor: pointer; border: 2px solid transparent; border-radius: var(--radius-sm, 6px); overflow: hidden; background: #0f172a08; transition: border-color 0.15s, transform 0.15s;">
+                        <div class="media-pick-item" data-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" style="cursor: pointer; border: 2px solid transparent; border-radius: var(--radius-sm, 6px); overflow: hidden; background: var(--bg-surface, #1e293b); transition: border-color 0.15s, transform 0.15s;">
                             <img src="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" style="width: 100%; height: 105px; object-fit: cover; display: block;">
-                            <div style="font-size: 10px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; color: var(--text-muted);">
+                            <div style="font-size: 10px; padding: 5px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; color: var(--text-muted);">
                                 <?= Security::sanitize($media['name']) ?>
                             </div>
                         </div>
@@ -367,36 +378,86 @@ require_once __DIR__ . '/views/header.php';
 let currentMediaTarget = 'featured'; // 'featured' | 'tinymce_dialog' | 'tinymce_direct'
 let tinymceFilePickerCallback = null;
 
-// Initialize TinyMCE WYSIWYG Editor using dynamically resolved configuration
-tinymce.init({
-    selector: '#editor',
-    height: 480,
-    menubar: <?= $enableMenubar ? 'true' : 'false' ?>,
-    plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
-    toolbar: <?= json_encode($resolvedToolbar) ?>,
-    images_upload_url: 'upload.php',
-    automatic_uploads: true,
-    relative_urls: false,
-    remove_script_host: false,
-    file_picker_types: 'image',
-    file_picker_callback: (callback, value, meta) => {
-        if (meta.filetype === 'image') {
-            currentMediaTarget = 'tinymce_dialog';
-            tinymceFilePickerCallback = callback;
-            openModal();
-        }
-    },
-    setup: (editor) => {
-        editor.ui.registry.addButton('mediamanager', {
-            icon: 'gallery',
-            tooltip: '<?= _e('Insert from Media Library') ?>',
-            onAction: () => {
-                currentMediaTarget = 'tinymce_direct';
+// Determine if dark mode is active
+const isDarkActive = () => {
+    return document.documentElement.getAttribute('data-theme') === 'dark' || 
+           document.body.getAttribute('data-theme') === 'dark' ||
+           document.body.classList.contains('dark') ||
+           document.body.classList.contains('dark-theme') ||
+           localStorage.getItem('theme') === 'dark';
+};
+
+// Initialize TinyMCE WYSIWYG Editor
+function initCleanTinyMCE() {
+    const isDark = isDarkActive();
+    
+    tinymce.init({
+        selector: '#editor',
+        height: 480,
+        menubar: <?= $enableMenubar ? 'true' : 'false' ?>,
+        plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
+        toolbar: <?= json_encode($resolvedToolbar) ?>,
+
+        // Adaptive skin and content styling
+        skin: isDark ? 'oxide-dark' : 'oxide',
+        content_css: isDark ? 'dark' : 'default',
+
+        images_upload_url: 'upload.php',
+        automatic_uploads: true,
+        relative_urls: false,
+        remove_script_host: false,
+        file_picker_types: 'image',
+        file_picker_callback: (callback, value, meta) => {
+            if (meta.filetype === 'image') {
+                currentMediaTarget = 'tinymce_dialog';
+                tinymceFilePickerCallback = callback;
                 openModal();
             }
-        });
+        },
+        setup: (editor) => {
+            editor.ui.registry.addButton('mediamanager', {
+                icon: 'gallery',
+                tooltip: '<?= _e('Insert from Media Library') ?>',
+                onAction: () => {
+                    currentMediaTarget = 'tinymce_direct';
+                    openModal();
+                }
+            });
+        }
+    });
+}
+
+// Safely hot-reload TinyMCE without losing unsaved content
+function switchTinyMCETheme() {
+    const editor = tinymce.get('editor');
+    if (editor) {
+        editor.save();
+        editor.remove();
+    }
+
+    // Clean up cached skins injected by TinyMCE into document head
+    document.querySelectorAll('link[id^="u"], link[href*="tinymce/skins"]').forEach(el => el.remove());
+
+    setTimeout(() => {
+        initCleanTinyMCE();
+    }, 50);
+}
+
+// Initial bootstrap
+initCleanTinyMCE();
+
+// Observe theme modifications across html and body nodes
+let lastThemeState = isDarkActive();
+const themeObserver = new MutationObserver(() => {
+    const currentThemeState = isDarkActive();
+    if (currentThemeState !== lastThemeState) {
+        lastThemeState = currentThemeState;
+        switchTinyMCETheme();
     }
 });
+
+themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'class'] });
 
 // Toggle parent-page dropdown and tags input based on Type selection
 const typeSelect = document.getElementById('type');
@@ -489,7 +550,7 @@ modal.addEventListener('click', (e) => {
 // Handle media asset selection
 mediaItems.forEach(item => {
     item.addEventListener('mouseenter', () => {
-        item.style.borderColor = 'var(--primary, #2563eb)';
+        item.style.borderColor = 'var(--primary, #3b82f6)';
         item.style.transform = 'translateY(-2px)';
     });
     item.addEventListener('mouseleave', () => {

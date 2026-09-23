@@ -61,6 +61,8 @@ final class Database {
                 role TEXT NOT NULL DEFAULT 'editor',
                 admin_lang TEXT NOT NULL DEFAULT 'en',
                 api_token TEXT UNIQUE,
+                reset_token TEXT UNIQUE,
+                reset_expires DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -85,6 +87,25 @@ final class Database {
             CREATE UNIQUE INDEX IF NOT EXISTS idx_pages_slug_lang ON pages(slug, lang);
             CREATE INDEX IF NOT EXISTS idx_pages_trans_group ON pages(translation_group);
             CREATE INDEX IF NOT EXISTS idx_pages_parent_id ON pages(parent_id);
+
+            -- Tabela na pola niestandardowe (Custom Fields) z obsługą typów danych
+            CREATE TABLE IF NOT EXISTS page_meta (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+                meta_key TEXT NOT NULL,
+                meta_value TEXT,
+                meta_type TEXT DEFAULT 'text',
+                UNIQUE(page_id, meta_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
+
+            -- Tabela na ustawienia Theme Customizera
+            CREATE TABLE IF NOT EXISTS theme_mods (
+                theme TEXT NOT NULL,
+                mod_key TEXT NOT NULL,
+                mod_value TEXT,
+                PRIMARY KEY (theme, mod_key)
+            );
 
             CREATE TABLE IF NOT EXISTS tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -183,6 +204,15 @@ final class Database {
 
             INSERT OR IGNORE INTO pages (id, parent_id, slug, title, content, type, status, lang, translation_group, author_id)
             VALUES (4, 0, 'pierwszy-artykul', 'Pierwszy artykuł na blogu', '<p>To jest Twój pierwszy wpis wygenerowany w pętli artykułów.</p>', 'post', 'published', 'pl', 'first-post-group', 1);
+        ");
+
+        // Demo Custom Fields dla strony domowej (przykład wykorzystania page_meta)
+        $db->exec("
+            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type)
+            VALUES (1, 'banner_subtitle', 'Fast, lightweight and independent CMS', 'text');
+            
+            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type)
+            VALUES (3, 'banner_subtitle', 'Szybki, lekki i niezależny CMS', 'text');
         ");
 
         // Default Main Menu

@@ -78,7 +78,7 @@ require_once __DIR__ . '/views/header.php';
             
             <!-- Site Identity & Presentation -->
             <div class="card">
-                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                     <?= _e('General Configuration') ?>
                 </h3>
 
@@ -113,7 +113,7 @@ require_once __DIR__ . '/views/header.php';
 
             <!-- Regional & Localization Settings -->
             <div class="card">
-                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                     <?= _e('Language & Regional Settings') ?>
                 </h3>
 
@@ -141,8 +141,8 @@ require_once __DIR__ . '/views/header.php';
                     </div>
                 </div>
 
-                <div class="form-group" style="padding: 14px; background: #f8fafc; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 4px;">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600;">
+                <div class="form-group" style="padding: 14px; background: var(--bg-surface, #1e293b); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: var(--text-main);">
                         <input type="checkbox" name="multilingual_frontend" value="1" <?= Router::getOption('multilingual_frontend', '0') === '1' ? 'checked' : '' ?>>
                         <?= _e('Enable Multilingual Frontend') ?>
                     </label>
@@ -154,7 +154,7 @@ require_once __DIR__ . '/views/header.php';
 
             <!-- Content Editor (TinyMCE) Toolbar Configuration -->
             <div class="card">
-                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                     <?= _e('WYSIWYG Editor Configuration') ?>
                 </h3>
 
@@ -197,7 +197,7 @@ require_once __DIR__ . '/views/header.php';
 
             <!-- Branding Images (Logo & Favicon) -->
             <div class="card">
-                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                     <?= _e('Branding Assets') ?>
                 </h3>
 
@@ -205,7 +205,7 @@ require_once __DIR__ . '/views/header.php';
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label class="form-label"><?= _e('Website Logo') ?></label>
                     <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 8px;">
-                        <div id="logo-preview-box" style="width: 120px; height: 50px; background: #f1f5f9; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <div id="logo-preview-box" style="width: 120px; height: 50px; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 4px;">
                             <?php $currentLogo = Router::getOption('site_logo', ''); ?>
                             <img id="logo-preview-img" src="<?= $currentLogo ? htmlspecialchars($currentLogo, ENT_QUOTES, 'UTF-8') : '' ?>" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; <?= empty($currentLogo) ? 'display:none;' : '' ?>">
                             <span id="logo-placeholder" style="font-size: 11px; color: var(--text-muted); <?= !empty($currentLogo) ? 'display:none;' : '' ?>"><?= _e('No Logo') ?></span>
@@ -223,7 +223,7 @@ require_once __DIR__ . '/views/header.php';
                 <div class="form-group">
                     <label class="form-label"><?= _e('Favicon (.ico, .png, .svg)') ?></label>
                     <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 8px;">
-                        <div id="favicon-preview-box" style="width: 44px; height: 44px; background: #f1f5f9; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <div id="favicon-preview-box" style="width: 44px; height: 44px; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden;">
                             <?php $currentFavicon = Router::getOption('site_favicon', ''); ?>
                             <img id="favicon-preview-img" src="<?= $currentFavicon ? htmlspecialchars($currentFavicon, ENT_QUOTES, 'UTF-8') : '' ?>" alt="Favicon" style="width: 24px; height: 24px; object-fit: contain; <?= empty($currentFavicon) ? 'display:none;' : '' ?>">
                             <span id="favicon-placeholder" style="font-size: 10px; color: var(--text-muted); <?= !empty($currentFavicon) ? 'display:none;' : '' ?>"><?= _e('None') ?></span>
@@ -239,7 +239,7 @@ require_once __DIR__ . '/views/header.php';
 
             <!-- OpenGraph Social Metadata -->
             <div class="card">
-                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+                <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                     <?= _e('OpenGraph & Social Sharing') ?>
                 </h3>
 
@@ -252,7 +252,7 @@ require_once __DIR__ . '/views/header.php';
                     <label class="form-label"><?= _e('Default Social Share Image (OG Image)') ?></label>
                     <div style="margin-bottom: 10px;">
                         <?php $currentOgImage = Router::getOption('og_default_image', ''); ?>
-                        <div id="og-preview-box" style="width: 100%; height: 140px; background: #f1f5f9; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
+                        <div id="og-preview-box" style="width: 100%; height: 140px; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
                             <img id="og-preview-img" src="<?= $currentOgImage ? htmlspecialchars($currentOgImage, ENT_QUOTES, 'UTF-8') : '' ?>" alt="OG Preview" style="width: 100%; height: 100%; object-fit: cover; <?= empty($currentOgImage) ? 'display:none;' : '' ?>">
                             <span id="og-placeholder" style="font-size: 12px; color: var(--text-muted); <?= !empty($currentOgImage) ? 'display:none;' : '' ?>"><?= _e('No Social Card Configured') ?></span>
                         </div>

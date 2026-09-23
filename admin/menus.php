@@ -164,7 +164,7 @@ require_once __DIR__ . '/views/header.php';
 
 <div class="card" style="padding: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
     <form method="GET" action="" style="display: flex; align-items: center; gap: 10px;">
-        <label style="font-weight: 600;"><?= _e('Select menu to edit:') ?></label>
+        <label style="font-weight: 600; color: var(--text-main);"><?= _e('Select menu to edit:') ?></label>
         <select name="menu" class="form-control" style="width: auto;" onchange="this.form.submit()">
             <?php foreach ($allMenus as $m): ?>
                 <option value="<?= $m['id'] ?>" <?= $m['id'] == $selectedMenuId ? 'selected' : '' ?>>
@@ -184,7 +184,7 @@ require_once __DIR__ . '/views/header.php';
 </div>
 
 <div id="new-menu-box" class="card" style="display: none; border-left: 4px solid var(--primary); margin-bottom: 24px;">
-    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;"><?= _e('Create New Menu') ?></h3>
+    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-main);"><?= _e('Create New Menu') ?></h3>
     <form method="POST" action="" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end;">
         <input type="hidden" name="action" value="create_menu">
         <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
@@ -205,7 +205,7 @@ require_once __DIR__ . '/views/header.php';
     <!-- Left Column: Add New Link -->
     <div>
         <div class="card" style="margin-bottom: 16px;">
-            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;"><?= _e('Quick Select Existing Page') ?></h3>
+            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-main);"><?= _e('Quick Select Existing Page') ?></h3>
             <select id="quick-page-select" class="form-control" onchange="const o=this.options[this.selectedIndex]; if(o.value){document.getElementById('item_title').value=o.getAttribute('data-t'); document.getElementById('item_url').value=o.value;}">
                 <option value="">-- <?= _e('Select Page') ?> --</option>
                 <option value="/" data-t="<?= _e('Home') ?>"><?= _e('Home') ?> (/)</option>
@@ -222,7 +222,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <div class="card">
-            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 14px;"><?= _e('Link Properties') ?></h3>
+            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--text-main);"><?= _e('Link Properties') ?></h3>
             <form method="POST" action="">
                 <input type="hidden" name="action" value="add_item">
                 <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
@@ -258,11 +258,11 @@ require_once __DIR__ . '/views/header.php';
             <input type="hidden" name="action" value="save_menu_structure">
             <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
 
-            <div class="table-container">
-                <div style="padding: 14px 20px; background:#f8fafc; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div class="table-container card" style="padding: 0; overflow: hidden;">
+                <div style="padding: 14px 20px; background: var(--bg-surface, #1e293b); border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
-                        <span style="font-weight: 700; font-size:15px;"><?= _e('Structure:') ?> <?= Security::sanitize($currentMenu['name']) ?></span>
-                        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Tag: <code>menu('<?= Security::sanitize($currentMenu['slug']) ?>');</code></span>
+                        <span style="font-weight: 700; font-size: 15px; color: var(--text-main);"><?= _e('Structure:') ?> <?= Security::sanitize($currentMenu['name']) ?></span>
+                        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Tag: <code style="background: var(--bg-body, #0b0f19); border: 1px solid var(--border-subtle); color: var(--primary, #3b82f6); padding: 2px 6px; border-radius: 4px;">menu('<?= Security::sanitize($currentMenu['slug']) ?>');</code></span>
                     </div>
                     <?php if (!empty($tree)): ?>
                         <button type="submit" class="btn btn-primary" style="padding: 6px 14px; font-size: 13px;">
@@ -278,12 +278,12 @@ require_once __DIR__ . '/views/header.php';
                             <th style="width: 32%;"><?= _e('Target URL') ?></th>
                             <th style="width: 20%;"><?= _e('Parent') ?></th>
                             <th style="width: 10%;"><?= _e('Order') ?></th>
-                            <th style="text-align:right; width: 10%;"><?= _e('Action') ?></th>
+                            <th style="text-align: right; width: 10%;"><?= _e('Action') ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($tree)): ?>
-                            <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:30px;"><?= _e('This menu is currently empty.') ?></td></tr>
+                            <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;"><?= _e('This menu is currently empty.') ?></td></tr>
                         <?php else: ?>
                             <?php
                             function renderAdminRows(array $nodes, int $menuId, array $allItems) {
@@ -293,16 +293,16 @@ require_once __DIR__ . '/views/header.php';
                                     ?>
                                     <tr>
                                         <td>
-                                            <div style="display:flex; align-items:center; gap:6px;">
-                                                <span style="color:var(--primary); font-weight:bold;"><?= $indent ?></span>
-                                                <input type="text" name="items[<?= $nid ?>][title]" class="form-control" value="<?= Security::sanitize($node['title']) ?>" style="padding:6px 10px; font-size:13px;" required>
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <span style="color: var(--primary); font-weight: bold;"><?= $indent ?></span>
+                                                <input type="text" name="items[<?= $nid ?>][title]" class="form-control" value="<?= Security::sanitize($node['title']) ?>" style="padding: 6px 10px; font-size: 13px;" required>
                                             </div>
                                         </td>
                                         <td>
-                                            <input type="text" name="items[<?= $nid ?>][url]" class="form-control" value="<?= Security::sanitize($node['url']) ?>" style="padding:6px 10px; font-size:13px; font-family:monospace;" required>
+                                            <input type="text" name="items[<?= $nid ?>][url]" class="form-control" value="<?= Security::sanitize($node['url']) ?>" style="padding: 6px 10px; font-size: 13px; font-family: monospace;" required>
                                         </td>
                                         <td>
-                                            <select name="items[<?= $nid ?>][parent_id]" class="form-control" style="padding:6px 8px; font-size:12px;">
+                                            <select name="items[<?= $nid ?>][parent_id]" class="form-control" style="padding: 6px 8px; font-size: 12px;">
                                                 <option value="0"><?= _e('Root') ?></option>
                                                 <?php foreach ($allItems as $candidate): 
                                                     if ((int)$candidate['id'] === $nid) continue; // Prevent self-parenting
@@ -314,11 +314,11 @@ require_once __DIR__ . '/views/header.php';
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" name="items[<?= $nid ?>][sort_order]" class="form-control" value="<?= (int)$node['sort_order'] ?>" style="padding:6px 8px; font-size:13px; text-align:center;">
+                                            <input type="number" name="items[<?= $nid ?>][sort_order]" class="form-control" value="<?= (int)$node['sort_order'] ?>" style="padding: 6px 8px; font-size: 13px; text-align: center;">
                                         </td>
-                                        <td style="text-align:right;">
+                                        <td style="text-align: right;">
                                             <a href="menus.php?menu=<?= $menuId ?>&delete_item=<?= $nid ?>&csrf=<?= Security::generateCsrfToken() ?>" 
-                                               class="btn btn-danger-ghost" style="padding:4px 8px; font-size:12px;" onclick="return confirm('Delete this link?');"><?= _e('Delete') ?></a>
+                                               class="btn btn-danger-ghost" style="padding: 4px 8px; font-size: 12px;" onclick="return confirm('Delete this link?');"><?= _e('Delete') ?></a>
                                         </td>
                                     </tr>
                                     <?php
@@ -334,7 +334,7 @@ require_once __DIR__ . '/views/header.php';
                 </table>
 
                 <?php if (!empty($tree)): ?>
-                    <div style="padding: 14px 20px; background:#f8fafc; border-top:1px solid var(--border-subtle); text-align:right;">
+                    <div style="padding: 14px 20px; background: var(--bg-surface, #1e293b); border-top: 1px solid var(--border-subtle); text-align: right;">
                         <button type="submit" class="btn btn-primary"><?= _e('Save Menu Structure') ?></button>
                     </div>
                 <?php endif; ?>
