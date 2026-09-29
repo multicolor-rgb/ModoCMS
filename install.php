@@ -173,14 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($siteTitle) || empty($username) || empty($email) || strlen($password) < 6) {
         $error = $t['fill_all_fields'] ?? 'Please fill all required fields. Password must be at least 6 characters.';
     } else {
-        // Ensure directories exist with appropriate permissions
+        // Ensure system directories exist
         foreach ([$dataDir, $backupDir, $uploadsDir, $uploadsCacheDir] as $dir) {
             if (!is_dir($dir)) {
                 @mkdir($dir, 0775, true);
             }
         }
 
-        // Restrict direct HTTP access to data and backup directories on Apache servers
+        // Restrict direct HTTP access to data and backup directories
         $htaccessContent = "# Prevent direct access to databases and backups\n<IfModule authz_core_module>\n    Require all denied\n</IfModule>\n<IfModule !authz_core_module>\n    Deny from all\n</IfModule>\n";
         @file_put_contents($dataDir . '/.htaccess', $htaccessContent);
         @file_put_contents($backupDir . '/.htaccess', $htaccessContent);
@@ -306,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 CREATE INDEX idx_login_attempts_ip_time ON login_attempts(ip_address, attempted_at);
             ");
 
-            // Seed primary administrator account
+            // Seed administrator account
             $stmt = $pdo->prepare("INSERT INTO users (id, username, password_hash, email, role, admin_lang) VALUES (1, :u, :p, :e, 'admin', :l)");
             $stmt->execute([
                 ':u' => $username,
@@ -315,36 +315,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':l' => $defaultLang
             ]);
 
-            // Compile available languages string (e.g., "en:English,pl:Polski")
+            // Compile available languages string (e.g. "en:English,pl:Polski")
             $langsList = [];
             foreach ($availableLangs as $c => $n) {
                 $langsList[] = "{$c}:{$n}";
             }
             $availableLangsString = implode(',', $langsList);
 
-            // Seed core settings including security defaults
+            // Seed core settings
             $settings = [
-                'site_title' => $siteTitle,
-                'site_description' => 'A fast and minimal SQLite-powered website',
-                'active_theme' => 'default',
-                'posts_per_page' => '6',
-                'homepage_type' => 'page',
-                'homepage_page_id' => '1',
-                'posts_page_id' => '0',
-                'multilingual_frontend' => '0',
-                'default_language' => $defaultLang,
-                'available_languages' => $availableLangsString,
-                'custom_head_scripts' => '',
-                'custom_footer_scripts' => '',
+                'site_title'                   => $siteTitle,
+                'site_description'             => 'A fast and minimal SQLite-powered website',
+                'active_theme'                 => 'default',
+                'posts_per_page'               => '6',
+                'homepage_type'                => 'page',
+                'homepage_page_id'             => '1',
+                'posts_page_id'                => '0',
+                'multilingual_frontend'        => '0',
+                'default_language'             => $defaultLang,
+                'available_languages'          => $availableLangsString,
+                'custom_head_scripts'          => '',
+                'custom_footer_scripts'        => '',
                 'security_brute_force_enabled' => '1',
-                'security_headers_enabled' => '1'
+                'security_headers_enabled'     => '1'
             ];
             $setStmt = $pdo->prepare("INSERT INTO settings (key, value) VALUES (:k, :v)");
             foreach ($settings as $k => $v) {
                 $setStmt->execute([':k' => $k, ':v' => $v]);
             }
 
-            // Seed localized initial content
+            // Seed initial localized content using distinct prepared statements in a transaction
             $welcomeTitle = $t['welcome_page_title'] ?? 'Welcome to your new website';
             $welcomeContent = $t['welcome_page_content'] ?? '<p>ModoCMS has been successfully installed and configured.</p>';
             $firstPostTitle = $t['first_post_title'] ?? 'First Post';
@@ -353,27 +353,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $homeLabel = $t['home'] ?? 'Home';
             $blogLabel = $t['blog'] ?? 'Blog';
 
-            $contentStmt = $pdo->prepare("
-                INSERT INTO pages (id, parent_id, slug, title, content, type, status, lang, translation_group, author_id)
-                VALUES (1, 0, 'home', :wt, :wc, 'page', 'published', :lang, 'home-group', 1);
+            $pdo->beginTransaction();
 
+            $pageStmt = $pdo->prepare("
                 INSERT INTO pages (id, parent_id, slug, title, content, type, status, lang, translation_group, author_id)
-                VALUES (2, 0, 'first-post', :pt, :pc, 'post', 'published', :lang, 'post-group', 1);
-
-                INSERT INTO menus (id, name, slug) VALUES (1, :mn, 'main-menu');
-                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, :hl, '/', 1);
-                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, :bl, '/blog', 2);
+                VALUES (:id, 0, :slug, :title, :content, :type, 'published', :lang, :trans_group, 1)
             ");
-            $contentStmt->execute([
-                ':wt' => $welcomeTitle,
-                ':wc' => $welcomeContent,
-                ':pt' => $firstPostTitle,
-                ':pc' => $firstPostContent,
-                ':mn' => $mainMenuName,
-                ':hl' => $homeLabel,
-                ':bl' => $blogLabel,
-                ':lang' => $defaultLang
+
+            $pageStmt->execute([
+                ':id'          => 1,
+                ':slug'        => 'home',
+                ':title'       => $welcomeTitle,
+                ':content'     => $welcomeContent,
+                ':type'        => 'page',
+                ':lang'        => $defaultLang,
+                ':trans_group' => 'home-group'
             ]);
+
+            $pageStmt->execute([
+                ':id'          => 2,
+                ':slug'        => 'first-post',
+                ':title'       => $firstPostTitle,
+                ':content'     => $firstPostContent,
+                ':type'        => 'post',
+                ':lang'        => $defaultLang,
+                ':trans_group' => 'post-group'
+            ]);
+
+            $menuStmt = $pdo->prepare("INSERT INTO menus (id, name, slug) VALUES (1, :name, 'main-menu')");
+            $menuStmt->execute([':name' => $mainMenuName]);
+
+            $itemStmt = $pdo->prepare("
+                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order)
+                VALUES (1, 0, :title, :url, :sort)
+            ");
+            $itemStmt->execute([':title' => $homeLabel, ':url' => '/', ':sort' => 1]);
+            $itemStmt->execute([':title' => $blogLabel, ':url' => '/blog', ':sort' => 2]);
+
+            $pdo->commit();
 
             // Generate initial robots.txt and sitemap
             try {
@@ -404,6 +421,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: admin/login.php?installed=1');
             exit;
         } catch (PDOException $e) {
+            if ($pdo && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             $error = 'Database installation error: ' . $e->getMessage();
         }
     }

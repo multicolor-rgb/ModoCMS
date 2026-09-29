@@ -34,7 +34,7 @@ use Core\Hooks;
                 const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
                 document.documentElement.setAttribute('data-theme', nextTheme);
-                localStorage.setItem('clean_cms_theme', nextTheme);
+                localStorage.setItem('modo_cms_theme', nextTheme);
                 updateThemeUI();
             });
         }

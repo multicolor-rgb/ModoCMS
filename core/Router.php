@@ -55,7 +55,7 @@ final class Router {
         try {
             $db = Database::getConnection();
             $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-            $ipHash = hash('sha256', $ipAddress . 'clean_cms_salt');
+            $ipHash = hash('sha256', $ipAddress . 'modocms_salt');
 
             $checkStmt = $db->prepare("
                 SELECT id 
