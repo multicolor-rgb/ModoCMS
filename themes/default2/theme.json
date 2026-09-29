@@ -3,7 +3,7 @@
     "slug": "nazwa-motywu",
     "version": "1.0.0",
     "author": "Twórca motywu",
-    "description": "Profesjonalny, responsywny motyw dla Clean CMS oparty na Bootstrap 5.3.8 i czcionce Inter.",
+    "description": "Profesjonalny, responsywny motyw dla Modo CMS oparty na Bootstrap 5.3.8 i czcionce Inter.",
     "bootstrap_version": "5.3.8",
     "files": [
         "header.php", "footer.php", "page.php", "single.php",

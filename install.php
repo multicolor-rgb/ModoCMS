@@ -2,24 +2,33 @@
 declare(strict_types=1);
 
 $dataDir = __DIR__ . '/data';
+$backupDir = $dataDir . '/backups';
+$uploadsDir = __DIR__ . '/uploads';
+$uploadsCacheDir = $uploadsDir . '/cache';
 $dbFile = $dataDir . '/cms.sqlite';
+$langDir = __DIR__ . '/languages';
 
+// Prevent re-installation if database exists
 if (file_exists($dbFile)) {
     die('<!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Clean CMS &bull; Already Installed</title>
-        <link rel="stylesheet" href="/admin/assets/css/admin.css">
+        <title>ModoCMS &bull; Already Installed</title>
+        <link rel="stylesheet" href="admin/assets/css/admin.css">
         <style>
             :root {
+                color-scheme: dark;
                 --bg-body: #0b0f19;
                 --bg-card: #111827;
                 --border-color: #1f2937;
                 --text-main: #f9fafb;
                 --text-muted: #9ca3af;
                 --accent-primary: #3b82f6;
+                --warning-border: rgba(245, 158, 11, 0.3);
+                --warning-bg: rgba(245, 158, 11, 0.08);
+                --warning-text: #fbbf24;
             }
             body {
                 display: flex;
@@ -35,11 +44,11 @@ if (file_exists($dbFile)) {
             }
             .notice-card {
                 width: 100%;
-                max-width: 440px;
+                max-width: 460px;
                 background: var(--bg-card);
                 border: 1px solid var(--border-color);
                 border-radius: 16px;
-                padding: 32px;
+                padding: 36px 32px;
                 box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
                 text-align: center;
             }
@@ -57,9 +66,20 @@ if (file_exists($dbFile)) {
                 margin-bottom: 20px;
                 box-shadow: 0 8px 16px -4px rgba(37, 99, 235, 0.4);
             }
-            h2 { margin: 0 0 10px 0; font-size: 20px; font-weight: 700; }
-            p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin: 0 0 24px 0; }
-            code { background: #1f2937; color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+            h2 { margin: 0 0 12px 0; font-size: 20px; font-weight: 700; }
+            p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; }
+            .warning-box {
+                background: var(--warning-bg);
+                border: 1px solid var(--warning-border);
+                color: var(--warning-text);
+                padding: 12px 14px;
+                border-radius: 8px;
+                font-size: 13px;
+                line-height: 1.5;
+                margin-bottom: 24px;
+                text-align: left;
+            }
+            code { background: rgba(0, 0, 0, 0.3); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: ui-monospace, monospace; }
             .btn {
                 display: inline-block;
                 width: 100%;
@@ -78,29 +98,92 @@ if (file_exists($dbFile)) {
     </head>
     <body>
         <div class="notice-card">
-            <div class="brand-badge">C</div>
-            <h2>Clean CMS is already installed</h2>
-            <p>Database file <code>data/cms.sqlite</code> exists. If you wish to reinstall, remove this file from your server.</p>
-            <a href="/admin/" class="btn">Go to Admin Panel &rarr;</a>
+            <div class="brand-badge">M</div>
+            <h2>ModoCMS is already installed</h2>
+            <p>Your website is already configured and running.</p>
+            <div class="warning-box">
+                <strong>Security recommendation:</strong><br>
+                For security reasons, please delete the <code>install.php</code> file from your server root directory.
+            </div>
+            <a href="admin/" class="btn">Go to Admin Panel &rarr;</a>
         </div>
     </body>
     </html>');
 }
 
+// Auto-scan languages directory and parse JSON packs
+$availableLangs = [];
+$translations = [];
+
+if (is_dir($langDir)) {
+    foreach (glob($langDir . '/*.json') as $file) {
+        $code = strtolower(pathinfo($file, PATHINFO_FILENAME));
+        $content = @file_get_contents($file);
+        if ($content) {
+            $data = json_decode($content, true);
+            if (is_array($data)) {
+                $name = $data['_meta']['name'] ?? strtoupper($code);
+                $availableLangs[$code] = $name;
+                $translations[$code] = $data;
+            }
+        }
+    }
+}
+
+// Fallback dictionary if languages directory is empty
+if (empty($availableLangs)) {
+    $availableLangs['en'] = 'English';
+    $translations['en'] = [
+        'setup_title' => 'ModoCMS Setup',
+        'setup_desc' => 'Configure your lightweight instance',
+        'site_title' => 'Site Title',
+        'default_site_title' => 'My Website',
+        'language' => 'Language',
+        'admin_username' => 'Admin Username',
+        'admin_email' => 'Admin Email',
+        'admin_password' => 'Admin Password',
+        'password_placeholder' => 'Min. 6 characters',
+        'complete_install' => 'Complete Installation',
+        'fill_all_fields' => 'Please fill all required fields. Password must be at least 6 characters.',
+        'welcome_page_title' => 'Welcome to your new website',
+        'welcome_page_content' => '<p>ModoCMS has been successfully installed and configured.</p>',
+        'first_post_title' => 'First Post',
+        'first_post_content' => '<p>This is your first article published using ModoCMS.</p>',
+        'main_menu' => 'Main Menu',
+        'home' => 'Home',
+        'blog' => 'Blog'
+    ];
+}
+
+$initialLocale = isset($_GET['lang']) && isset($availableLangs[$_GET['lang']]) ? $_GET['lang'] : (isset($availableLangs['pl']) ? 'pl' : array_key_first($availableLangs));
+
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $siteTitle = trim($_POST['site_title'] ?? 'Clean CMS');
+    $defaultLang = trim($_POST['default_lang'] ?? $initialLocale);
+    if (!isset($availableLangs[$defaultLang])) {
+        $defaultLang = array_key_first($availableLangs);
+    }
+    $t = $translations[$defaultLang] ?? $translations[array_key_first($translations)];
+
+    $siteTitle = trim($_POST['site_title'] ?? ($t['default_site_title'] ?? 'My Website'));
     $username = trim($_POST['username'] ?? 'admin');
     $email = trim($_POST['email'] ?? 'admin@example.com');
     $password = $_POST['password'] ?? '';
-    $defaultLang = trim($_POST['default_lang'] ?? 'en');
 
     if (empty($siteTitle) || empty($username) || empty($email) || strlen($password) < 6) {
-        $error = 'Please fill all required fields. Password must be at least 6 characters.';
+        $error = $t['fill_all_fields'] ?? 'Please fill all required fields. Password must be at least 6 characters.';
     } else {
-        if (!is_dir($dataDir)) {
-            @mkdir($dataDir, 0775, true);
+        // Ensure directories exist with appropriate permissions
+        foreach ([$dataDir, $backupDir, $uploadsDir, $uploadsCacheDir] as $dir) {
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
         }
+
+        // Restrict direct HTTP access to data and backup directories on Apache servers
+        $htaccessContent = "# Prevent direct access to databases and backups\n<IfModule authz_core_module>\n    Require all denied\n</IfModule>\n<IfModule !authz_core_module>\n    Deny from all\n</IfModule>\n";
+        @file_put_contents($dataDir . '/.htaccess', $htaccessContent);
+        @file_put_contents($backupDir . '/.htaccess', $htaccessContent);
 
         try {
             $pdo = new PDO('sqlite:' . $dbFile);
@@ -211,12 +294,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     path TEXT NOT NULL,
                     ip_hash TEXT NOT NULL,
                     user_agent TEXT,
-                    visited_at DATE DEFAULT (DATE('now'))
+                    visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX idx_visits_date ON visits(visited_at);
+
+                CREATE TABLE login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT NOT NULL,
+                    attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX idx_login_attempts_ip_time ON login_attempts(ip_address, attempted_at);
             ");
 
-            // Seed admin account
+            // Seed primary administrator account
             $stmt = $pdo->prepare("INSERT INTO users (id, username, password_hash, email, role, admin_lang) VALUES (1, :u, :p, :e, 'admin', :l)");
             $stmt->execute([
                 ':u' => $username,
@@ -225,61 +315,123 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':l' => $defaultLang
             ]);
 
-            // Seed settings
+            // Compile available languages string (e.g., "en:English,pl:Polski")
+            $langsList = [];
+            foreach ($availableLangs as $c => $n) {
+                $langsList[] = "{$c}:{$n}";
+            }
+            $availableLangsString = implode(',', $langsList);
+
+            // Seed core settings including security defaults
             $settings = [
                 'site_title' => $siteTitle,
                 'site_description' => 'A fast and minimal SQLite-powered website',
                 'active_theme' => 'default',
                 'posts_per_page' => '6',
+                'homepage_type' => 'page',
+                'homepage_page_id' => '1',
+                'posts_page_id' => '0',
                 'multilingual_frontend' => '0',
                 'default_language' => $defaultLang,
-                'available_languages' => 'en:English,pl:Polski'
+                'available_languages' => $availableLangsString,
+                'custom_head_scripts' => '',
+                'custom_footer_scripts' => '',
+                'security_brute_force_enabled' => '1',
+                'security_headers_enabled' => '1'
             ];
             $setStmt = $pdo->prepare("INSERT INTO settings (key, value) VALUES (:k, :v)");
             foreach ($settings as $k => $v) {
                 $setStmt->execute([':k' => $k, ':v' => $v]);
             }
 
-            // Seed initial content
-            $pdo->exec("
+            // Seed localized initial content
+            $welcomeTitle = $t['welcome_page_title'] ?? 'Welcome to your new website';
+            $welcomeContent = $t['welcome_page_content'] ?? '<p>ModoCMS has been successfully installed and configured.</p>';
+            $firstPostTitle = $t['first_post_title'] ?? 'First Post';
+            $firstPostContent = $t['first_post_content'] ?? '<p>This is your first article published using ModoCMS.</p>';
+            $mainMenuName = $t['main_menu'] ?? 'Main Menu';
+            $homeLabel = $t['home'] ?? 'Home';
+            $blogLabel = $t['blog'] ?? 'Blog';
+
+            $contentStmt = $pdo->prepare("
                 INSERT INTO pages (id, parent_id, slug, title, content, type, status, lang, translation_group, author_id)
-                VALUES (1, 0, 'home', 'Welcome to your new website', '<p>Clean CMS has been successfully installed and configured.</p>', 'page', 'published', '{$defaultLang}', 'home-group', 1);
+                VALUES (1, 0, 'home', :wt, :wc, 'page', 'published', :lang, 'home-group', 1);
 
                 INSERT INTO pages (id, parent_id, slug, title, content, type, status, lang, translation_group, author_id)
-                VALUES (2, 0, 'first-post', 'First Post', '<p>This is your first article published using Clean CMS.</p>', 'post', 'published', '{$defaultLang}', 'post-group', 1);
+                VALUES (2, 0, 'first-post', :pt, :pc, 'post', 'published', :lang, 'post-group', 1);
 
-                INSERT INTO menus (id, name, slug) VALUES (1, 'Main Menu', 'main-menu');
-                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, 'Home', '/', 1);
-                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, 'Blog', '/blog', 2);
+                INSERT INTO menus (id, name, slug) VALUES (1, :mn, 'main-menu');
+                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, :hl, '/', 1);
+                INSERT INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, :bl, '/blog', 2);
             ");
+            $contentStmt->execute([
+                ':wt' => $welcomeTitle,
+                ':wc' => $welcomeContent,
+                ':pt' => $firstPostTitle,
+                ':pc' => $firstPostContent,
+                ':mn' => $mainMenuName,
+                ':hl' => $homeLabel,
+                ':bl' => $blogLabel,
+                ':lang' => $defaultLang
+            ]);
 
-            header('Location: /admin/login.php?installed=1');
+            // Generate initial robots.txt and sitemap
+            try {
+                $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+                $baseDir = str_replace('\\', '/', dirname($scriptName));
+                $baseDir = ($baseDir === '/' || $baseDir === '.') ? '' : rtrim($baseDir, '/');
+                $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $siteUrl = rtrim($scheme . $host . $baseDir, '/');
+
+                $robotsContent = "User-agent: *\n" .
+                                 "Allow: /\n" .
+                                 "Disallow: /admin/\n" .
+                                 "Disallow: /core/\n" .
+                                 "Disallow: /data/\n" .
+                                 "Disallow: /uploads/cache/\n\n" .
+                                 "Sitemap: " . $siteUrl . "/sitemap.xml\n";
+                @file_put_contents(__DIR__ . '/robots.txt', $robotsContent);
+
+                if (file_exists(__DIR__ . '/core/bootstrap.php')) {
+                    require_once __DIR__ . '/core/bootstrap.php';
+                    if (class_exists('Core\Sitemap')) {
+                        \Core\Sitemap::generate();
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            header('Location: admin/login.php?installed=1');
             exit;
         } catch (PDOException $e) {
             $error = 'Database installation error: ' . $e->getMessage();
         }
     }
 }
+
+$curT = $translations[$initialLocale] ?? reset($translations);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= htmlspecialchars($initialLocale, ENT_QUOTES, 'UTF-8') ?>" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clean CMS &bull; Installation</title>
-    <link rel="stylesheet" href="/admin/assets/css/admin.css">
+    <title>ModoCMS &bull; Installation</title>
+    <link rel="stylesheet" href="admin/assets/css/admin.css">
     <style>
         :root {
+            color-scheme: dark;
             --bg-body: #0b0f19;
             --bg-card: #111827;
-            --border-color: #1f2937;
+            --bg-input: #1e293b;
+            --border-color: #334155;
             --border-focus: #3b82f6;
-            --text-main: #f9fafb;
-            --text-muted: #9ca3af;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
             --accent-primary: #3b82f6;
             --accent-hover: #2563eb;
-            --danger-bg: rgba(239, 68, 68, 0.12);
-            --danger-border: rgba(239, 68, 68, 0.3);
+            --danger-bg: rgba(239, 68, 68, 0.15);
+            --danger-border: rgba(239, 68, 68, 0.35);
             --danger-text: #f87171;
         }
         * { box-sizing: border-box; }
@@ -301,7 +453,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 36px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
         }
         .header-area {
             display: flex;
@@ -350,7 +502,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .form-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.2fr 0.8fr;
             gap: 14px;
         }
         .form-label {
@@ -362,23 +514,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: var(--text-muted);
             margin-bottom: 7px;
         }
-        .form-control {
-            width: 100%;
-            padding: 11px 14px;
-            background: #0b0f19;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-main);
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .form-control:focus {
-            border-color: var(--border-focus);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
+        .form-control,
+        input.form-control,
         select.form-control {
-            cursor: pointer;
+            width: 100% !important;
+            padding: 11px 14px !important;
+            background-color: var(--bg-input) !important;
+            background: var(--bg-input) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            color: var(--text-main) !important;
+            font-size: 14px !important;
+            outline: none !important;
+            transition: border-color 0.2s, box-shadow 0.2s !important;
+            color-scheme: dark !important;
+        }
+        .form-control:focus,
+        input.form-control:focus,
+        select.form-control:focus {
+            border-color: var(--border-focus) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+        }
+        .form-control::placeholder,
+        input.form-control::placeholder {
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+        input.form-control:-webkit-autofill,
+        input.form-control:-webkit-autofill:hover, 
+        input.form-control:-webkit-autofill:focus {
+            -webkit-text-fill-color: var(--text-main) !important;
+            -webkit-box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+            transition: background-color 5000s ease-in-out 0s !important;
+        }
+        select.form-control option {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
         }
         .btn-submit {
             width: 100%;
@@ -410,10 +581,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="install-box">
         <div class="header-area">
-            <div class="brand-badge">C</div>
+            <div class="brand-badge">M</div>
             <div>
-                <h1 class="header-title">Clean CMS Setup</h1>
-                <p class="header-desc">Configure your lightweight instance</p>
+                <h1 class="header-title" data-i18n="setup_title"><?= htmlspecialchars($curT['setup_title'] ?? 'ModoCMS Setup') ?></h1>
+                <p class="header-desc" data-i18n="setup_desc"><?= htmlspecialchars($curT['setup_desc'] ?? 'Configure your lightweight instance') ?></p>
             </div>
         </div>
 
@@ -426,14 +597,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="">
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Site Title</label>
-                    <input class="form-control" type="text" name="site_title" value="My Website" required autofocus>
+                    <label class="form-label" data-i18n="site_title"><?= htmlspecialchars($curT['site_title'] ?? 'Site Title') ?></label>
+                    <input class="form-control" type="text" id="site_title_input" name="site_title" value="<?= htmlspecialchars($curT['default_site_title'] ?? 'My Website') ?>" required autofocus>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Language</label>
-                    <select class="form-control" name="default_lang">
-                        <option value="en">English (EN)</option>
-                        <option value="pl">Polski (PL)</option>
+                    <label class="form-label" data-i18n="language"><?= htmlspecialchars($curT['language'] ?? 'Language') ?></label>
+                    <select class="form-control" name="default_lang" id="lang_selector">
+                        <?php foreach ($availableLangs as $code => $name): ?>
+                            <option value="<?= htmlspecialchars($code) ?>" <?= $code === $initialLocale ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($name) ?> (<?= strtoupper($code) ?>)
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
             </div>
@@ -441,24 +615,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="divider"></div>
 
             <div class="form-group">
-                <label class="form-label">Admin Username</label>
+                <label class="form-label" data-i18n="admin_username"><?= htmlspecialchars($curT['admin_username'] ?? 'Admin Username') ?></label>
                 <input class="form-control" type="text" name="username" value="admin" required autocomplete="username">
             </div>
 
             <div class="form-group">
-                <label class="form-label">Admin Email</label>
+                <label class="form-label" data-i18n="admin_email"><?= htmlspecialchars($curT['admin_email'] ?? 'Admin Email') ?></label>
                 <input class="form-control" type="email" name="email" value="admin@example.com" required autocomplete="email">
             </div>
 
             <div class="form-group">
-                <label class="form-label">Admin Password</label>
-                <input class="form-control" type="password" name="password" required minlength="6" placeholder="Min. 6 characters" autocomplete="new-password">
+                <label class="form-label" data-i18n="admin_password"><?= htmlspecialchars($curT['admin_password'] ?? 'Admin Password') ?></label>
+                <input class="form-control" type="password" id="password_input" name="password" required minlength="6" placeholder="<?= htmlspecialchars($curT['password_placeholder'] ?? 'Min. 6 characters') ?>" autocomplete="new-password">
             </div>
 
-            <button type="submit" class="btn-submit">
-                Complete Installation &rarr;
+            <button type="submit" class="btn-submit" id="submit_button">
+                <span data-i18n="complete_install"><?= htmlspecialchars($curT['complete_install'] ?? 'Complete Installation') ?></span> &rarr;
             </button>
         </form>
     </div>
+
+    <script>
+        const translations = <?= json_encode($translations, JSON_UNESCAPED_UNICODE) ?>;
+        const langSelector = document.getElementById('lang_selector');
+        const siteTitleInput = document.getElementById('site_title_input');
+        const passwordInput = document.getElementById('password_input');
+
+        function applyLocale(locale) {
+            const t = translations[locale];
+            if (!t) return;
+
+            document.documentElement.lang = locale;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    el.textContent = t[key];
+                }
+            });
+
+            if (t['password_placeholder']) {
+                passwordInput.placeholder = t['password_placeholder'];
+            }
+
+            const previousDefaults = Object.values(translations).map(dict => dict['default_site_title']);
+            if (previousDefaults.includes(siteTitleInput.value.trim()) || siteTitleInput.value.trim() === '') {
+                siteTitleInput.value = t['default_site_title'] || 'My Website';
+            }
+        }
+
+        langSelector.addEventListener('change', (e) => {
+            applyLocale(e.target.value);
+        });
+    </script>
 </body>
 </html>

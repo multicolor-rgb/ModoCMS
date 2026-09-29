@@ -37,7 +37,7 @@ function resolve_media_url(string $path): string {
 
 // Site Details
 function site_title(bool $echo = true): string {
-    $val = Hooks::applyFilters('site_title', Router::getOption('site_title', 'Clean CMS'));
+    $val = Hooks::applyFilters('site_title', Router::getOption('site_title', 'Modo CMS'));
     if ($echo) echo htmlspecialchars($val, ENT_QUOTES, 'UTF-8');
     return $val;
 }
@@ -397,7 +397,7 @@ function lang_switch(string $cssClass = 'lang-switcher'): void {
 
 function theme_head(): void {
     $seo = ThemeState::$seoPayload;
-    $title = $seo['title'] ?? Router::getOption('site_title', 'Clean CMS');
+    $title = $seo['title'] ?? Router::getOption('site_title', 'Modo CMS');
     $desc = $seo['description'] ?? Router::getOption('site_description', '');
 
     // Resolve OpenGraph Image (page featured image or fallback global setting)
@@ -417,7 +417,7 @@ function theme_head(): void {
 
     // Resolve Favicon
     $favicon = Router::getOption('site_favicon', '');
-    $ogSiteName = Router::getOption('og_site_name', Router::getOption('site_title', 'Clean CMS'));
+    $ogSiteName = Router::getOption('og_site_name', Router::getOption('site_title', 'Modo CMS'));
 
     // Output metadata
     echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>' . PHP_EOL;

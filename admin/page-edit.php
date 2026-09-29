@@ -7,6 +7,7 @@ use Core\Security;
 use Core\Auth;
 use Core\I18n;
 use Core\Router;
+use Core\Sitemap;
 
 Auth::requireCapability('manage_pages');
 
@@ -139,6 +140,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (class_exists('Hooks')) {
         \Hooks::doAction('admin-save-page', $id);
+    }
+
+    // Automatyczna aktualizacja sitemapy Google
+    if (class_exists('Core\Sitemap')) {
+        try {
+            Sitemap::generate();
+        } catch (\Throwable $e) {
+            // Unikaj blokowania zapisu dokumentu w razie problemów z plikiem
+        }
     }
 
     header('Location: page-edit.php?id=' . $id . '&saved=1');
@@ -359,15 +369,12 @@ require_once __DIR__ . '/views/header.php';
 
     <div class="editor-layout">
         
-        <!-- Main Column: Editor & SEO Content -->
         <div style="display: flex; flex-direction: column; gap: 24px;">
             <div class="card" style="padding: 24px;">
-                <!-- Title Field -->
                 <div class="form-group" style="margin-bottom: 16px;">
                     <input class="title-input-large" type="text" id="title" name="title" value="<?= Security::sanitize($item['title']) ?>" placeholder="<?= _e('Document Title...') ?>" required autofocus>
                 </div>
 
-                <!-- Interactive Permalink Slug Bar -->
                 <div class="form-group" style="margin-bottom: 24px;">
                     <label class="form-label" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px;"><?= _e('Permalink / URL Structure') ?></label>
                     <div class="permalink-bar">
@@ -384,16 +391,13 @@ require_once __DIR__ . '/views/header.php';
                     </div>
                 </div>
 
-                <!-- Rich WYSIWYG Editor Container -->
                 <div class="form-group" style="margin-bottom: 0;">
                     <textarea id="editor" name="content"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
             </div>
 
-            <!-- Plugin Action Hook -->
             <?php if (class_exists('Hooks')) { \Hooks::doAction('admin-edit-form-content', $id); } ?>
 
-            <!-- SEO & Meta Tags Panel -->
             <div class="card" style="padding: 24px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 18px;">
                     <h2 style="font-size: 15px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
@@ -415,10 +419,8 @@ require_once __DIR__ . '/views/header.php';
             </div>
         </div>
 
-        <!-- Right Sidebar: Configuration, Hierarchy & Media -->
         <div style="display: flex; flex-direction: column; gap: 24px;">
             
-            <!-- Publishing & Status Box -->
             <div class="card" style="padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h3 style="font-size: 14px; font-weight: 700; margin: 0; color: var(--text-main);"><?= _e('Document Settings') ?></h3>
@@ -443,7 +445,6 @@ require_once __DIR__ . '/views/header.php';
                     </select>
                 </div>
 
-                <!-- Hierarchical Parent Page Selector -->
                 <div class="form-group" id="parent-page-group" style="<?= $item['type'] === 'page' ? '' : 'display: none;' ?>; margin-bottom: 14px;">
                     <label class="form-label" for="parent_id" style="font-size: 12px; font-weight: 600;"><?= _e('Parent Page') ?></label>
                     <select class="form-control" name="parent_id" id="parent_id">
@@ -497,7 +498,6 @@ require_once __DIR__ . '/views/header.php';
                 </button>
             </div>
 
-            <!-- Featured Image Card -->
             <div class="card" style="padding: 20px;">
                 <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 14px 0; color: var(--text-main);"><?= _e('Featured Image') ?></h3>
                 
@@ -528,14 +528,12 @@ require_once __DIR__ . '/views/header.php';
                 </div>
             </div>
 
-            <!-- Plugin Action Hook for Sidebar -->
             <?php if (class_exists('Hooks')) { \Hooks::doAction('admin-edit-form', $id); } ?>
 
         </div>
     </div>
 </form>
 
-<!-- Modal: Media Library Selector -->
 <div id="media-modal" style="display: none; position: fixed; inset: 0; background: rgba(11, 15, 25, 0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
     <div class="card" style="width: 90%; max-width: 860px; max-height: 85vh; padding: 0; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); overflow: hidden; background: var(--bg-card, #111827); border: 1px solid var(--border-subtle);">
         <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">

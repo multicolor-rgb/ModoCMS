@@ -7,6 +7,7 @@ use Core\Database;
 use Core\Security;
 use Core\Router;
 use Core\I18n;
+use Core\Sitemap;
 
 Auth::requireCapability('manage_settings');
 
@@ -25,6 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'site_description'       => trim($_POST['site_description'] ?? ''),
         'posts_per_page'         => (string)max(1, (int)($_POST['posts_per_page'] ?? 6)),
         'active_theme'           => basename(trim($_POST['active_theme'] ?? 'default')),
+        'homepage_type'          => in_array($_POST['homepage_type'] ?? '', ['page', 'posts'], true) ? $_POST['homepage_type'] : 'page',
+        'homepage_page_id'       => (string)(int)($_POST['homepage_page_id'] ?? 0),
+        'posts_page_id'          => (string)(int)($_POST['posts_page_id'] ?? 0),
         'multilingual_frontend'  => $multilingual,
         'default_language'       => trim($_POST['default_language'] ?? 'en'),
         'admin_language'         => trim($_POST['admin_language'] ?? 'en'),
@@ -47,6 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($settings as $k => $v) {
         $stmt->execute([':k' => $k, ':v' => $v]);
     }
+
+    if (class_exists('Core\Sitemap')) {
+        try {
+            Sitemap::generate();
+        } catch (\Throwable $e) {}
+    }
     
     $saved = true;
 }
@@ -54,18 +64,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $themes = array_filter(glob(__DIR__ . '/../themes/*'), 'is_dir');
 $basePrefix = class_exists('Core\Router') ? Router::getBaseSubdirectory() : '';
 
+// Pobieranie opublikowanych stron statycznych do wyboru w ustawieniach
+$availablePages = $db->query("
+    SELECT id, title, slug, lang 
+    FROM pages 
+    WHERE type = 'page' AND status = 'published' 
+    ORDER BY lang ASC, title ASC
+")->fetchAll();
+
 require_once __DIR__ . '/views/header.php';
 ?>
 
 <div class="page-header">
     <div>
         <h1 class="page-title"><?= _e('System Settings') ?></h1>
-        <p style="color: var(--text-muted); font-size: 13px;"><?= _e('Configure global parameters, branding, analytics tags, editor settings, and localization') ?></p>
+        <p style="color: var(--text-muted); font-size: 13px;"><?= _e('Configure global parameters, homepage display, analytics tags, editor, and localization') ?></p>
     </div>
 </div>
 
 <?php if ($saved): ?>
-    <div class="card" style="border-left: 4px solid var(--success); padding: 12px; margin-bottom: 24px;">
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); background: rgba(16, 185, 129, 0.08); padding: 12px 16px; margin-bottom: 24px; color: #34d399; font-weight: 500;">
         <?= _e('Settings saved successfully.') ?>
     </div>
 <?php endif; ?>
@@ -73,7 +91,6 @@ require_once __DIR__ . '/views/header.php';
 <form method="POST" action="">
     <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
 
-    <!-- Single Column Full Width Layout -->
     <div style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
         
         <!-- 1. Site Identity & Presentation -->
@@ -84,7 +101,7 @@ require_once __DIR__ . '/views/header.php';
 
             <div class="form-group">
                 <label class="form-label" for="site_title"><?= _e('Site Title') ?></label>
-                <input class="form-control" type="text" id="site_title" name="site_title" value="<?= Security::sanitize(Router::getOption('site_title', 'Clean CMS')) ?>" required>
+                <input class="form-control" type="text" id="site_title" name="site_title" value="<?= Security::sanitize(Router::getOption('site_title', 'Modo CMS')) ?>" required>
             </div>
 
             <div class="form-group">
@@ -107,6 +124,53 @@ require_once __DIR__ . '/views/header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+            </div>
+
+            <!-- Homepage & Posts Reading Settings -->
+            <?php 
+                $homepageType = Router::getOption('homepage_type', 'page');
+                $homePageId = (int)Router::getOption('homepage_page_id', 0);
+                $postsPageId = (int)Router::getOption('posts_page_id', 0);
+            ?>
+            <div style="background: var(--bg-surface, #1e293b); padding: 16px; border-radius: var(--radius-sm, 8px); border: 1px solid var(--border-subtle); margin-top: 10px;">
+                <label class="form-label" style="font-weight: 700; color: var(--text-main); margin-bottom: 10px;"><?= _e('Homepage Displays') ?></label>
+                
+                <div style="display: flex; gap: 20px; margin-bottom: 14px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                        <input type="radio" name="homepage_type" value="page" <?= $homepageType === 'page' ? 'checked' : '' ?> onchange="toggleHomepageDropdowns()">
+                        <?= _e('A static page (select below)') ?>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                        <input type="radio" name="homepage_type" value="posts" <?= $homepageType === 'posts' ? 'checked' : '' ?> onchange="toggleHomepageDropdowns()">
+                        <?= _e('Your latest blog posts') ?>
+                    </label>
+                </div>
+
+                <div id="static-pages-selection" style="display: <?= $homepageType === 'page' ? 'grid' : 'none' ?>; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="homepage_page_id" style="font-size: 12px;"><?= _e('Homepage') ?></label>
+                        <select class="form-control" name="homepage_page_id" id="homepage_page_id">
+                            <option value="0">&mdash; <?= _e('Default (slug: "home")') ?> &mdash;</option>
+                            <?php foreach ($availablePages as $p): ?>
+                                <option value="<?= $p['id'] ?>" <?= $homePageId === (int)$p['id'] ? 'selected' : '' ?>>
+                                    <?= Security::sanitize($p['title']) ?> (/<?= Security::sanitize($p['slug']) ?>) [<?= strtoupper($p['lang']) ?>]
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="posts_page_id" style="font-size: 12px;"><?= _e('Posts Page (Blog)') ?></label>
+                        <select class="form-control" name="posts_page_id" id="posts_page_id">
+                            <option value="0">&mdash; <?= _e('Default (/blog)') ?> &mdash;</option>
+                            <?php foreach ($availablePages as $p): ?>
+                                <option value="<?= $p['id'] ?>" <?= $postsPageId === (int)$p['id'] ? 'selected' : '' ?>>
+                                    <?= Security::sanitize($p['title']) ?> (/<?= Security::sanitize($p['slug']) ?>) [<?= strtoupper($p['lang']) ?>]
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -302,6 +366,14 @@ require_once __DIR__ . '/views/header.php';
 </form>
 
 <script>
+function toggleHomepageDropdowns() {
+    const isPage = document.querySelector('input[name="homepage_type"]:checked')?.value === 'page';
+    const box = document.getElementById('static-pages-selection');
+    if (box) {
+        box.style.display = isPage ? 'grid' : 'none';
+    }
+}
+
 let currentTargetField = null;
 let currentPreviewImg = null;
 let currentPlaceholder = null;

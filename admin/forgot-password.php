@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Wysłanie wiadomości e-mail (jeśli e-mail istnieje w bazie)
                 $userEmail = $foundUser['email'] ?? null;
                 if ($userEmail && filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
-                    $subject = "=?UTF-8?B?" . base64_encode(__('Clean CMS - Password Reset Request')) . "?=";
+                    $subject = "=?UTF-8?B?" . base64_encode(__('Modo CMS - Password Reset Request')) . "?=";
                     $body = sprintf(
                         __("Hello %s,\n\nA password reset request was made for your account.\nClick the link below to set a new password:\n\n%s\n\nThis link is valid for 1 hour.\nIf you did not request this, you can safely ignore this email."),
                         $foundUser['username'],
@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= _e('Reset Password - Clean CMS') ?></title>
+    <title><?= _e('Reset Password - Modo CMS') ?></title>
     <link rel="stylesheet" href="assets/css/admin.css">
     <style>
         body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #0b0f19; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
             <div class="brand-badge" style="width: 38px; height: 38px; font-size: 18px;">C</div>
             <div>
-                <h1 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Clean CMS</h1>
+                <h1 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Modo CMS</h1>
                 <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
                     <?= $step === 'reset' ? _e('Set a new password') : _e('Password recovery') ?>
                 </p>

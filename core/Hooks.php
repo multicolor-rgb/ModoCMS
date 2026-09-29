@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Core;
 
 /**
- * Event and filter dispatcher for Clean CMS.
+ * Event and filter dispatcher for Modo CMS.
  */
 class Hooks {
     protected static array $actions = [];

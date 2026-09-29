@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= _e('Sign in to Clean CMS') ?></title>
+    <title><?= _e('Sign in to Modo CMS') ?></title>
     <link rel="stylesheet" href="assets/css/admin.css">
     <style>
         body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #0b0f19; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -45,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
             <div class="brand-badge" style="width: 38px; height: 38px; font-size: 18px;">C</div>
             <div>
-                <h1 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Clean CMS</h1>
-                <p style="font-size: 13px; color: var(--text-muted); margin: 0;"><?= _e('Sign in to Clean CMS') ?></p>
+                <h1 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Modo CMS</h1>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0;"><?= _e('Sign in to Modo CMS') ?></p>
             </div>
         </div>
 

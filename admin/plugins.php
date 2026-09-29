@@ -97,7 +97,7 @@ require_once __DIR__ . '/views/header.php';
 <div class="page-header">
     <div>
         <h1 class="page-title"><?= _e('Plugin Management') ?></h1>
-        <p style="color: var(--text-muted); font-size: 13px;"><?= _e('Extend Clean CMS with modular hooks, filters, and legacy GetSimple plugins') ?></p>
+        <p style="color: var(--text-muted); font-size: 13px;"><?= _e('Extend Modo CMS with modular hooks, filters, and legacy GetSimple plugins') ?></p>
     </div>
 </div>
 

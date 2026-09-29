@@ -1,5 +1,5 @@
 cat << 'EOF' > README.md
-# Clean CMS
+# Modo CMS
 
 [Polski](#polski) | [English](#english)
 
@@ -8,7 +8,7 @@ cat << 'EOF' > README.md
 <a name="polski"></a>
 # Polski
 
-**Clean CMS** to lekki, szybki i modułowy system zarządzania treścią (CMS) oparty na **PHP 8.x** oraz bazie danych **SQLite3**. Zaprojektowany z myślą o programistach ceniących czytelną architekturę opartą na prostych funkcjach proceduralnych, brak zbędnego narzutu obiektowego oraz pełną kontrolę nad kodem szablonów i wtyczek.
+**Modo CMS** to lekki, szybki i modułowy system zarządzania treścią (CMS) oparty na **PHP 8.x** oraz bazie danych **SQLite3**. Zaprojektowany z myślą o programistach ceniących czytelną architekturę opartą na prostych funkcjach proceduralnych, brak zbędnego narzutu obiektowego oraz pełną kontrolę nad kodem szablonów i wtyczek.
 
 ---
 

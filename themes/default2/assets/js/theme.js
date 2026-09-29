@@ -1,4 +1,4 @@
-// theme.js — skrypt motywu Clean CMS (bootstrap-only, bez zewnętrznych zależności)
+// theme.js — skrypt motywu Modo CMS (bootstrap-only, bez zewnętrznych zależności)
 document.addEventListener('DOMContentLoaded', function () {
 
     var backToTop = document.getElementById('backToTop');

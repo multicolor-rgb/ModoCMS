@@ -1,4 +1,4 @@
-# Nazwa Motywu — motyw dla Clean CMS
+# Nazwa Motywu — motyw dla Modo CMS
 
 Profesjonalny, w pełni responsywny motyw oparty na Bootstrap 5.3.8 i czcionce Inter (Google Fonts).
 
@@ -6,7 +6,7 @@ Profesjonalny, w pełni responsywny motyw oparty na Bootstrap 5.3.8 i czcionce I
 
 1. Skopiuj cały folder `nazwa-motywu/` do:
    `/var/www/html/cleancms/themes/nazwa-motywu/`
-2. Zaloguj się do panelu admina Clean CMS.
+2. Zaloguj się do panelu admina Modo CMS.
 3. Przejdź do **Settings** (`admin/settings.php`).
 4. W polu **Active Theme** wybierz `nazwa-motywu` i zapisz.
 

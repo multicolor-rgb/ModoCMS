@@ -47,7 +47,7 @@
                     &copy; <?= date('Y') ?> <?= Security::sanitize(get_site_title()) ?>. <?= _e('All rights reserved.') ?>
                 </p>
                 <p class="mb-0 small text-secondary">
-                    <?= _e('Zbudowano na') ?> Clean CMS
+                    <?= _e('Zbudowano na') ?> Modo CMS
                 </p>
             </div>
         </div>

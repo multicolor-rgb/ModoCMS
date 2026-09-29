@@ -138,7 +138,7 @@ require_once __DIR__ . '/views/header.php';
     <div class="card">
         <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">REST API Access</h2>
         <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
-            Token used to authenticate external integrations sending content to Clean CMS.
+            Token used to authenticate external integrations sending content to Modo CMS.
         </p>
 
         <form method="POST" action="">

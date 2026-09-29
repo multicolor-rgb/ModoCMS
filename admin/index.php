@@ -7,6 +7,7 @@ use Core\Database;
 use Core\Security;
 use Core\Auth;
 use Core\Hooks;
+use Core\Sitemap;
 
 $db = Database::getConnection();
 $msg = '';
@@ -28,6 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 ':g' => bin2hex(random_bytes(8)),
                 ':a' => Auth::id()
             ]);
+
+            // Automatyczna aktualizacja sitemapy Google
+            if (class_exists('Core\Sitemap')) {
+                try {
+                    Sitemap::generate();
+                } catch (\Throwable $e) {}
+            }
+
             $msg = __('Draft saved successfully.');
         }
     }
@@ -118,7 +127,7 @@ $recentContent = $db->query("
 
 <!-- Dashboard Main Grid: Analytics & Recent Content vs Sidebar Modules -->
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
-    
+
     <!-- LEFT COLUMN: Traffic Analytics & Recent Content -->
     <div>
         <!-- Analytics & Popular Pages Card -->

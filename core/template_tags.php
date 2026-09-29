@@ -25,7 +25,7 @@ function get_footer(): void {
  * Outputs site title.
  */
 function get_site_title(): string {
-    return Security::sanitize(Router::getOption('site_title', 'Clean CMS'));
+    return Security::sanitize(Router::getOption('site_title', 'Modo CMS'));
 }
 
 /**
