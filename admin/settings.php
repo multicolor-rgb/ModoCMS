@@ -147,7 +147,7 @@ require_once __DIR__ . '/views/header.php';
                 <label class="form-label" for="site_url"><?= _e('Site Address (Domain)') ?></label>
                 <input class="form-control" type="text" id="site_url" name="site_url" value="<?= Security::sanitize(Router::getOption('site_url', '')) ?>" placeholder="<?= Security::sanitize(Router::getSiteUrl()) ?>">
                 <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px; line-height: 1.4;">
-                    <?= _e('Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.') ?>
+                    <?= _e('Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Enter just the domain (e.g. https://example.com) and the installation subfolder is added automatically, or the full address including the subfolder (e.g. https://example.com/modocms). Leave empty to auto-detect it from the current request.') ?>
                 </small>
             </div>
 
@@ -412,7 +412,7 @@ require_once __DIR__ . '/views/header.php';
         <?= _e('Domain Migration') ?>
     </h3>
     <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
-        <?= _e('Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.') ?>
+        <?= _e('Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain. The subfolder may be included, e.g. old localhost/modocms to new example.com.') ?>
     </p>
 
     <?php if ($migrationError !== ''): ?>

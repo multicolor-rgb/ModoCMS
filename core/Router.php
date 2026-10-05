@@ -438,9 +438,16 @@ final class Router {
      * working out of the box without any manual configuration.
      */
     public static function getSiteUrl(): string {
-        $configured = trim(self::getOption('site_url', ''));
+        $configured = rtrim(trim(self::getOption('site_url', '')), '/');
         if ($configured !== '') {
-            return rtrim($configured, '/');
+            // If the configured value already contains a path (subfolder), trust it verbatim.
+            $path = parse_url($configured, PHP_URL_PATH);
+            if ($path !== null && $path !== '' && $path !== '/') {
+                return $configured;
+            }
+
+            // Origin-only: respect the actual installation subfolder (root or /subfolder).
+            return rtrim($configured . self::getBaseSubdirectory(), '/');
         }
 
         return rtrim(self::getSiteOrigin() . self::getBaseSubdirectory(), '/');

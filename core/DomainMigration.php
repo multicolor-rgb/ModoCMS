@@ -51,6 +51,44 @@ final class DomainMigration
     }
 
     /**
+     * Normalizes a user supplied domain/URL into a full base: "host" or
+     * "host/subfolder" (no scheme, no trailing slash). The host part is
+     * lowercased while the subfolder path is preserved. Examples:
+     *   "https://Example.com/modocms/" -> "example.com/modocms"
+     *   "http://localhost:8000/"       -> "localhost:8000"
+     */
+    public static function normalizeBase(string $input): string
+    {
+        $input = trim($input);
+        if ($input === '') {
+            return '';
+        }
+
+        // Strip scheme (http://, https://, ...) and protocol-relative "//"
+        $input = (string)preg_replace('#^[a-z][a-z0-9+.\-]*://#i', '', $input);
+        $input = (string)preg_replace('#^//#', '', $input);
+
+        // Drop query string and fragment, keep the path
+        $parts = preg_split('~[?#]~', $input);
+        $input = rtrim($parts[0] ?? $input, '/');
+
+        if ($input === '') {
+            return '';
+        }
+
+        // Lowercase the host (authority) only, preserve path casing
+        $slashPos = strpos($input, '/');
+        if ($slashPos === false) {
+            return strtolower($input);
+        }
+
+        $host = strtolower(substr($input, 0, $slashPos));
+        $path = substr($input, $slashPos);
+
+        return $host . $path;
+    }
+
+    /**
      * Returns the alternate www / non-www representation of a host, or '' when
      * a sensible counterpart cannot be derived (IPs, ports, "localhost").
      */
@@ -69,21 +107,44 @@ final class DomainMigration
     }
 
     /**
+     * Returns the alternate www / non-www form of a full base ("host" or
+     * "host/subfolder"), preserving the subfolder path.
+     */
+    public static function wwwVariantBase(string $base): string
+    {
+        if ($base === '') {
+            return '';
+        }
+
+        $slashPos = strpos($base, '/');
+        $host = $slashPos === false ? $base : substr($base, 0, $slashPos);
+        $path = $slashPos === false ? '' : substr($base, $slashPos);
+
+        $variantHost = self::wwwVariant($host);
+        if ($variantHost === '') {
+            return '';
+        }
+
+        return $variantHost . $path;
+    }
+
+    /**
      * Builds the ordered [search => replace] map used for the replacement.
+     * Accepts full bases ("host" or "host/subfolder").
      *
      * @return array<string,string>
      */
-    public static function buildPairs(string $oldHost, string $newHost, bool $includeWww): array
+    public static function buildPairs(string $oldBase, string $newBase, bool $includeWww): array
     {
         $pairs = [];
 
-        if ($oldHost !== '' && $newHost !== '' && $oldHost !== $newHost) {
-            $pairs[$oldHost] = $newHost;
+        if ($oldBase !== '' && $newBase !== '' && $oldBase !== $newBase) {
+            $pairs[$oldBase] = $newBase;
         }
 
         if ($includeWww) {
-            $oldWww = self::wwwVariant($oldHost);
-            $newWww = self::wwwVariant($newHost);
+            $oldWww = self::wwwVariantBase($oldBase);
+            $newWww = self::wwwVariantBase($newBase);
             if ($oldWww !== '' && $newWww !== '' && $oldWww !== $newWww && !isset($pairs[$oldWww])) {
                 $pairs[$oldWww] = $newWww;
             }
@@ -99,20 +160,20 @@ final class DomainMigration
      */
     public static function preview(string $oldDomain, ?string $newDomain = null, bool $includeWww = false): array
     {
-        $oldHost = self::normalizeHost($oldDomain);
-        if ($oldHost === '') {
+        $oldBase = self::normalizeBase($oldDomain);
+        if ($oldBase === '') {
             return [];
         }
 
-        $newHost = $newDomain !== null ? self::normalizeHost($newDomain) : '';
+        $newBase = $newDomain !== null ? self::normalizeBase($newDomain) : '';
 
-        if ($newHost !== '' && $newHost !== $oldHost) {
-            $pairs = self::buildPairs($oldHost, $newHost, $includeWww);
+        if ($newBase !== '' && $newBase !== $oldBase) {
+            $pairs = self::buildPairs($oldBase, $newBase, $includeWww);
         } else {
-            // No target provided: count every occurrence of the old host.
-            $pairs = [$oldHost => ''];
+            // No target provided: count every occurrence of the old base.
+            $pairs = [$oldBase => ''];
             if ($includeWww) {
-                $variant = self::wwwVariant($oldHost);
+                $variant = self::wwwVariantBase($oldBase);
                 if ($variant !== '') {
                     $pairs[$variant] = '';
                 }
@@ -129,17 +190,17 @@ final class DomainMigration
      */
     public static function migrate(string $oldDomain, string $newDomain, bool $includeWww = false): array
     {
-        $oldHost = self::normalizeHost($oldDomain);
-        $newHost = self::normalizeHost($newDomain);
+        $oldBase = self::normalizeBase($oldDomain);
+        $newBase = self::normalizeBase($newDomain);
 
-        if ($oldHost === '' || $newHost === '') {
+        if ($oldBase === '' || $newBase === '') {
             throw new \InvalidArgumentException('Both the old and the new domain are required.');
         }
-        if ($oldHost === $newHost) {
+        if ($oldBase === $newBase) {
             throw new \InvalidArgumentException('The old and the new domain are identical.');
         }
 
-        $pairs = self::buildPairs($oldHost, $newHost, $includeWww);
+        $pairs = self::buildPairs($oldBase, $newBase, $includeWww);
         if (empty($pairs)) {
             return [];
         }
