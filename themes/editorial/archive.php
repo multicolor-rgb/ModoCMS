@@ -1,76 +1,93 @@
-<?php require __DIR__ . '/header.php'; ?>
+<?php
+require __DIR__ . '/header.php';
+$curPage = isset($currentPage) ? (int)$currentPage : 1;
+$totPages = isset($totalPages) ? (int)$totalPages : 1;
+$first = true;
+?>
 
-<div class="archive-headline">
-    <h2><?= htmlspecialchars($archiveTitle ?? __('Latest Stories'), ENT_QUOTES, 'UTF-8') ?></h2>
-</div>
+<section class="archive-headline text-center border-bottom py-5">
+    <div class="container">
+        <span class="text-uppercase small fw-semibold text-danger d-block mb-2"><?= _e('Dział') ?></span>
+        <h1 class="editorial-title mb-0">
+            <?= !empty($archiveTitle) ? htmlspecialchars($archiveTitle, ENT_QUOTES, 'UTF-8') : _e('Wszystkie wpisy') ?>
+        </h1>
+    </div>
+</section>
 
-<?php if (have_posts()): ?>
-    <div class="editorial-grid">
-        <?php while (have_posts()): the_post(); ?>
-            <article class="editorial-card">
-                <?php if (has_image()): ?>
-                    <a href="<?php post_url(); ?>" class="card-media-wrapper">
-                        <img src="<?php post_image(); ?>" alt="<?php post_title(); ?>" loading="lazy">
-                    </a>
+<div class="container py-5">
+    <?php if (have_posts()): ?>
+        <div class="row g-4">
+            <?php while (have_posts()): the_post(); ?>
+                <?php if ($first): $first = false; ?>
+                    <div class="col-12">
+                        <article class="editorial-featured row g-0 align-items-center">
+                            <?php if (has_image()): ?>
+                                <div class="col-md-6">
+                                    <a href="<?php post_url(); ?>">
+                                        <img src="<?php post_image(); ?>" class="editorial-featured-img" alt="<?php post_title(); ?>">
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                            <div class="col-md-<?= has_image() ? '6' : '12' ?>">
+                                <div class="p-4 p-lg-5">
+                                    <div class="post-meta text-uppercase small fw-semibold text-body-secondary mb-2">
+                                        <?= _e('Wyróżnione') ?> &bull; <?php page_date(); ?>
+                                    </div>
+                                    <h2 class="editorial-title h1 mb-3">
+                                        <a href="<?php post_url(); ?>" class="text-decoration-none text-body stretched-link"><?php post_title(); ?></a>
+                                    </h2>
+                                    <p class="text-body-secondary mb-0"><?php post_excerpt(200); ?></p>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                <?php else: ?>
+                    <div class="col-md-6 col-lg-4">
+                        <article class="editorial-card h-100">
+                            <?php if (has_image()): ?>
+                                <a href="<?php post_url(); ?>">
+                                    <img src="<?php post_image(); ?>" class="editorial-card-img" alt="<?php post_title(); ?>" loading="lazy">
+                                </a>
+                            <?php endif; ?>
+                            <div class="pt-3">
+                                <div class="post-meta text-uppercase small fw-semibold text-body-secondary mb-2">
+                                    <?php page_date('M d, Y'); ?>
+                                </div>
+                                <h3 class="editorial-title-mini h5 mb-2">
+                                    <a href="<?php post_url(); ?>" class="text-decoration-none text-body stretched-link"><?php post_title(); ?></a>
+                                </h3>
+                                <p class="text-body-secondary small mb-0"><?php post_excerpt(110); ?></p>
+                            </div>
+                        </article>
+                    </div>
                 <?php endif; ?>
-                
-                <div class="card-content">
-                    <div class="card-meta">
-                        <?php page_date('M d, Y'); ?> &bull; <?php page_author(); ?>
-                    </div>
-                    
-                    <h3 class="card-title">
-                        <a href="<?php post_url(); ?>"><?php post_title(); ?></a>
-                    </h3>
-                    
-                    <p class="card-summary"><?php post_excerpt(130); ?></p>
+            <?php endwhile; ?>
+        </div>
 
-                    <div>
-                        <a href="<?php post_url(); ?>" style="color: var(--primary); font-weight: 700; text-decoration: none; font-size: 0.9rem;">
-                            <?= _e('Continue reading') ?> &rarr;
-                        </a>
-                    </div>
+        <?php if ($totPages > 1): ?>
+            <nav class="mt-5" aria-label="<?= _e('Paginacja') ?>">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item <?= ($curPage <= 1) ? 'disabled' : '' ?>">
+                        <a class="page-link" href="?page=<?= max(1, $curPage - 1) ?>">&laquo;</a>
+                    </li>
+                    <?php for ($i = 1; $i <= $totPages; $i++): ?>
+                        <li class="page-item <?= ($i === $curPage) ? 'active' : '' ?>">
+                            <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
+                        </li>
+                    <?php endfor; ?>
+                    <li class="page-item <?= ($curPage >= $totPages) ? 'disabled' : '' ?>">
+                        <a class="page-link" href="?page=<?= min($totPages, $curPage + 1) ?>">&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+        <?php endif; ?>
 
-                    <?php if (has_tags()): ?>
-                        <div class="post-tags-list">
-                            <?php post_tags(null, 'post-tags-list'); ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </article>
-        <?php endwhile; ?>
-    </div>
-
-    <!-- Enhanced Numerical & Directional Pagination -->
-    <?php if (isset($totalPages) && $totalPages > 1): ?>
-        <nav class="editorial-pagination" aria-label="Pagination Navigation">
-            <!-- Previous Button -->
-            <?php if ($currentPage > 1): ?>
-                <a href="?page=<?= $currentPage - 1 ?>" class="page-btn">&larr;</a>
-            <?php else: ?>
-                <span class="page-btn disabled">&larr;</span>
-            <?php endif; ?>
-
-            <!-- Page Number Links -->
-            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                <a href="?page=<?= $i ?>" class="page-btn <?= $i === $currentPage ? 'active' : '' ?>">
-                    <?= $i ?>
-                </a>
-            <?php endfor; ?>
-
-            <!-- Next Button -->
-            <?php if ($currentPage < $totalPages): ?>
-                <a href="?page=<?= $currentPage + 1 ?>" class="page-btn">&rarr;</a>
-            <?php else: ?>
-                <span class="page-btn disabled">&rarr;</span>
-            <?php endif; ?>
-        </nav>
+    <?php else: ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox fs-1 text-body-tertiary d-block mb-3"></i>
+            <p class="text-body-secondary"><?= _e('Nie znaleziono żadnych wpisów.') ?></p>
+        </div>
     <?php endif; ?>
-
-<?php else: ?>
-    <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 48px; text-align: center; color: var(--text-muted);">
-        <p style="font-size: 1.1rem;"><?= _e('No posts published yet.') ?></p>
-    </div>
-<?php endif; ?>
+</div>
 
 <?php require __DIR__ . '/footer.php'; ?>

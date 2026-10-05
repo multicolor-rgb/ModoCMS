@@ -218,6 +218,8 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://'
            . ($_SERVER['HTTP_HOST'] ?? 'localhost') 
            . ($basePrefix !== '' ? rtrim($basePrefix, '/') : '');
 
+$postsPageSlug = Router::getPostsPageSlug();
+
 require_once __DIR__ . '/views/header.php';
 ?>
 
@@ -569,6 +571,7 @@ require_once __DIR__ . '/views/header.php';
 
 <script>
 const siteBaseUrl = <?= json_encode($baseUrl) ?>;
+const postsBaseSlug = <?= json_encode($postsPageSlug) ?>;
 const slugInput = document.getElementById('slug');
 const titleInput = document.getElementById('title');
 const parentSelect = document.getElementById('parent_id');
@@ -581,7 +584,9 @@ const tagsGroup = document.getElementById('tags-group');
 
 function updateHierarchicalSlugPreview() {
     let parentPath = '';
-    if (typeSelect && typeSelect.value === 'page' && parentSelect && parentSelect.selectedIndex >= 0) {
+    if (typeSelect && typeSelect.value === 'post') {
+        parentPath = postsBaseSlug + '/';
+    } else if (typeSelect && typeSelect.value === 'page' && parentSelect && parentSelect.selectedIndex >= 0) {
         const selectedOpt = parentSelect.options[parentSelect.selectedIndex];
         parentPath = selectedOpt.getAttribute('data-path') || '';
     }
@@ -605,7 +610,9 @@ function updateHierarchicalSlugPreview() {
 
 function copyLiveUrl(btn) {
     let parentPath = '';
-    if (typeSelect && typeSelect.value === 'page' && parentSelect && parentSelect.selectedIndex >= 0) {
+    if (typeSelect && typeSelect.value === 'post') {
+        parentPath = postsBaseSlug + '/';
+    } else if (typeSelect && typeSelect.value === 'page' && parentSelect && parentSelect.selectedIndex >= 0) {
         parentPath = parentSelect.options[parentSelect.selectedIndex].getAttribute('data-path') || '';
     }
     const fullUrl = siteBaseUrl + '/' + parentPath + (slugInput ? slugInput.value.trim() : '');

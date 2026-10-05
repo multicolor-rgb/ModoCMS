@@ -358,5 +358,25 @@
   "SQLite database snapshot": "Instantánea de la base de datos SQLite",
   "Download": "Descargar",
   "Delete": "Eliminar",
-  "Delete this backup archive permanently?": "¿Desea eliminar este archivo de copia de seguridad de forma permanente?"
+  "Delete this backup archive permanently?": "¿Desea eliminar este archivo de copia de seguridad de forma permanente?",
+
+  "Site Address (Domain)": "Dirección del sitio (dominio)",
+  "Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.": "Dominio canónico usado para construir URLs absolutas (enlaces canónicos, OpenGraph, sitemap y robots.txt). Ejemplo: https://example.com. Déjalo vacío para detectarlo automáticamente desde la solicitud actual.",
+  "Domain Migration": "Migración de dominio",
+  "Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.": "Reemplaza cada aparición de un dominio antiguo por uno nuevo en páginas, entradas, menús, campos personalizados, ajustes y opciones del tema. Ideal tras mover el sitio, p. ej. de localhost a un dominio en producción.",
+  "Pages & Posts": "Páginas y entradas",
+  "Custom Fields": "Campos personalizados",
+  "Menus": "Menús",
+  "Theme Options": "Opciones del tema",
+  "Domain migration completed.": "Migración de dominio completada.",
+  "Preview result (nothing was changed yet):": "Resultado de la previsualización (aún no se cambió nada):",
+  "No occurrences found.": "No se encontraron ocurrencias.",
+  "Use the \"Run Migration\" button below to apply these changes.": "Usa el botón de abajo para aplicar estos cambios.",
+  "Old Domain": "Dominio antiguo",
+  "New Domain": "Dominio nuevo",
+  "Also migrate www / non-www variants": "Migrar también variantes www / sin www",
+  "Enable this to also rewrite links that use the opposite www. prefix.": "Actívalo para reescribir también los enlaces que usan el prefijo www. opuesto.",
+  "Preview Changes": "Previsualizar cambios",
+  "Run Migration": "Ejecutar migración",
+  "This will permanently rewrite the selected content. Continue?": "Esto reescribirá permanentemente el contenido seleccionado. ¿Continuar?"
 }

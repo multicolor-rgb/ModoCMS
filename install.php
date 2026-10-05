@@ -185,6 +185,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         @file_put_contents($dataDir . '/.htaccess', $htaccessContent);
         @file_put_contents($backupDir . '/.htaccess', $htaccessContent);
 
+        // Ensure a portable root .htaccess so the CMS runs both in the document
+        // root and inside a subfolder (no hardcoded RewriteBase).
+        // Generate it when missing, or self-heal a stale copy that hardcodes RewriteBase.
+        $rootHtaccessPath = __DIR__ . '/.htaccess';
+        $portableHtaccess = <<<'HTACCESS'
+# Disable directory listing and enable symbolic links
+Options -Indexes +FollowSymLinks
+ServerSignature Off
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Block direct access to database files, logs, hidden files, and SQLite caches
+<FilesMatch "(^\..*|\.sqlite.*|\.db|\.sql|\.log|\.ini|\.json)$">
+    Require all denied
+</FilesMatch>
+
+# Block direct access to data and languages directories
+RedirectMatch 403 ^.*/data/.*$
+RedirectMatch 403 ^.*/languages/.*$
+
+# Rewrite Engine Configuration
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # NOTE: RewriteBase is intentionally NOT set. Apache derives the base path
+    # from the directory that contains this .htaccess file, so the CMS works
+    # both when installed in the document root (https://domain/) and inside a
+    # subfolder (https://domain/subfolder/). Do not hardcode RewriteBase here.
+
+    # Enforce trailing slash on /admin directory requests
+    RewriteRule ^admin$ admin/ [R=301,L]
+
+    # Rule A: Single-folder request -> nested-folder physical file
+    # Example: plugins/autoLightbox/glightbox/g.js -> plugins/autoLightbox/autoLightbox/glightbox/g.js
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} ^(.*)/plugins/([^/]+)/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}%1/plugins/%2/%2/%3 -f
+    RewriteRule ^plugins/([^/]+)/(.*)$ plugins/$1/$1/$2 [L]
+
+    # Rule B: Nested-folder request -> flat-folder physical file
+    # Example: plugins/autoLightbox/autoLightbox/glightbox/g.js -> plugins/autoLightbox/glightbox/g.js
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} ^(.*)/plugins/([^/]+)/([^/]+)/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}%1/plugins/%2/%4 -f
+    RewriteRule ^plugins/([^/]+)/\1/(.*)$ plugins/$1/$2 [L]
+
+    # Serve existing physical files and directories directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route all frontend traffic through the front controller
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>
+HTACCESS;
+
+        $existingRootHtaccess = is_file($rootHtaccessPath) ? (string)@file_get_contents($rootHtaccessPath) : null;
+        $hasHardcodedRewriteBase = ($existingRootHtaccess !== null)
+            && (bool)preg_match('/^\s*RewriteBase\s+\S+/mi', $existingRootHtaccess);
+
+        if ($existingRootHtaccess === null || $hasHardcodedRewriteBase) {
+            @file_put_contents($rootHtaccessPath, $portableHtaccess . "\n");
+        }
+
         try {
             $pdo = new PDO('sqlite:' . $dbFile);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -326,6 +396,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $settings = [
                 'site_title'                   => $siteTitle,
                 'site_description'             => 'A fast and minimal SQLite-powered website',
+                'site_url'                     => '',
                 'active_theme'                 => 'default',
                 'posts_per_page'               => '6',
                 'homepage_type'                => 'page',

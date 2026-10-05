@@ -27,6 +27,23 @@ final class Router {
             $baseDir = substr($baseDir, 0, -strlen('/admin'));
         }
 
+        // Fallback: when SCRIPT_NAME is empty or unreliable (e.g. PHP built-in server,
+        // non-standard FPM setups), derive the base from the filesystem location.
+        if ($baseDir === '' && !empty($_SERVER['SCRIPT_FILENAME']) && !empty($_SERVER['DOCUMENT_ROOT'])) {
+            $docRoot = str_replace('\\', '/', realpath((string)$_SERVER['DOCUMENT_ROOT']) ?: (string)$_SERVER['DOCUMENT_ROOT']);
+            $scriptFile = str_replace('\\', '/', realpath((string)$_SERVER['SCRIPT_FILENAME']) ?: (string)$_SERVER['SCRIPT_FILENAME']);
+            $scriptDir = str_replace('\\', '/', dirname($scriptFile));
+
+            if (str_ends_with($scriptDir, '/admin')) {
+                $scriptDir = substr($scriptDir, 0, -strlen('/admin'));
+            }
+
+            if ($docRoot !== '' && str_starts_with($scriptDir, $docRoot)) {
+                $relative = substr($scriptDir, strlen($docRoot));
+                $baseDir = ($relative === '' || $relative === '/') ? '' : rtrim($relative, '/');
+            }
+        }
+
         return $baseDir;
     }
 
@@ -150,9 +167,7 @@ final class Router {
         // Dynamic Robots.txt
         if ($normalizedPath === '/robots.txt') {
             header('Content-Type: text/plain; charset=utf-8');
-            $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $siteUrl = rtrim($scheme . $host . $baseDir, '/');
+            $siteUrl = self::getSiteUrl();
 
             echo "User-agent: *\n";
             echo "Allow: /\n";
@@ -196,18 +211,9 @@ final class Router {
         // Odczyt ustawień strony głównej i bloga
         $homepageType = self::getOption('homepage_type', 'page');
         $configuredHomeId = (int)self::getOption('homepage_page_id', '0');
-        $configuredPostsId = (int)self::getOption('posts_page_id', '0');
 
-        // Dynamiczny slug dla bloga
-        $postsSlug = 'blog';
-        if ($configuredPostsId > 0) {
-            $pSlugStmt = $database->prepare("SELECT slug FROM pages WHERE id = :pid LIMIT 1");
-            $pSlugStmt->execute([':pid' => $configuredPostsId]);
-            $resolvedSlug = $pSlugStmt->fetchColumn();
-            if ($resolvedSlug) {
-                $postsSlug = (string)$resolvedSlug;
-            }
-        }
+        // Dynamiczny slug bazowy dla bloga (strona nadrzędna wpisów)
+        $postsSlug = self::getPostsPageSlug();
 
         // 1. Tag Archive (/blog/tag/{slug} lub /{postsSlug}/tag/{slug})
         if (isset($pathSegments[0]) && ($pathSegments[0] === 'blog' || $pathSegments[0] === $postsSlug) 
@@ -332,18 +338,17 @@ final class Router {
                 $documentRecord = $stmt->fetch();
             }
         } else {
-            // Podstrony i wpisy (/uslugi, /o-nas, /nazwa-wpisu)
+            // Podstrony (/uslugi, /o-nas ...)
             $parentId = 0;
             $resolvedNode = null;
 
-            foreach ($pathSegments as $index => $slug) {
-                $isLast = ($index === count($pathSegments) - 1);
-
+            foreach ($pathSegments as $slug) {
                 $stmt = $database->prepare("
                     SELECT p.*, u.username as author_name 
                     FROM pages p 
                     LEFT JOIN users u ON p.author_id = u.id 
                     WHERE p.slug = :s 
+                      AND p.type = 'page' 
                       AND p.parent_id = :pid 
                       AND (p.lang = :lang OR p.lang = '') 
                       AND p.status = 'published' 
@@ -351,22 +356,6 @@ final class Router {
                 ");
                 $stmt->execute([':s' => $slug, ':pid' => $parentId, ':lang' => $activeLocale]);
                 $node = $stmt->fetch();
-
-                // Jeśli nie znaleziono strony w drzewie, sprawdź czy to pojedynczy wpis blogowy w głównym katalogu
-                if (!$node && $index === 0 && $isLast) {
-                    $postStmt = $database->prepare("
-                        SELECT p.*, u.username as author_name 
-                        FROM pages p 
-                        LEFT JOIN users u ON p.author_id = u.id 
-                        WHERE p.slug = :s 
-                          AND p.type = 'post' 
-                          AND (p.lang = :lang OR p.lang = '') 
-                          AND p.status = 'published' 
-                        LIMIT 1
-                    ");
-                    $postStmt->execute([':s' => $slug, ':lang' => $activeLocale]);
-                    $node = $postStmt->fetch();
-                }
 
                 if (!$node) {
                     $resolvedNode = null;
@@ -378,6 +367,23 @@ final class Router {
             }
 
             $documentRecord = $resolvedNode;
+
+            // Pojedynczy wpis pod stroną bloga (/{postsSlug}/{postSlug} lub /blog/{postSlug}).
+            // Wpisy są dostępne wyłącznie pod slugiem strony nadrzędnej bloga.
+            if (!$documentRecord && count($pathSegments) === 2 && ($pathSegments[0] === 'blog' || $pathSegments[0] === $postsSlug)) {
+                $postStmt = $database->prepare("
+                    SELECT p.*, u.username as author_name 
+                    FROM pages p 
+                    LEFT JOIN users u ON p.author_id = u.id 
+                    WHERE p.slug = :s 
+                      AND p.type = 'post' 
+                      AND (p.lang = :lang OR p.lang = '') 
+                      AND p.status = 'published' 
+                    LIMIT 1
+                ");
+                $postStmt->execute([':s' => $pathSegments[1], ':lang' => $activeLocale]);
+                $documentRecord = $postStmt->fetch() ?: null;
+            }
         }
 
         // Renderowanie znalezionego dokumentu
@@ -422,5 +428,63 @@ final class Router {
         $resultRow = $statement->fetch();
 
         return $resultRow ? (string)$resultRow['value'] : $defaultFallback;
+    }
+
+    /**
+     * Resolves the canonical site base URL (scheme + host + optional subfolder).
+     *
+     * When the "site_url" setting is configured it takes precedence; otherwise
+     * the value is auto-detected from the current request so the CMS keeps
+     * working out of the box without any manual configuration.
+     */
+    public static function getSiteUrl(): string {
+        $configured = trim(self::getOption('site_url', ''));
+        if ($configured !== '') {
+            return rtrim($configured, '/');
+        }
+
+        return rtrim(self::getSiteOrigin() . self::getBaseSubdirectory(), '/');
+    }
+
+    /**
+     * Resolves only the scheme + host (origin) of the site, honouring the
+     * configured "site_url" domain when present.
+     */
+    public static function getSiteOrigin(): string {
+        $configured = trim(self::getOption('site_url', ''));
+        if ($configured !== '') {
+            $parts = parse_url($configured);
+            if (!empty($parts['scheme']) && !empty($parts['host'])) {
+                $origin = $parts['scheme'] . '://' . $parts['host'];
+                if (!empty($parts['port'])) {
+                    $origin .= ':' . $parts['port'];
+                }
+                return $origin;
+            }
+        }
+
+        $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' && $_SERVER['HTTPS'] !== '') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+        return $scheme . '://' . $host;
+    }
+
+    /**
+     * Resolves the base slug (parent page) used for the blog archive and single post permalinks.
+     * Falls back to the virtual "blog" route when no posts page is configured.
+     */
+    public static function getPostsPageSlug(): string {
+        $configuredPostsId = (int)self::getOption('posts_page_id', '0');
+        if ($configuredPostsId > 0) {
+            $database = Database::getConnection();
+            $statement = $database->prepare("SELECT slug FROM pages WHERE id = :pid LIMIT 1");
+            $statement->execute([':pid' => $configuredPostsId]);
+            $resolvedSlug = $statement->fetchColumn();
+            if ($resolvedSlug !== false && $resolvedSlug !== null && $resolvedSlug !== '') {
+                return (string)$resolvedSlug;
+            }
+        }
+
+        return 'blog';
     }
 }

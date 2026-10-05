@@ -1,16 +1,12 @@
-// theme.js — skrypt motywu Modo CMS (bootstrap-only, bez zewnętrznych zależności)
+// Modo Bootstrap Dark — theme.js
 document.addEventListener('DOMContentLoaded', function () {
+    'use strict';
 
     var backToTop = document.getElementById('backToTop');
     if (backToTop) {
         window.addEventListener('scroll', function () {
-            if (window.scrollY > 400) {
-                backToTop.classList.add('show');
-            } else {
-                backToTop.classList.remove('show');
-            }
+            backToTop.classList.toggle('show', window.scrollY > 400);
         });
-
         backToTop.addEventListener('click', function () {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
@@ -30,8 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
         navbarCollapse.querySelectorAll('a.nav-link').forEach(function (link) {
             link.addEventListener('click', function () {
                 if (navbarCollapse.classList.contains('show') && window.bootstrap) {
-                    var instance = window.bootstrap.Collapse.getOrCreateInstance(navbarCollapse);
-                    instance.hide();
+                    window.bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
                 }
             });
         });

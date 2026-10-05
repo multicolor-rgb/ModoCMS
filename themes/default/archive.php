@@ -1,48 +1,78 @@
-<?php require __DIR__ . '/header.php'; ?>
+<?php
+require __DIR__ . '/header.php';
+$curPage = isset($currentPage) ? (int)$currentPage : 1;
+$totPages = isset($totalPages) ? (int)$totalPages : 1;
+?>
 
-<div class="page-title-section">
-    <h2 class="page-main-title"><?= htmlspecialchars($archiveTitle ?? __('Latest posts'), ENT_QUOTES, 'UTF-8') ?></h2>
-</div>
-
-<?php if (have_posts()): ?>
-    <div class="posts-grid">
-        <?php while (have_posts()): the_post(); ?>
-            <article class="post-card">
-                <?php if (has_image()): ?>
-                    <a href="<?php post_url(); ?>">
-                        <img class="post-card-thumb" src="<?php post_image(); ?>" alt="<?php post_title(); ?>">
-                    </a>
-                <?php endif; ?>
-                <div class="post-card-body">
-                    <div class="post-meta">
-                        <?php page_date(); ?> &bull; <?php page_author(); ?>
-                    </div>
-                    <h3 class="post-card-title">
-                        <a href="<?php post_url(); ?>"><?php post_title(); ?></a>
-                    </h3>
-                    <p class="post-card-excerpt"><?php post_excerpt(120); ?></p>
-                    
-                    <a href="<?php post_url(); ?>" class="read-more-link">
-                        <?= _e('Read more') ?> &rarr;
-                    </a>
-
-                    <?php post_tags(null, 'post-tags'); ?>
-                </div>
-            </article>
-        <?php endwhile; ?>
+<section class="archive-hero bg-body-tertiary border-bottom py-5">
+    <div class="container text-center">
+        <span class="badge text-bg-primary mb-2"><?= _e('Blog') ?></span>
+        <h1 class="display-5 fw-bold mb-2">
+            <?= !empty($archiveTitle) ? htmlspecialchars($archiveTitle, ENT_QUOTES, 'UTF-8') : _e('Wszystkie wpisy') ?>
+        </h1>
+        <?php if (site_desc(false) !== ''): ?>
+            <p class="text-body-secondary mb-0"><?= site_desc(false) ?></p>
+        <?php endif; ?>
     </div>
+</section>
 
-    <?php if ($totalPages > 1): ?>
-        <div class="pagination">
-            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                <a href="?page=<?= $i ?>" class="<?= $i === $currentPage ? 'active' : '' ?>"><?= $i ?></a>
-            <?php endfor; ?>
+<div class="container py-5">
+    <?php if (have_posts()): ?>
+        <div class="row g-4">
+            <?php while (have_posts()): the_post(); ?>
+                <div class="col-md-6 col-lg-4">
+                    <article class="card h-100 border-0 shadow-sm post-card">
+                        <?php if (has_image()): ?>
+                            <a href="<?php post_url(); ?>" class="post-card-media">
+                                <img src="<?php post_image(); ?>" class="card-img-top post-card-img" alt="<?php post_title(); ?>" loading="lazy">
+                            </a>
+                        <?php else: ?>
+                            <a href="<?php post_url(); ?>" class="post-card-media post-card-img-placeholder d-flex align-items-center justify-content-center">
+                                <i class="bi bi-image fs-1 text-body-tertiary"></i>
+                            </a>
+                        <?php endif; ?>
+                        <div class="card-body d-flex flex-column">
+                            <div class="text-body-secondary small mb-2">
+                                <i class="bi bi-calendar3 me-1"></i> <?php page_date(); ?>
+                                <span class="mx-1">&bull;</span> <?php page_author(); ?>
+                            </div>
+                            <h2 class="h5 card-title fw-bold">
+                                <a href="<?php post_url(); ?>" class="stretched-link text-decoration-none text-body"><?php post_title(); ?></a>
+                            </h2>
+                            <p class="card-text text-body-secondary flex-grow-1"><?php post_excerpt(120); ?></p>
+                            <?php if (has_tags()): ?>
+                                <div class="mt-2"><?php post_tags(null, 'post-tags d-flex flex-wrap gap-2'); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                </div>
+            <?php endwhile; ?>
+        </div>
+
+        <?php if ($totPages > 1): ?>
+            <nav class="mt-5" aria-label="<?= _e('Paginacja') ?>">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item <?= ($curPage <= 1) ? 'disabled' : '' ?>">
+                        <a class="page-link" href="?page=<?= max(1, $curPage - 1) ?>">&laquo;</a>
+                    </li>
+                    <?php for ($i = 1; $i <= $totPages; $i++): ?>
+                        <li class="page-item <?= ($i === $curPage) ? 'active' : '' ?>">
+                            <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
+                        </li>
+                    <?php endfor; ?>
+                    <li class="page-item <?= ($curPage >= $totPages) ? 'disabled' : '' ?>">
+                        <a class="page-link" href="?page=<?= min($totPages, $curPage + 1) ?>">&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+        <?php endif; ?>
+
+    <?php else: ?>
+        <div class="text-center py-5">
+            <i class="bi bi-inbox fs-1 text-body-tertiary d-block mb-3"></i>
+            <p class="text-body-secondary"><?= _e('Nie znaleziono żadnych wpisów.') ?></p>
         </div>
     <?php endif; ?>
-<?php else: ?>
-    <div style="background: var(--bg-surface); padding: 32px; border-radius: var(--radius-md); border: 1px solid var(--border); text-align: center; color: var(--text-muted);">
-        <p><?= _e('No posts found.') ?></p>
-    </div>
-<?php endif; ?>
+</div>
 
 <?php require __DIR__ . '/footer.php'; ?>

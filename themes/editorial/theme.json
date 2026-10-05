@@ -1,0 +1,13 @@
+{
+    "name": "Modo Editorial",
+    "slug": "editorial",
+    "version": "2.0.0",
+    "author": "Modo CMS",
+    "description": "Magazynowy, responsywny motyw oparty na Bootstrap 5.3.8 (serif nagłówki, wyróżniony wpis). Pełne wykorzystanie API motywów Modo CMS.",
+    "bootstrap_version": "5.3.8",
+    "files": [
+        "header.php", "footer.php", "page.php", "single.php",
+        "archive.php", "front-page.php", "404.php",
+        "assets/css/style.css", "assets/js/theme.js"
+    ]
+}

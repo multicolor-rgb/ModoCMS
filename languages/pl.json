@@ -359,5 +359,25 @@
   "SQLite database snapshot": "Migawka bazy danych SQLite",
   "Download": "Pobierz",
   "Delete": "Usuń",
-  "Delete this backup archive permanently?": "Czy na pewno chcesz bezpowrotnie usunąć ten plik kopii?"
+  "Delete this backup archive permanently?": "Czy na pewno chcesz bezpowrotnie usunąć ten plik kopii?",
+
+  "Site Address (Domain)": "Adres witryny (domena)",
+  "Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.": "Kanoniczna domena używana do budowania adresów bezwzględnych (linki kanoniczne, OpenGraph, mapa witryny i robots.txt). Przykład: https://example.com. Pozostaw puste, aby wykryć ją automatycznie na podstawie bieżącego żądania.",
+  "Domain Migration": "Migracja domeny",
+  "Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.": "Zamień każde wystąpienie starej domeny na nową w stronach, wpisach, menu, polach niestandardowych, ustawieniach i opcjach motywu. Przydatne po przeniesieniu witryny, np. z localhost na docelową domenę.",
+  "Pages & Posts": "Strony i wpisy",
+  "Custom Fields": "Pola niestandardowe",
+  "Menus": "Menu",
+  "Theme Options": "Opcje motywu",
+  "Domain migration completed.": "Migracja domeny zakończona.",
+  "Preview result (nothing was changed yet):": "Wynik podglądu (nic nie zostało jeszcze zmienione):",
+  "No occurrences found.": "Nie znaleziono żadnych wystąpień.",
+  "Use the \"Run Migration\" button below to apply these changes.": "Użyj poniższego przycisku, aby zastosować te zmiany.",
+  "Old Domain": "Stara domena",
+  "New Domain": "Nowa domena",
+  "Also migrate www / non-www variants": "Migruj także warianty www / bez www",
+  "Enable this to also rewrite links that use the opposite www. prefix.": "Włącz, aby przepisać także linki używające przeciwnego prefiksu www.",
+  "Preview Changes": "Podgląd zmian",
+  "Run Migration": "Uruchom migrację",
+  "This will permanently rewrite the selected content. Continue?": "Spowoduje to trwałe przepisanie wybranych treści. Kontynuować?"
 }

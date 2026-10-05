@@ -97,13 +97,18 @@ if (isset($_GET['delete_item']) && isset($_GET['csrf'])) {
 }
 
 // Fetch published pages for quick links
-$allPages = $db->query("SELECT id, parent_id, title, slug FROM pages WHERE status = 'published' ORDER BY parent_id ASC, title ASC")->fetchAll();
+$allPages = $db->query("SELECT id, parent_id, title, slug, type FROM pages WHERE status = 'published' ORDER BY parent_id ASC, title ASC")->fetchAll();
 $pageLookup = [];
 foreach ($allPages as $p) {
     $pageLookup[$p['id']] = $p;
 }
 
 function buildPageHierarchyUrl(array $page, array $lookup): string {
+    // Blog posts live under the configured posts (blog) page slug
+    if (($page['type'] ?? '') === 'post') {
+        return '/' . \Core\Router::getPostsPageSlug() . '/' . $page['slug'];
+    }
+
     $slugs = [$page['slug']];
     $currParent = (int)$page['parent_id'];
     while ($currParent > 0 && isset($lookup[$currParent])) {
@@ -324,7 +329,8 @@ require_once __DIR__ . '/views/header.php';
             <select id="quick-page-select" class="form-control" onchange="const o=this.options[this.selectedIndex]; if(o.value){document.getElementById('item_title').value=o.getAttribute('data-t'); document.getElementById('item_url').value=o.value;}">
                 <option value="">-- <?= _e('Select Page') ?> --</option>
                 <option value="/" data-t="<?= _e('Home') ?>"><?= _e('Home') ?> (/)</option>
-                <option value="/blog" data-t="<?= _e('Blog') ?>"><?= _e('Blog') ?> (/blog)</option>
+                <?php $blogBaseSlug = \Core\Router::getPostsPageSlug(); ?>
+                <option value="/<?= htmlspecialchars($blogBaseSlug, ENT_QUOTES, 'UTF-8') ?>" data-t="<?= _e('Blog') ?>"><?= _e('Blog') ?> (/<?= htmlspecialchars($blogBaseSlug, ENT_QUOTES, 'UTF-8') ?>)</option>
                 <?php foreach ($allPages as $pg): 
                     $fullPath = buildPageHierarchyUrl($pg, $pageLookup);
                     $prefix = (int)$pg['parent_id'] > 0 ? '&mdash; ' : '';

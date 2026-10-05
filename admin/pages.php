@@ -21,7 +21,7 @@ while ($p = $allPagesStmt->fetch()) {
 
 function resolveFullSlug(array $item, array $lookup): string {
     if ($item['type'] === 'post') {
-        return '/' . $item['slug'];
+        return '/' . \Core\Router::getPostsPageSlug() . '/' . $item['slug'];
     }
     $slugs = [];
     $curr = (int)$item['id'];

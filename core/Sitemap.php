@@ -14,10 +14,7 @@ final class Sitemap {
  * Creates or updates robots.txt file in the root directory.
  */
 public static function generateRobotsTxt(): bool {
-    $basePrefix = Router::getBaseSubdirectory();
-    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $siteUrl = rtrim($scheme . $host . $basePrefix, '/');
+    $siteUrl = Router::getSiteUrl();
 
     $robotsContent = "User-agent: *\n" .
                      "Allow: /\n" .
@@ -38,11 +35,8 @@ public static function generateRobotsTxt(): bool {
         $isMultilingual = Router::getOption('multilingual_frontend', '0') === '1';
         $defaultLang = I18n::getDefaultLocale();
 
-        // Calculate site base URL
-        $basePrefix = Router::getBaseSubdirectory();
-        $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $siteUrl = rtrim($scheme . $host . $basePrefix, '/');
+        // Calculate site base URL (honours the configured canonical domain)
+        $siteUrl = Router::getSiteUrl();
 
         // Fetch all published pages and posts
         $stmt = $db->query("
@@ -68,8 +62,10 @@ public static function generateRobotsTxt(): bool {
         $homeUrl = $siteUrl . '/';
         $xml[] = self::buildUrlNode($homeUrl, date('Y-m-d'), 'daily', '1.0');
 
-        // Main Blog Index URL
-        $blogPrefix = $isMultilingual ? '/' . $defaultLang . '/blog' : '/blog';
+        // Main Blog Index URL (uses the configured posts page slug)
+        $postsSlug = Router::getPostsPageSlug();
+        $configuredPostsId = (int)Router::getOption('posts_page_id', '0');
+        $blogPrefix = ($isMultilingual ? '/' . $defaultLang : '') . '/' . $postsSlug;
         $xml[] = self::buildUrlNode($siteUrl . $blogPrefix, date('Y-m-d'), 'daily', '0.8');
 
         // 2. Iterate pages and blog posts
@@ -78,12 +74,17 @@ public static function generateRobotsTxt(): bool {
                 continue; // Already covered
             }
 
+            // The configured posts (blog) page is already emitted above as the blog index
+            if ($page['type'] === 'page' && (int)$page['id'] === $configuredPostsId) {
+                continue;
+            }
+
             $date = !empty($page['updated_at']) ? date('Y-m-d', strtotime($page['updated_at'])) : date('Y-m-d', strtotime($page['created_at']));
             $langPrefix = ($isMultilingual && $page['lang']) ? '/' . $page['lang'] : '';
 
             if ($page['type'] === 'post') {
-                // Post URL: /lang/blog-post-slug
-                $url = $siteUrl . $langPrefix . '/' . rawurlencode($page['slug']);
+                // Post URL: /lang/{postsSlug}/blog-post-slug
+                $url = $siteUrl . $langPrefix . '/' . rawurlencode($postsSlug) . '/' . rawurlencode($page['slug']);
                 $xml[] = self::buildUrlNode($url, $date, 'weekly', '0.7');
             } else {
                 // Hierarchical Page URL: /lang/parent/child
@@ -105,7 +106,7 @@ public static function generateRobotsTxt(): bool {
         ");
         while ($tag = $tagStmt->fetch(\PDO::FETCH_ASSOC)) {
             $tagDate = !empty($tag['last_mod']) ? date('Y-m-d', strtotime($tag['last_mod'])) : date('Y-m-d');
-            $tagUrl = $siteUrl . ($isMultilingual ? '/' . $defaultLang : '') . '/blog/tag/' . rawurlencode($tag['slug']);
+            $tagUrl = $siteUrl . ($isMultilingual ? '/' . $defaultLang : '') . '/' . rawurlencode($postsSlug) . '/tag/' . rawurlencode($tag['slug']);
             $xml[] = self::buildUrlNode($tagUrl, $tagDate, 'weekly', '0.5');
         }
 

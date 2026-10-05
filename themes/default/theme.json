@@ -1,0 +1,13 @@
+{
+    "name": "Modo Bootstrap Light",
+    "slug": "default",
+    "version": "2.0.0",
+    "author": "Modo CMS",
+    "description": "Responsywny motyw oparty na Bootstrap 5.3.8 z pełnym wykorzystaniem API motywów Modo CMS (menu, języki, tagi, pętla wpisów, hooki, SEO).",
+    "bootstrap_version": "5.3.8",
+    "files": [
+        "header.php", "footer.php", "page.php", "single.php",
+        "archive.php", "front-page.php", "404.php",
+        "assets/css/style.css", "assets/js/theme.js"
+    ]
+}

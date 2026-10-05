@@ -1,12 +1,13 @@
 {
-    "name": "Nazwa Motywu",
-    "slug": "nazwa-motywu",
-    "version": "1.0.0",
-    "author": "Twórca motywu",
-    "description": "Profesjonalny, responsywny motyw dla Modo CMS oparty na Bootstrap 5.3.8 i czcionce Inter.",
+    "name": "Modo Bootstrap Dark",
+    "slug": "default2",
+    "version": "2.0.0",
+    "author": "Modo CMS",
+    "description": "Nowoczesny, ciemny motyw oparty na Bootstrap 5.3.8 (gradienty, szklane karty). Pełne wykorzystanie API motywów Modo CMS.",
     "bootstrap_version": "5.3.8",
     "files": [
         "header.php", "footer.php", "page.php", "single.php",
-        "archive.php", "404.php", "assets/css/style.css", "assets/js/theme.js"
+        "archive.php", "front-page.php", "404.php",
+        "assets/css/style.css", "assets/js/theme.js"
     ]
 }

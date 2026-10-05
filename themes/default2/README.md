@@ -1,28 +1,20 @@
-# Nazwa Motywu — motyw dla Modo CMS
+# Modo Bootstrap Dark (`default2`) — motyw Modo CMS
 
-Profesjonalny, w pełni responsywny motyw oparty na Bootstrap 5.3.8 i czcionce Inter (Google Fonts).
+Nowoczesny, ciemny motyw dla Modo CMS oparty na **Bootstrap 5.3.8** (tryb `data-bs-theme="dark"`),
+z gradientowymi hero i szklanymi kartami.
 
 ## Instalacja
+1. Folder `default2/` znajduje się w `themes/`.
+2. W panelu: **Settings → Active Theme** wybierz `default2` i zapisz.
 
-1. Skopiuj cały folder `nazwa-motywu/` do:
-   `/var/www/html/cleancms/themes/nazwa-motywu/`
-2. Zaloguj się do panelu admina Modo CMS.
-3. Przejdź do **Settings** (`admin/settings.php`).
-4. W polu **Active Theme** wybierz `nazwa-motywu` i zapisz.
+## Struktura i API
+- `header.php` — head + hook `theme_head()`, ciemny navbar (`get_theme_menu()`, `lang_switch()`).
+- `footer.php` — stopka (brand / `menu('main-menu')` / `get_recent_posts()`), `theme_footer()`, back-to-top.
+- `page.php`, `single.php`, `archive.php`, `front-page.php`, `404.php` — szablony stron/wpisu/listy/strony głównej/błędu.
+- `assets/css/style.css`, `assets/js/theme.js`, `theme.json`, `README.md`.
 
-## Struktura
+Wykorzystuje całe API motywów: `theme_head/theme_footer`, `get_theme_menu`, `menu`, `lang_switch`,
+`site_logo/title/desc/url`, `page_*`, `post_*`, `has_tags/post_tags`, `get_recent_posts`,
+`get_theme_url`, `resolve_media_url`, `_e()` oraz hooki `Hooks::*`.
 
-- `header.php` — nagłówek, sticky navbar, hook `theme-header`.
-- `footer.php` — stopka 3-kolumnowa, hook `theme-footer`, przycisk „Do góry”.
-- `page.php` — szablon stron statycznych.
-- `single.php` — szablon wpisu blogowego z sidebarem.
-- `archive.php` — listing wpisów w formie kart.
-- `404.php` — strona błędu.
-- `assets/css/style.css` — style motywu.
-- `assets/js/theme.js` — skrypty motywu.
-
-## Wymagane funkcje CMS
-
-Motyw korzysta z: `get_header()`, `get_footer()`, `get_site_title()`, `get_site_description()`,
-`get_site_url()`, `get_theme_url()`, `get_theme_menu()`, `get_recent_posts()`, `I18n`, `Security`, `_e()`.
-Każdy plik `.php` zaczyna się od `if (!defined('IN_CMS')) die();`.
+Bootstrap / ikony ładowane z CDN.

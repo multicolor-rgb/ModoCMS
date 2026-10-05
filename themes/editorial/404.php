@@ -1,10 +1,18 @@
 <?php require __DIR__ . '/header.php'; ?>
 
-<div style="text-align: center; padding: 70px 20px;">
-    <h1 style="font-size: 6rem; font-weight: 900; color: var(--primary); line-height: 1;">404</h1>
-    <h2 style="font-size: 1.8rem; font-weight: 800; margin: 16px 0; color: var(--text-heading);"><?= _e('Page not found') ?></h2>
-    <p style="color: var(--text-muted); max-width: 460px; margin: 0 auto 28px;"><?= _e('The requested article or page cannot be found or was moved to another location.') ?></p>
-    <a href="<?php site_url(); ?>" class="page-btn" style="display: inline-flex; width: auto; padding: 0 24px;">&larr; <?= _e('Return to Home') ?></a>
+<div class="container py-5 text-center">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="error-code fw-bold text-danger mb-3">404</div>
+            <h1 class="editorial-title mb-3"><?= _e('Strona nie została znaleziona') ?></h1>
+            <p class="text-body-secondary mb-4">
+                <?= _e('Szukana strona mogła zostać przeniesiona, usunięta lub nigdy nie istniała.') ?>
+            </p>
+            <a href="<?= htmlspecialchars(site_url('', false), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-dark btn-lg">
+                <i class="bi bi-house-door me-1"></i> <?= _e('Wróć na stronę główną') ?>
+            </a>
+        </div>
+    </div>
 </div>
 
 <?php require __DIR__ . '/footer.php'; ?>

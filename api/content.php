@@ -113,7 +113,7 @@ try {
             'id' => $newId,
             'title' => $title,
             'slug' => $slug,
-            'url' => ($lang !== I18n::getDefaultLocale() ? '/' . $lang : '') . '/' . $slug,
+            'url' => ($lang !== I18n::getDefaultLocale() ? '/' . $lang : '') . '/' . ($type === 'post' ? \Core\Router::getPostsPageSlug() . '/' : '') . $slug,
             'type' => $type,
             'status' => $status,
             'lang' => $lang,

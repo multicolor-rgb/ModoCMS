@@ -138,9 +138,10 @@ function page_url(?array $page = null, bool $echo = true): string {
         return site_url('', $echo);
     }
 
-    // Flat posts do not have parent hierarchy
+    // Posts live under the configured blog (posts) page slug
     if (($targetPage['type'] ?? '') === 'post') {
-        return site_url($targetPage['slug'], $echo);
+        $postsBaseSlug = Router::getPostsPageSlug();
+        return site_url($postsBaseSlug . '/' . $targetPage['slug'], $echo);
     }
 
     $segments = [];
@@ -180,9 +181,14 @@ function resolve_page_hierarchy_path(string $slug): string {
     }
 
     $db = Database::getConnection();
-    $stmt = $db->prepare("SELECT id, slug, parent_id FROM pages WHERE slug = :s LIMIT 1");
+    $stmt = $db->prepare("SELECT id, slug, parent_id, type FROM pages WHERE slug = :s LIMIT 1");
     $stmt->execute([':s' => $cleanSlug]);
     $page = $stmt->fetch();
+
+    // Posts are addressed under the configured blog parent slug
+    if ($page && ($page['type'] ?? '') === 'post') {
+        return Router::getPostsPageSlug() . '/' . $cleanSlug;
+    }
 
     if (!$page || empty($page['parent_id'])) {
         return $cleanSlug;
@@ -273,7 +279,7 @@ function post_tags(?int $pageId = null, string $cssClass = 'post-tags', bool $ec
 
     $html = '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES, 'UTF-8') . '">';
     foreach ($tags as $tag) {
-        $url = site_url('blog/tag/' . $tag['slug'], false);
+        $url = site_url(Router::getPostsPageSlug() . '/tag/' . $tag['slug'], false);
         $html .= '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="tag-badge">#' . htmlspecialchars($tag['name'], ENT_QUOTES, 'UTF-8') . '</a> ';
     }
     $html .= '</div>';
@@ -409,15 +415,24 @@ function theme_head(): void {
     if ($img !== '') {
         $img = resolve_media_url($img);
         if (!str_starts_with($img, 'http://') && !str_starts_with($img, 'https://')) {
-            $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $img = $scheme . '://' . $host . $img;
+            $img = Router::getSiteOrigin() . $img;
         }
     }
 
     // Resolve Favicon
     $favicon = Router::getOption('site_favicon', '');
     $ogSiteName = Router::getOption('og_site_name', Router::getOption('site_title', 'Modo CMS'));
+
+    // Resolve the canonical URL for the current request (uses the configured domain when set)
+    $basePrefix = class_exists('Core\\Router') ? Router::getBaseSubdirectory() : '';
+    $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    if ($basePrefix !== '' && str_starts_with($requestPath, $basePrefix)) {
+        $requestPath = substr($requestPath, strlen($basePrefix));
+    }
+    if ($requestPath === '' || $requestPath[0] !== '/') {
+        $requestPath = '/' . ltrim($requestPath, '/');
+    }
+    $canonicalUrl = rtrim(Router::getSiteUrl(), '/') . $requestPath;
 
     // Output metadata
     echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>' . PHP_EOL;
@@ -434,6 +449,8 @@ function theme_head(): void {
 
     echo '<meta property="og:title" content="' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
     echo '<meta property="og:type" content="website">' . PHP_EOL;
+    echo '<link rel="canonical" href="' . htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+    echo '<meta property="og:url" content="' . htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
 
     if ($ogSiteName !== '') {
         echo '<meta property="og:site_name" content="' . htmlspecialchars($ogSiteName, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
@@ -443,9 +460,23 @@ function theme_head(): void {
         echo '<meta property="og:image" content="' . htmlspecialchars($img, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
     }
 
+    // Injected custom head scripts (Settings) + plugin hooks
+    $headScripts = Router::getOption('custom_head_scripts', '');
+    if ($headScripts !== '') {
+        echo $headScripts . PHP_EOL;
+    }
+
     Hooks::doAction('theme_head');
+    Hooks::doAction('theme-header');
 }
 
 function theme_footer(): void {
+    // Injected custom footer scripts (Settings) + plugin hooks
+    $footerScripts = Router::getOption('custom_footer_scripts', '');
+    if ($footerScripts !== '') {
+        echo $footerScripts . PHP_EOL;
+    }
+
     Hooks::doAction('theme_footer');
+    Hooks::doAction('theme-footer');
 }

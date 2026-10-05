@@ -358,5 +358,25 @@
   "SQLite database snapshot": "SQLite-Datenbank-Snapshot",
   "Download": "Herunterladen",
   "Delete": "Löschen",
-  "Delete this backup archive permanently?": "Möchten Sie dieses Sicherungsarchiv wirklich dauerhaft löschen?"
+  "Delete this backup archive permanently?": "Möchten Sie dieses Sicherungsarchiv wirklich dauerhaft löschen?",
+
+  "Site Address (Domain)": "Website-Adresse (Domain)",
+  "Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.": "Kanonische Domain für absolute URLs (kanonische Links, OpenGraph, Sitemap und robots.txt). Beispiel: https://example.com. Leer lassen, um sie automatisch aus der aktuellen Anfrage zu ermitteln.",
+  "Domain Migration": "Domain-Migration",
+  "Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.": "Ersetzt jedes Vorkommen einer alten Domain durch eine neue in Seiten, Beiträgen, Menüs, benutzerdefinierten Feldern, Einstellungen und Theme-Optionen. Ideal nach einem Umzug, z. B. von localhost auf eine Live-Domain.",
+  "Pages & Posts": "Seiten & Beiträge",
+  "Custom Fields": "Benutzerdefinierte Felder",
+  "Menus": "Menüs",
+  "Theme Options": "Theme-Optionen",
+  "Domain migration completed.": "Domain-Migration abgeschlossen.",
+  "Preview result (nothing was changed yet):": "Vorschau-Ergebnis (noch nichts geändert):",
+  "No occurrences found.": "Keine Vorkommen gefunden.",
+  "Use the \"Run Migration\" button below to apply these changes.": "Verwenden Sie die Schaltfläche unten, um die Änderungen anzuwenden.",
+  "Old Domain": "Alte Domain",
+  "New Domain": "Neue Domain",
+  "Also migrate www / non-www variants": "Auch www-/Non-www-Varianten migrieren",
+  "Enable this to also rewrite links that use the opposite www. prefix.": "Aktivieren, um auch Links mit dem entgegengesetzten www.-Präfix umzuschreiben.",
+  "Preview Changes": "Änderungen anzeigen",
+  "Run Migration": "Migration ausführen",
+  "This will permanently rewrite the selected content. Continue?": "Dadurch wird der ausgewählte Inhalt dauerhaft umgeschrieben. Fortfahren?"
 }

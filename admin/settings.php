@@ -8,57 +8,91 @@ use Core\Security;
 use Core\Router;
 use Core\I18n;
 use Core\Sitemap;
+use Core\DomainMigration;
 
 Auth::requireCapability('manage_settings');
 
 $db = Database::getConnection();
 $saved = false;
+$migrationReport = null;
+$migrationError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         die('Invalid CSRF token');
     }
 
-    $multilingual = isset($_POST['multilingual_frontend']) ? '1' : '0';
+    // ---------------------------------------------------------------------
+    // Domain migration tool (rendered as a separate form on this page)
+    // ---------------------------------------------------------------------
+    if (($_POST['action'] ?? '') === 'domain_migration') {
+        $oldDomain = trim($_POST['old_domain'] ?? '');
+        $newDomain = trim($_POST['new_domain'] ?? '');
+        $includeWww = isset($_POST['include_www']);
+        $isPreview = ($_POST['mode'] ?? '') === 'preview';
 
-    $settings = [
-        'site_title'             => trim($_POST['site_title'] ?? ''),
-        'site_description'       => trim($_POST['site_description'] ?? ''),
-        'posts_per_page'         => (string)max(1, (int)($_POST['posts_per_page'] ?? 6)),
-        'active_theme'           => basename(trim($_POST['active_theme'] ?? 'default')),
-        'homepage_type'          => in_array($_POST['homepage_type'] ?? '', ['page', 'posts'], true) ? $_POST['homepage_type'] : 'page',
-        'homepage_page_id'       => (string)(int)($_POST['homepage_page_id'] ?? 0),
-        'posts_page_id'          => (string)(int)($_POST['posts_page_id'] ?? 0),
-        'multilingual_frontend'  => $multilingual,
-        'default_language'       => trim($_POST['default_language'] ?? 'en'),
-        'admin_language'         => trim($_POST['admin_language'] ?? 'en'),
-        'site_logo'              => trim($_POST['site_logo'] ?? ''),
-        'site_favicon'           => trim($_POST['site_favicon'] ?? ''),
-        'og_default_image'       => trim($_POST['og_default_image'] ?? ''),
-        'og_site_name'           => trim($_POST['og_site_name'] ?? ''),
-        'tinymce_preset'         => trim($_POST['tinymce_preset'] ?? 'standard'),
-        'tinymce_custom_toolbar' => trim($_POST['tinymce_custom_toolbar'] ?? ''),
-        'custom_head_scripts'    => trim($_POST['custom_head_scripts'] ?? ''),
-        'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? '')
-    ];
-
-    $stmt = $db->prepare("
-        INSERT INTO settings (key, value) 
-        VALUES (:k, :v) 
-        ON CONFLICT(key) DO UPDATE SET value = :v
-    ");
-
-    foreach ($settings as $k => $v) {
-        $stmt->execute([':k' => $k, ':v' => $v]);
-    }
-
-    if (class_exists('Core\Sitemap')) {
         try {
-            Sitemap::generate();
-        } catch (\Throwable $e) {}
+            if ($isPreview) {
+                $migrationReport = [
+                    'mode'  => 'preview',
+                    'stats' => DomainMigration::preview($oldDomain, $newDomain, $includeWww),
+                ];
+            } else {
+                $migrationReport = [
+                    'mode'  => 'run',
+                    'stats' => DomainMigration::migrate($oldDomain, $newDomain, $includeWww),
+                ];
+            }
+        } catch (\Throwable $e) {
+            $migrationError = $e->getMessage();
+        }
+    } else {
+        // -------------------------------------------------------------
+        // Standard settings save
+        // -------------------------------------------------------------
+        $multilingual = isset($_POST['multilingual_frontend']) ? '1' : '0';
+
+        $settings = [
+            'site_title'             => trim($_POST['site_title'] ?? ''),
+            'site_description'       => trim($_POST['site_description'] ?? ''),
+            'site_url'               => trim($_POST['site_url'] ?? ''),
+            'posts_per_page'         => (string)max(1, (int)($_POST['posts_per_page'] ?? 6)),
+            'active_theme'           => basename(trim($_POST['active_theme'] ?? 'default')),
+            'homepage_type'          => in_array($_POST['homepage_type'] ?? '', ['page', 'posts'], true) ? $_POST['homepage_type'] : 'page',
+            'homepage_page_id'       => (string)(int)($_POST['homepage_page_id'] ?? 0),
+            'posts_page_id'          => (string)(int)($_POST['posts_page_id'] ?? 0),
+            'multilingual_frontend'  => $multilingual,
+            'default_language'       => trim($_POST['default_language'] ?? 'en'),
+            'admin_language'         => trim($_POST['admin_language'] ?? 'en'),
+            'site_logo'              => trim($_POST['site_logo'] ?? ''),
+            'site_favicon'           => trim($_POST['site_favicon'] ?? ''),
+            'og_default_image'       => trim($_POST['og_default_image'] ?? ''),
+            'og_site_name'           => trim($_POST['og_site_name'] ?? ''),
+            'tinymce_preset'         => trim($_POST['tinymce_preset'] ?? 'standard'),
+            'tinymce_custom_toolbar' => trim($_POST['tinymce_custom_toolbar'] ?? ''),
+            'custom_head_scripts'    => trim($_POST['custom_head_scripts'] ?? ''),
+            'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? '')
+        ];
+
+        $stmt = $db->prepare("
+            INSERT INTO settings (key, value) 
+            VALUES (:k, :v) 
+            ON CONFLICT(key) DO UPDATE SET value = :v
+        ");
+
+        foreach ($settings as $k => $v) {
+            $stmt->execute([':k' => $k, ':v' => $v]);
+        }
+
+        if (class_exists('Core\Sitemap')) {
+            try {
+                Sitemap::generate();
+                Sitemap::generateRobotsTxt();
+            } catch (\Throwable $e) {}
+        }
+
+        $saved = true;
     }
-    
-    $saved = true;
 }
 
 $themes = array_filter(glob(__DIR__ . '/../themes/*'), 'is_dir');
@@ -107,6 +141,14 @@ require_once __DIR__ . '/views/header.php';
             <div class="form-group">
                 <label class="form-label" for="site_description"><?= _e('Tagline / Description') ?></label>
                 <textarea class="form-control" id="site_description" name="site_description" rows="2"><?= Security::sanitize(Router::getOption('site_description', '')) ?></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="site_url"><?= _e('Site Address (Domain)') ?></label>
+                <input class="form-control" type="text" id="site_url" name="site_url" value="<?= Security::sanitize(Router::getOption('site_url', '')) ?>" placeholder="<?= Security::sanitize(Router::getSiteUrl()) ?>">
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px; line-height: 1.4;">
+                    <?= _e('Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.') ?>
+                </small>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -364,6 +406,85 @@ require_once __DIR__ . '/views/header.php';
     <!-- Hidden Generic File Input for AJAX Uploads -->
     <input type="file" id="settings-file-picker" accept="image/*" style="display: none;">
 </form>
+<!-- ===================== Domain Migration Tool ===================== -->
+<div class="card" style="margin-top: 24px;">
+    <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+        <?= _e('Domain Migration') ?>
+    </h3>
+    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
+        <?= _e('Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.') ?>
+    </p>
+
+    <?php if ($migrationError !== ''): ?>
+        <div class="card" style="border-left: 4px solid var(--danger, #ef4444); background: rgba(239, 68, 68, 0.08); padding: 12px 16px; margin-bottom: 16px; color: #f87171; font-weight: 500;">
+            <?= htmlspecialchars($migrationError, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($migrationReport !== null): ?>
+        <?php
+            $totalAffected = array_sum($migrationReport['stats']);
+            $tableLabels = [
+                'pages'      => __('Pages & Posts'),
+                'page_meta'  => __('Custom Fields'),
+                'menu_items' => __('Menus'),
+                'settings'   => __('Settings'),
+                'theme_mods' => __('Theme Options'),
+            ];
+        ?>
+        <div class="card" style="border-left: 4px solid <?= $migrationReport['mode'] === 'run' ? 'var(--success, #10b981)' : 'var(--primary, #6366f1)' ?>; background: rgba(99, 102, 241, 0.06); padding: 14px 16px; margin-bottom: 16px;">
+            <strong><?= $migrationReport['mode'] === 'run' ? _e('Domain migration completed.') : _e('Preview result (nothing was changed yet):') ?></strong>
+            <?php if ($totalAffected === 0): ?>
+                <p style="margin-top: 8px; font-size: 13px;"><?= _e('No occurrences found.') ?></p>
+            <?php else: ?>
+                <ul style="margin: 10px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7;">
+                    <?php foreach ($migrationReport['stats'] as $table => $count): ?>
+                        <li><?= htmlspecialchars($tableLabels[$table] ?? $table, ENT_QUOTES, 'UTF-8') ?>: <strong><?= (int)$count ?></strong></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php if ($migrationReport['mode'] === 'preview'): ?>
+                    <p style="margin-top: 10px; font-size: 12px; color: var(--text-muted);"><?= _e('Use the "Run Migration" button below to apply these changes.') ?></p>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <form method="POST" action="">
+        <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+        <input type="hidden" name="action" value="domain_migration">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+                <label class="form-label" for="old_domain"><?= _e('Old Domain') ?></label>
+                <input class="form-control" type="text" id="old_domain" name="old_domain" placeholder="localhost:8000" value="<?= Security::sanitize($_POST['old_domain'] ?? '') ?>" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="new_domain"><?= _e('New Domain') ?></label>
+                <input class="form-control" type="text" id="new_domain" name="new_domain" placeholder="example.com" value="<?= Security::sanitize($_POST['new_domain'] ?? '') ?>" required>
+            </div>
+        </div>
+
+        <div class="form-group" style="padding: 12px 14px; background: var(--bg-surface, #1e293b); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="include_www" value="1" <?= isset($_POST['include_www']) ? 'checked' : '' ?>>
+                <?= _e('Also migrate www / non-www variants') ?>
+            </label>
+            <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px; margin-left: 24px; line-height: 1.4;">
+                <?= _e('Enable this to also rewrite links that use the opposite www. prefix.') ?>
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="submit" name="mode" value="preview" class="btn btn-secondary"><?= _e('Preview Changes') ?></button>
+            <button type="submit" name="mode" value="run" class="btn btn-primary"
+                    onclick="return confirm('<?= _e('This will permanently rewrite the selected content. Continue?') ?>');">
+                <?= _e('Run Migration') ?>
+            </button>
+        </div>
+    </form>
+</div>
+
+
 
 <script>
 function toggleHomepageDropdowns() {

@@ -1,79 +1,65 @@
-<?php if (!defined('IN_CMS')) die(); ?>
-<?php include __DIR__ . '/header.php'; ?>
+<?php require __DIR__ . '/header.php'; ?>
 
-<main id="main-content" class="site-content flex-grow-1">
+<?php if (has_image()): ?>
+    <section class="post-hero position-relative">
+        <img class="page-hero-img" src="<?php page_image(); ?>" alt="<?php page_title(); ?>">
+        <div class="page-hero-overlay"></div>
+    </section>
+<?php endif; ?>
 
-    <?php if (!empty($item['featured_image'])): ?>
-        <div class="page-hero page-hero-post" style="background-image: url('<?= htmlspecialchars($item['featured_image'], ENT_QUOTES, 'UTF-8') ?>');">
-            <div class="page-hero-overlay"></div>
-            <div class="container position-relative">
-                <span class="badge bg-primary mb-2"><?= _e('Wpis na blogu') ?></span>
-                <h1 class="page-hero-title text-white fw-bold"><?= Security::sanitize($item['title']) ?></h1>
-                <p class="text-white-50 mb-0">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    <?= date('d.m.Y', strtotime($item['created_at'])) ?>
-                </p>
+<div class="container py-5">
+    <div class="row g-5">
+        <div class="col-lg-8">
+            <h1 class="display-6 fw-bold mb-3"><?php page_title(); ?></h1>
+
+            <div class="post-meta text-secondary small mb-4">
+                <span class="badge text-bg-primary me-2"><?= _e('Blog') ?></span>
+                <i class="bi bi-calendar3 me-1"></i> <?php page_date(); ?>
+                <span class="mx-2">&bull;</span>
+                <i class="bi bi-person me-1"></i> <?php page_author(); ?>
             </div>
-        </div>
-    <?php endif; ?>
 
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
+            <article class="entry-content glass-card">
+                <?php page_content(); ?>
+            </article>
 
-                <?php if (empty($item['featured_image'])): ?>
-                    <span class="badge bg-primary mb-2"><?= _e('Wpis na blogu') ?></span>
-                    <h1 class="page-title fw-bold mb-3"><?= Security::sanitize($item['title']) ?></h1>
-                    <p class="text-muted small mb-4">
-                        <i class="bi bi-calendar3 me-1"></i>
-                        <?= date('d.m.Y', strtotime($item['created_at'])) ?>
-                    </p>
-                <?php endif; ?>
-
-                <article class="page-article entry-content mb-5">
-                    <?= $item['content'] ?>
-                </article>
-
-                <hr class="my-5">
-
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <a href="<?= get_site_url() ?>/blog" class="btn btn-outline-primary">
-                        <i class="bi bi-arrow-left me-1"></i> <?= _e('Wróć do bloga') ?>
-                    </a>
-                    <div class="share-buttons d-flex gap-2">
-                        <span class="text-muted small align-self-center"><?= _e('Udostępnij:') ?></span>
-                        <a class="btn btn-sm btn-outline-secondary rounded-circle" href="#" aria-label="Facebook"><i class="bi bi-facebook"></i></a>
-                        <a class="btn btn-sm btn-outline-secondary rounded-circle" href="#" aria-label="X (Twitter)"><i class="bi bi-twitter-x"></i></a>
-                        <a class="btn btn-sm btn-outline-secondary rounded-circle" href="#" aria-label="LinkedIn"><i class="bi bi-linkedin"></i></a>
-                    </div>
+            <?php if (has_tags()): ?>
+                <div class="mt-5 pt-4 border-top border-secondary-subtle">
+                    <span class="text-secondary small fw-semibold d-block mb-2"><?= _e('Tags') ?>:</span>
+                    <?php post_tags(null, 'post-tags d-flex flex-wrap gap-2'); ?>
                 </div>
+            <?php endif; ?>
+        </div>
 
-            </div>
-
-            <aside class="col-lg-3 mt-5 mt-lg-0">
-                <div class="sidebar-widget bg-light rounded-4 p-4">
-                    <h6 class="fw-bold mb-3"><?= _e('Ostatnie wpisy') ?></h6>
-                    <?php $sidebar_recent = get_recent_posts(5); ?>
-                    <?php if (!empty($sidebar_recent)): ?>
-                        <ul class="list-unstyled">
-                            <?php foreach ($sidebar_recent as $recent): ?>
-                                <li class="mb-3">
-                                    <a href="<?= get_site_url() ?>/<?= Security::sanitize($recent['slug']) ?>"
-                                       class="text-decoration-none text-dark fw-medium sidebar-link">
-                                        <?= Security::sanitize($recent['title']) ?>
+        <aside class="col-lg-4">
+            <div class="card border-secondary-subtle bg-body-tertiary mb-4">
+                <div class="card-body">
+                    <h2 class="h6 fw-bold mb-3"><i class="bi bi-clock-history me-1"></i> <?= _e('Ostatnie wpisy') ?></h2>
+                    <?php $recent = get_recent_posts(5); ?>
+                    <?php if (!empty($recent)): ?>
+                        <ul class="list-unstyled mb-0">
+                            <?php foreach ($recent as $rp): ?>
+                                <li class="mb-2 pb-2 border-bottom border-secondary-subtle">
+                                    <a class="link-light text-decoration-none" href="<?= htmlspecialchars(page_url($rp, false), ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars($rp['title'], ENT_QUOTES, 'UTF-8') ?>
                                     </a>
                                 </li>
                             <?php endforeach; ?>
                         </ul>
                     <?php else: ?>
-                        <p class="text-muted small mb-0"><?= _e('Brak innych wpisów.') ?></p>
+                        <p class="text-secondary small mb-0"><?= _e('Brak wpisów.') ?></p>
                     <?php endif; ?>
                 </div>
-            </aside>
+            </div>
 
-        </div>
+            <div class="card border-secondary-subtle bg-body-tertiary">
+                <div class="card-body">
+                    <h2 class="h6 fw-bold mb-3"><i class="bi bi-grid me-1"></i> <?= _e('Nawigacja') ?></h2>
+                    <?php menu('main-menu', 'sidebar-nav list-unstyled mb-0'); ?>
+                </div>
+            </div>
+        </aside>
     </div>
+</div>
 
-</main>
-
-<?php include __DIR__ . '/footer.php'; ?>
+<?php require __DIR__ . '/footer.php'; ?>

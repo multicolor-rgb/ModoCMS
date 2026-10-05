@@ -38,6 +38,7 @@ spl_autoload_register(function ($class) {
 require_once __DIR__ . '/GetSimpleCompat.php';
 require_once __DIR__ . '/I18n.php';
 require_once __DIR__ . '/frontend.php';
+require_once __DIR__ . '/template_tags.php';
 require_once __DIR__ . '/Backup.php';
 
 // Initialize storage, localization and load active plugins

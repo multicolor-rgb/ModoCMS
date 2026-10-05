@@ -1,35 +1,31 @@
-<?php if (!defined('IN_CMS')) die(); ?>
-    <footer class="site-footer bg-dark text-light-emphasis mt-auto">
-        <div class="container py-5">
+</main>
+
+    <footer class="site-footer bg-dark border-top border-secondary-subtle mt-auto pt-5 pb-4">
+        <div class="container">
             <div class="row gy-4">
                 <div class="col-lg-4">
-                    <h5 class="text-white fw-bold mb-3">
-                        <i class="bi bi-hexagon-fill text-primary me-1"></i>
-                        <?= Security::sanitize(get_site_title()) ?>
+                    <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                        <span class="brand-dot"></span><?= site_title(false) ?>
                     </h5>
-                    <p class="text-secondary small mb-0">
-                        <?= Security::sanitize(get_site_description()) ?>
-                    </p>
+                    <p class="text-secondary small mb-0"><?= site_desc(false) ?></p>
                 </div>
 
                 <div class="col-lg-4">
-                    <h6 class="text-white fw-semibold mb-3"><?= _e('Nawigacja') ?></h6>
-                    <ul class="list-unstyled footer-nav">
-                        <?php get_theme_menu('footer-nav'); ?>
-                    </ul>
+                    <h6 class="fw-semibold text-white mb-3"><?= _e('Nawigacja') ?></h6>
+                    <nav class="footer-nav" aria-label="<?= _e('Nawigacja') ?>">
+                        <?php menu('main-menu', 'footer-nav-list list-unstyled mb-0'); ?>
+                    </nav>
                 </div>
 
                 <div class="col-lg-4">
-                    <h6 class="text-white fw-semibold mb-3"><?= _e('Ostatnie wpisy') ?></h6>
-                    <?php $footer_recent = get_recent_posts(3); ?>
-                    <?php if (!empty($footer_recent)): ?>
-                        <ul class="list-unstyled footer-recent-posts">
-                            <?php foreach ($footer_recent as $post): ?>
+                    <h6 class="fw-semibold text-white mb-3"><?= _e('Ostatnie wpisy') ?></h6>
+                    <?php $recent = get_recent_posts(4); ?>
+                    <?php if (!empty($recent)): ?>
+                        <ul class="list-unstyled mb-0">
+                            <?php foreach ($recent as $rp): ?>
                                 <li class="mb-2">
-                                    <a href="<?= get_site_url() ?>/<?= Security::sanitize($post['slug']) ?>"
-                                       class="text-secondary text-decoration-none footer-link">
-                                        <i class="bi bi-arrow-right-short me-1"></i>
-                                        <?= Security::sanitize($post['title']) ?>
+                                    <a class="link-secondary text-decoration-none" href="<?= htmlspecialchars(page_url($rp, false), ENT_QUOTES, 'UTF-8') ?>">
+                                        <i class="bi bi-arrow-right-short"></i> <?= htmlspecialchars($rp['title'], ENT_QUOTES, 'UTF-8') ?>
                                     </a>
                                 </li>
                             <?php endforeach; ?>
@@ -42,29 +38,19 @@
 
             <hr class="border-secondary my-4">
 
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                <p class="mb-0 small text-secondary">
-                    &copy; <?= date('Y') ?> <?= Security::sanitize(get_site_title()) ?>. <?= _e('All rights reserved.') ?>
-                </p>
-                <p class="mb-0 small text-secondary">
-                    <?= _e('Zbudowano na') ?> Modo CMS
-                </p>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 small text-secondary">
+                <span>&copy; <?= date('Y') ?> <?= site_title(false) ?>. <?= _e('All rights reserved.') ?></span>
+                <span><?= _e('Zbudowano na') ?> <strong class="text-white">Modo CMS</strong></span>
             </div>
         </div>
     </footer>
 
-    <!-- Przycisk powrotu do góry -->
     <button id="backToTop" type="button" class="btn btn-primary btn-back-to-top" aria-label="<?= _e('Wróć do góry') ?>">
         <i class="bi bi-arrow-up"></i>
     </button>
 
-    <!-- Bootstrap 5.3.8 Bundle JS (Popper wliczony) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Skrypt motywu -->
-    <script src="<?= get_theme_url() ?>/assets/js/theme.js"></script>
-
-    <!-- Hook stopki dla wtyczek (skrypty, cookie banery, tracking) -->
-    <?php get_footer(); ?>
+    <script src="<?= htmlspecialchars(get_theme_url(), ENT_QUOTES, 'UTF-8') ?>/assets/js/theme.js"></script>
+    <?php theme_footer(); ?>
 </body>
 </html>

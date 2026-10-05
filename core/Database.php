@@ -176,6 +176,7 @@ final class Database {
         $defaultSettings = [
             'site_title' => 'Modo CMS',
             'site_description' => 'Lightweight, modern SQLite3 powered CMS',
+            'site_url' => '',
             'active_theme' => 'default',
             'posts_per_page' => '6',
             'multilingual_frontend' => '0',

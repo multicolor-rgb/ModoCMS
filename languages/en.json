@@ -359,7 +359,27 @@
   "SQLite database snapshot": "SQLite database snapshot",
   "Download": "Download",
   "Delete": "Delete",
-  "Delete this backup archive permanently?": "Delete this backup archive permanently?"
+  "Delete this backup archive permanently?": "Delete this backup archive permanently?",
+
+  "Site Address (Domain)": "Site Address (Domain)",
+  "Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.": "Canonical domain used to build absolute URLs (canonical links, OpenGraph, sitemap and robots.txt). Example: https://example.com. Leave empty to auto-detect it from the current request.",
+  "Domain Migration": "Domain Migration",
+  "Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.": "Replace every occurrence of an old domain with a new one inside pages, posts, menus, custom fields, settings and theme options. Ideal after moving the site, e.g. from localhost to a live domain.",
+  "Pages & Posts": "Pages & Posts",
+  "Custom Fields": "Custom Fields",
+  "Menus": "Menus",
+  "Theme Options": "Theme Options",
+  "Domain migration completed.": "Domain migration completed.",
+  "Preview result (nothing was changed yet):": "Preview result (nothing was changed yet):",
+  "No occurrences found.": "No occurrences found.",
+  "Use the \"Run Migration\" button below to apply these changes.": "Use the \"Run Migration\" button below to apply these changes.",
+  "Old Domain": "Old Domain",
+  "New Domain": "New Domain",
+  "Also migrate www / non-www variants": "Also migrate www / non-www variants",
+  "Enable this to also rewrite links that use the opposite www. prefix.": "Enable this to also rewrite links that use the opposite www. prefix.",
+  "Preview Changes": "Preview Changes",
+  "Run Migration": "Run Migration",
+  "This will permanently rewrite the selected content. Continue?": "This will permanently rewrite the selected content. Continue?"
 }
 
  
