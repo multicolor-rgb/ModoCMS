@@ -126,7 +126,7 @@ $recentContent = $db->query("
 </div>
 
 <!-- Dashboard Main Grid: Analytics & Recent Content vs Sidebar Modules -->
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+<div class="dashboard-layout">
 
     <!-- LEFT COLUMN: Traffic Analytics & Recent Content -->
     <div>
@@ -144,7 +144,7 @@ $recentContent = $db->query("
                 if ($cd['count'] > $maxVisits) $maxVisits = $cd['count'];
             }
             ?>
-            <div style="display: flex; align-items: flex-end; gap: 12px; height: 110px; padding-top: 15px; border-bottom: 1px solid var(--border-subtle);">
+            <div class="dashboard-chart" style="display: flex; align-items: flex-end; gap: 12px; height: 110px; padding-top: 15px; border-bottom: 1px solid var(--border-subtle);">
                 <?php foreach ($chartData as $bar): 
                     $h = max(6, (int)(($bar['count'] / $maxVisits) * 85));
                     $dayLabel = date('d.m', strtotime($bar['date']));

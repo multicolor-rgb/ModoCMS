@@ -40,7 +40,7 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
         })();
     </script>
 
-    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/admin.css?v=<?= (int) @filemtime(__DIR__ . '/../assets/css/admin.css') ?>">
     <?php Hooks::doAction('admin_head'); ?>
 </head>
 <body>
@@ -127,9 +127,9 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
                             $url .= '&action=' . urlencode($item['action']);
                         }
                         ?>
-                        <a href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">
-                            <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            <span class="nav-text"><?= htmlspecialchars(function_exists('i18n_r') ? i18n_r($item['title']) : _e($item['title']), ENT_QUOTES, 'UTF-8') ?></span>
+                        <a href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>" class="nav-link <?= $isActive ? 'active' : '' ?>" title="<?= htmlspecialchars(function_exists('i18n_r') ? i18n_r($item['title']) : $item['title'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= function_exists('render_admin_sidebar_icon') ? render_admin_sidebar_icon($item['icon'] ?? '') : '<svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>' ?>
+                            <span class="nav-text"><?= htmlspecialchars(function_exists('i18n_r') ? i18n_r($item['title']) : $item['title'], ENT_QUOTES, 'UTF-8') ?></span>
                         </a>
                         <?php
                     }
@@ -145,10 +145,17 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
         </div>
     </aside>
 
+    <div id="sidebar-overlay"></div>
+
     <div id="main-wrapper">
         <header id="topbar">
-            <div>
-                <a href="<?= site_url('', false) ?>" target="_blank" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"><?= _e('View Website') ?> &nearr;</a>
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <button type="button" id="mobile-menu-btn" class="mobile-menu-btn" aria-label="<?= _e('Toggle Menu') ?>">
+                    <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <div class="topbar-visit">
+                    <a href="<?= site_url('', false) ?>" target="_blank" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"><?= _e('View Website') ?> &nearr;</a>
+                </div>
             </div>
             <div style="display: flex; align-items: center; gap: 14px;">
                 <!-- Dark Mode Toggle Button -->

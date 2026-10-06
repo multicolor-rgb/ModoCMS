@@ -83,8 +83,13 @@ require_once __DIR__ . '/views/header.php';
                         <td style="color: var(--text-muted); font-size: 12px;"><?= $u['created_at'] ?></td>
                         <td style="text-align: right;">
                             <?php if ($u['id'] !== Auth::id()): ?>
-                                <a href="users.php?action=delete&id=<?= $u['id'] ?>&csrf=<?= Security::generateCsrfToken() ?>" 
-                                   class="btn btn-danger-ghost" style="padding: 4px 10px; font-size: 12px;" onclick="return confirm('Delete user?');"><?= _e('Delete') ?></a>
+                                <a href="users.php?action=delete&id=<?= $u['id'] ?>&csrf=<?= Security::generateCsrfToken() ?>"
+                                   class="btn btn-danger-ghost" style="padding: 4px 10px; font-size: 12px;"
+                                   data-confirm
+                                   data-confirm-title="<?= _e('Delete User') ?>"
+                                   data-confirm-message="<?= _e('Delete this user account permanently? This action cannot be undone.') ?>"
+                                   data-confirm-ok="<?= _e('Delete') ?>"
+                                   data-confirm-danger><?= _e('Delete') ?></a>
                             <?php else: ?>
                                 <span style="color: var(--text-muted); font-size: 12px;">(You)</span>
                             <?php endif; ?>

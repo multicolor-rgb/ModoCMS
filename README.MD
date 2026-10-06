@@ -152,11 +152,11 @@ php -S localhost:8000
 
 ---
 
-## 🎨 Theme Customizer (podgląd na żywo)
+## 🎨 Theme Customizer
 
-Customizer dostępny jest w panelu: **Wygląd → Customizer** (`/admin/customize.php`). Po lewej stronie znajdują się zwijane sekcje z polami, a po prawej podgląd witryny na żywo w `iframe` (z przełącznikiem urządzeń). Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie.
+Panel w backendzie: **Wygląd → Customizer** (`/admin/customize.php`) służy **wyłącznie do zarządzania ustawieniami** (builder sekcji i pól zapisywany w bazie). Nie zawiera podglądu szablonu ani edycji wartości — te czynności wykonuje się na froncie.
 
-Ten sam edytor (tylko edycja wartości) dostępny jest też bezpośrednio na froncie: link **„Edytuj ustawienia szablonu"** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie. Builder „Zarządzaj ustawieniami" pozostaje w panelu admina.
+Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu"** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie.
 
 ### Typy pól
 

@@ -4,8 +4,19 @@ use Core\Hooks;
         </main>
     </div>
 
+    <!-- Global UI translations (localized labels for ui.js modals) -->
+    <script>
+        window.MODO_UI = {
+            confirm: <?= json_encode(__('Confirm')) ?>,
+            cancel: <?= json_encode(__('Cancel')) ?>,
+            ok: <?= json_encode(__('OK')) ?>,
+            areYouSure: <?= json_encode(__('Are you sure?')) ?>
+        };
+    </script>
+
     <!-- Theme Toggle & Admin Global Scripts -->
-    <script src="assets/js/admin.js"></script>
+    <script src="assets/js/ui.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/ui.js') ?>"></script>
+    <script src="assets/js/admin.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/admin.js') ?>"></script>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {

@@ -41,6 +41,14 @@ body.modo-theme {
     border-radius: .4rem;
 }
 .lang-switcher a.active { background: var(--bs-primary); color: #fff; border-color: var(--bs-primary); }
+/* Language switcher variants: dropdown / select / flags */
+.lang-switcher .dropdown-menu { min-width: 8rem; }
+.lang-switcher-select select { min-width: 8rem; }
+.lang-switcher .lang-flag { font-size: 1rem; line-height: 1; }
+/* Nested (depth 2+) dropdown submenus */
+.dropdown-submenu { position: relative; }
+.dropdown-submenu > .dropdown-menu { top: 0; left: 100%; margin-top: -1px; }
+.dropdown-submenu:hover > .dropdown-menu { display: block; }
 
 /* Hero (page / single) */
 .page-hero, .post-hero { position: relative; overflow: hidden; }

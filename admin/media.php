@@ -206,7 +206,7 @@ function copyMediaUrl(path, buttonElement = null) {
                 buttonElement.style.color = '';
             }, 1800);
         } else {
-            alert('<?= _e('Link copied to clipboard') ?>:\n' + absoluteUrl);
+            UI.toast('<?= _e('Link copied to clipboard') ?>', 'success');
         }
     }).catch(() => {
         const textarea = document.createElement('textarea');
@@ -215,7 +215,7 @@ function copyMediaUrl(path, buttonElement = null) {
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        alert('<?= _e('Link copied to clipboard') ?>:\n' + absoluteUrl);
+        UI.toast('<?= _e('Link copied to clipboard') ?>', 'success');
     });
 }
 
@@ -272,7 +272,7 @@ function uploadFiles(files) {
                 setTimeout(() => window.location.reload(), 300);
             }
         })
-        .catch(() => alert('Failed to upload file.'));
+        .catch(() => UI.alert({ title: '<?= _e('Upload Error') ?>', message: 'Failed to upload file.', danger: true }));
     });
 }
 
@@ -374,13 +374,13 @@ function saveEditedImage() {
             if (data.location) {
                 window.location.reload();
             } else {
-                alert(data.error || 'Failed to save image.');
+                UI.alert({ title: '<?= _e('Save Error') ?>', message: data.error || 'Failed to save image.', danger: true });
                 saveBtn.disabled = false;
                 saveBtn.textContent = '<?= _e('Save as New Image') ?>';
             }
         })
         .catch(() => {
-            alert('Upload failed due to network error.');
+            UI.alert({ title: '<?= _e('Save Error') ?>', message: 'Upload failed due to network error.', danger: true });
             saveBtn.disabled = false;
             saveBtn.textContent = '<?= _e('Save as New Image') ?>';
         });

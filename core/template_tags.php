@@ -76,8 +76,62 @@ if (!function_exists('get_theme_url')) {
  * Renders an accessible Bootstrap navigation bar built from top-level pages.
  * Outputs <li class="nav-item"><a class="nav-link"> items, ready for .navbar-nav.
  */
-if (!function_exists('get_theme_menu')) {
-    function get_theme_menu(string $ulClass = 'navbar-nav ms-auto mb-2 mb-lg-0'): void {
+if (!function_exists('get_theme_menu_items')) {
+    /**
+     * Returns the links of a menu built in the Navigation manager
+     * (admin/menus.php) as a nested tree. Empty array when the menu does not
+     * exist or holds no links.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    function get_theme_menu_items(string $slug = 'main-menu'): array {
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT id FROM menus WHERE slug = :s LIMIT 1");
+            $stmt->execute([':s' => $slug]);
+            $menuId = $stmt->fetchColumn();
+            if (!$menuId) {
+                return [];
+            }
+
+            $stmt = $db->prepare("SELECT * FROM menu_items WHERE menu_id = :m ORDER BY parent_id ASC, sort_order ASC, id ASC");
+            $stmt->execute([':m' => $menuId]);
+            $items = $stmt->fetchAll();
+            if (empty($items)) {
+                return [];
+            }
+
+            $items = Hooks::applyFilters('clean_menu_raw_items', $items, $slug);
+
+            $lookup = [];
+            foreach ($items as $item) {
+                $item['children'] = [];
+                $lookup[$item['id']] = $item;
+            }
+
+            $tree = [];
+            foreach ($lookup as $id => &$item) {
+                if ($item['parent_id'] && isset($lookup[$item['parent_id']])) {
+                    $lookup[$item['parent_id']]['children'][] = &$item;
+                } else {
+                    $tree[] = &$item;
+                }
+            }
+            unset($item);
+
+            return $tree;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+}
+
+if (!function_exists('render_pages_fallback_menu')) {
+    /**
+     * Fallback navigation used when no Navigation-manager menu is available:
+     * auto-generates a Bootstrap nav from top-level published pages.
+     */
+    function render_pages_fallback_menu(string $ulClass): void {
         $db = Database::getConnection();
         $currentLang = I18n::getLocale();
 
@@ -99,7 +153,7 @@ if (!function_exists('get_theme_menu')) {
 
         // Home link
         $homeActive = (rtrim($currentPath, '/') === rtrim($homePath, '/')) ? ' active' : '';
-        echo '<li class="nav-item"><a class="nav-link' . $homeActive . '" href="' . htmlspecialchars(site_url('', false), ENT_QUOTES, 'UTF-8') . '">' . _e('Home') . '</a></li>';
+        echo '<li class="nav-item"><a class="nav-link' . $homeActive . '" href="' . htmlspecialchars(site_url('', false), ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars(__('Home'), ENT_QUOTES, 'UTF-8') . '</a></li>';
 
         foreach ($pages as $p) {
             $url = page_url($p, false);
@@ -109,6 +163,94 @@ if (!function_exists('get_theme_menu')) {
             echo '</li>';
         }
 
+        echo '</ul>';
+    }
+}
+if (!function_exists('get_theme_menu')) {
+    /**
+     * Renders an accessible Bootstrap navigation bar.
+     *
+     * The links come from the Navigation manager (admin/menus.php); the menu is
+     * selected via the "Header Menu" setting (option `header_menu_slug`). When
+     * that menu is missing or empty the renderer falls back to an
+     * auto-generated list of top-level published pages.
+     */
+    function get_theme_menu(string $ulClass = 'navbar-nav ms-auto mb-2 mb-lg-0'): void {
+        $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $basePrefix = class_exists('Core\\Router') ? Router::getBaseSubdirectory() : '';
+        $homePath = $basePrefix === '' ? '/' : $basePrefix . '/';
+
+        $menuSlug = class_exists('Core\\Router') ? Router::getOption('header_menu_slug', 'main-menu') : 'main-menu';
+        $tree = get_theme_menu_items($menuSlug);
+
+        // Fallback: no configured menu -> auto-generate from pages.
+        if (empty($tree)) {
+            render_pages_fallback_menu($ulClass);
+            return;
+        }
+
+        $isActive = static function (string $targetUrl) use ($currentPath, $basePrefix, $homePath): bool {
+            if ($targetUrl === $currentPath || rtrim($targetUrl, '/') === rtrim($currentPath, '/')) {
+                return true;
+            }
+            if ($targetUrl !== '/' && $targetUrl !== $homePath && str_starts_with((string)$currentPath, rtrim($targetUrl, '/') . '/')) {
+                return true;
+            }
+            return false;
+        };
+
+        $resolveUrl = static function (string $rawUrl): string {
+            if ($rawUrl === '') {
+                return '#';
+            }
+            if (str_starts_with($rawUrl, 'http://') || str_starts_with($rawUrl, 'https://') || str_starts_with($rawUrl, '#') || str_starts_with($rawUrl, 'mailto:') || str_starts_with($rawUrl, 'tel:')) {
+                return $rawUrl;
+            }
+            return site_url(resolve_page_hierarchy_path($rawUrl), false);
+        };
+
+        $renderChildren = static function (array $nodes, int $depth) use (&$renderChildren, $resolveUrl, $isActive): void {
+            echo '<ul class="dropdown-menu">';
+            foreach ($nodes as $node) {
+                $hasChild = !empty($node['children']);
+                $targetUrl = $resolveUrl((string)$node['url']);
+                $active = $isActive($targetUrl) ? ' active' : '';
+                $target = htmlspecialchars((string)($node['target'] ?? '_self'), ENT_QUOTES, 'UTF-8');
+                $href = htmlspecialchars($targetUrl, ENT_QUOTES, 'UTF-8');
+                $title = htmlspecialchars((string)$node['title'], ENT_QUOTES, 'UTF-8');
+
+                if ($hasChild) {
+                    echo '<li class="dropdown-submenu">';
+                    echo '<a class="dropdown-item dropdown-toggle' . $active . '" href="' . $href . '" target="' . $target . '" data-bs-toggle="dropdown" aria-expanded="false">' . $title . '</a>';
+                    $renderChildren($node['children'], $depth + 1);
+                    echo '</li>';
+                } else {
+                    echo '<li><a class="dropdown-item' . $active . '" href="' . $href . '" target="' . $target . '">' . $title . '</a></li>';
+                }
+            }
+            echo '</ul>';
+        };
+
+        echo '<ul class="' . htmlspecialchars($ulClass, ENT_QUOTES, 'UTF-8') . '">';
+        foreach ($tree as $node) {
+            $hasChild = !empty($node['children']);
+            $targetUrl = $resolveUrl((string)$node['url']);
+            $active = $isActive($targetUrl) ? ' active' : '';
+            $target = htmlspecialchars((string)($node['target'] ?? '_self'), ENT_QUOTES, 'UTF-8');
+            $href = htmlspecialchars($targetUrl, ENT_QUOTES, 'UTF-8');
+            $title = htmlspecialchars((string)$node['title'], ENT_QUOTES, 'UTF-8');
+
+            if ($hasChild) {
+                echo '<li class="nav-item dropdown">';
+                echo '<a class="nav-link dropdown-toggle' . $active . '" href="' . $href . '" target="' . $target . '" role="button" data-bs-toggle="dropdown" aria-expanded="false">' . $title . '</a>';
+                $renderChildren($node['children'], 1);
+                echo '</li>';
+            } else {
+                echo '<li class="nav-item">';
+                echo '<a class="nav-link' . $active . '" href="' . $href . '" target="' . $target . '">' . $title . '</a>';
+                echo '</li>';
+            }
+        }
         echo '</ul>';
     }
 }

@@ -818,14 +818,14 @@ if (fileInput) {
                 placeholderBox.style.display = 'none';
                 if (removeBtn) removeBtn.style.display = 'inline-block';
             } else {
-                alert(data.error || 'Upload failed.');
+                UI.alert({ title: '<?= _e('Upload Error') ?>', message: data.error || 'Upload failed.', danger: true });
             }
         }).catch(() => {
             if (uploadBtn) {
                 uploadBtn.disabled = false;
                 uploadBtn.innerText = '<?= _e('Replace') ?>';
             }
-            alert('Network error during upload.');
+            UI.alert({ title: '<?= _e('Upload Error') ?>', message: 'Network error during upload.', danger: true });
         });
     });
 }

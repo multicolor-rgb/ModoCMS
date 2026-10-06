@@ -228,7 +228,11 @@ require_once __DIR__ . '/views/header.php';
                                 <a href="<?= $deleteUrl ?>" 
                                    class="btn btn-danger-ghost" 
                                    style="padding: 4px 8px; font-size: 12px;" 
-                                   onclick="return confirm('<?= _e('Delete this backup archive permanently?') ?>');" 
+                                   data-confirm
+                                   data-confirm-title="<?= _e('Delete Backup') ?>"
+                                   data-confirm-message="<?= _e('Delete this backup archive permanently?') ?>"
+                                   data-confirm-ok="<?= _e('Delete') ?>"
+                                   data-confirm-danger
                                    title="<?= _e('Delete') ?>">
                                     &times;
                                 </a>

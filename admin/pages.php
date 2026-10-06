@@ -53,6 +53,91 @@ function deleteMenuItemCascade(\PDO $db, int $menuItemId): void {
     $delStmt = $db->prepare("DELETE FROM menu_items WHERE id = :id");
     $delStmt->execute([':id' => $menuItemId]);
 }
+/**
+ * Deletes a single document and performs all related cleanup: removes matching
+ * navigation menu items (cascade), detaches tags, clears homepage/posts settings.
+ * Returns true when a row was actually removed.
+ */
+function deleteDocumentCascade(\PDO $db, int $delId, array $lookup, bool $enforceOwnership = true): bool {
+    $checkStmt = $db->prepare("SELECT * FROM pages WHERE id = :id LIMIT 1");
+    $checkStmt->execute([':id' => $delId]);
+    $pageToDelete = $checkStmt->fetch();
+
+    if (!$pageToDelete) {
+        return false;
+    }
+
+    if ($enforceOwnership && !Auth::can('edit_others_pages') && (int)$pageToDelete['author_id'] !== (int)Auth::id()) {
+        return false;
+    }
+
+    // 1. Zbuduj możliwe warianty URL strony, które mogły trafić do nawigacji
+    $candidateUrls = [];
+    $rawSlug = $pageToDelete['slug'];
+    $candidateUrls[] = '/' . $rawSlug;
+    $candidateUrls[] = $rawSlug;
+
+    $hierarchicalPath = resolveFullSlug($pageToDelete, $lookup);
+    $candidateUrls[] = $hierarchicalPath;
+    $candidateUrls[] = ltrim($hierarchicalPath, '/');
+
+    if (!empty($pageToDelete['lang'])) {
+        $candidateUrls[] = '/' . $pageToDelete['lang'] . $hierarchicalPath;
+        $candidateUrls[] = '/' . $pageToDelete['lang'] . '/' . $rawSlug;
+    }
+
+    if ($rawSlug === 'home') {
+        $candidateUrls[] = '/';
+        $candidateUrls[] = '';
+    }
+
+    $candidateUrls = array_values(array_unique(array_filter($candidateUrls)));
+
+    // 2. Znajdź i usuń pasujące elementy z menu_items (kaskadowo z dziećmi)
+    if (!empty($candidateUrls)) {
+        $placeholders = implode(',', array_fill(0, count($candidateUrls), '?'));
+        $findMenuStmt = $db->prepare("SELECT id FROM menu_items WHERE url IN ($placeholders)");
+        $findMenuStmt->execute($candidateUrls);
+        $menuItemIds = $findMenuStmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        foreach ($menuItemIds as $mId) {
+            deleteMenuItemCascade($db, (int)$mId);
+        }
+    }
+
+    // 3. Usuń powiązane tagi oraz sam dokument
+    $db->prepare("DELETE FROM page_tags WHERE page_id = :id")->execute([':id' => $delId]);
+    $db->prepare("DELETE FROM pages WHERE id = :id")->execute([':id' => $delId]);
+
+    // 4. Jeśli usunięta strona była ustawiona jako Homepage lub Blog w settings - wyczyść konfigurację
+    $homeId = (int)\Core\Router::getOption('homepage_page_id', 0);
+    $postsId = (int)\Core\Router::getOption('posts_page_id', 0);
+
+    if ($homeId === $delId) {
+        $db->prepare("UPDATE settings SET value = '0' WHERE key = 'homepage_page_id'")->execute();
+    }
+    if ($postsId === $delId) {
+        $db->prepare("UPDATE settings SET value = '0' WHERE key = 'posts_page_id'")->execute();
+    }
+
+    return true;
+}
+
+/**
+ * Builds a map of named placeholders (:id0, :id1, ...) for an IN(...) clause.
+ */
+function buildIdPlaceholders(array $ids): array {
+    $placeholders = [];
+    $params = [];
+    foreach (array_values($ids) as $i => $id) {
+        $key = ':id' . $i;
+        $placeholders[] = $key;
+        $params[$key] = (int)$id;
+    }
+    return ['sqlPlaceholders' => implode(',', $placeholders), 'params' => $params];
+}
+
+
 
 // Handle Document Deletion
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
@@ -60,80 +145,97 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
         Auth::requireCapability('delete_pages');
         $delId = (int)$_GET['id'];
 
-        $checkStmt = $db->prepare("SELECT * FROM pages WHERE id = :id LIMIT 1");
-        $checkStmt->execute([':id' => $delId]);
-        $pageToDelete = $checkStmt->fetch();
-
-        if (!$pageToDelete) {
-            header('Location: pages.php');
-            exit;
-        }
-
-        if (!Auth::can('edit_others_pages') && (int)$pageToDelete['author_id'] !== (int)Auth::id()) {
-            http_response_code(403);
-            die('Access denied.');
-        }
-
-        // 1. Zbuduj możliwe warianty URL strony, które mogły trafić do nawigacji
-        $candidateUrls = [];
-        $rawSlug = $pageToDelete['slug'];
-        $candidateUrls[] = '/' . $rawSlug;
-        $candidateUrls[] = $rawSlug;
-
-        $hierarchicalPath = resolveFullSlug($pageToDelete, $lookupPages);
-        $candidateUrls[] = $hierarchicalPath;
-        $candidateUrls[] = ltrim($hierarchicalPath, '/');
-
-        if (!empty($pageToDelete['lang'])) {
-            $candidateUrls[] = '/' . $pageToDelete['lang'] . $hierarchicalPath;
-            $candidateUrls[] = '/' . $pageToDelete['lang'] . '/' . $rawSlug;
-        }
-
-        if ($rawSlug === 'home') {
-            $candidateUrls[] = '/';
-            $candidateUrls[] = '';
-        }
-
-        $candidateUrls = array_values(array_unique(array_filter($candidateUrls)));
-
-        // 2. Znajdź i usuń pasujące elementy z menu_items (kaskadowo z dziećmi)
-        if (!empty($candidateUrls)) {
-            $placeholders = implode(',', array_fill(0, count($candidateUrls), '?'));
-            $findMenuStmt = $db->prepare("SELECT id FROM menu_items WHERE url IN ($placeholders)");
-            $findMenuStmt->execute($candidateUrls);
-            $menuItemIds = $findMenuStmt->fetchAll(\PDO::FETCH_COLUMN);
-
-            foreach ($menuItemIds as $mId) {
-                deleteMenuItemCascade($db, (int)$mId);
+        if (deleteDocumentCascade($db, $delId, $lookupPages)) {
+            // Zregeneruj sitemapę
+            if (class_exists('Core\Sitemap')) {
+                try {
+                    Sitemap::generate();
+                } catch (\Throwable $e) {}
             }
-        }
-
-        // 3. Usuń powiązane tagi oraz sam dokument
-        $db->prepare("DELETE FROM page_tags WHERE page_id = :id")->execute([':id' => $delId]);
-        $db->prepare("DELETE FROM pages WHERE id = :id")->execute([':id' => $delId]);
-
-        // 4. Jeśli usunięta strona była ustawiona jako Homepage lub Blog w settings - wyczyść konfigurację
-        $homeId = (int)\Core\Router::getOption('homepage_page_id', 0);
-        $postsId = (int)\Core\Router::getOption('posts_page_id', 0);
-
-        if ($homeId === $delId) {
-            $db->prepare("UPDATE settings SET value = '0' WHERE key = 'homepage_page_id'")->execute();
-        }
-        if ($postsId === $delId) {
-            $db->prepare("UPDATE settings SET value = '0' WHERE key = 'posts_page_id'")->execute();
-        }
-
-        // 5. Zregeneruj sitemapę
-        if (class_exists('Core\Sitemap')) {
-            try {
-                Sitemap::generate();
-            } catch (\Throwable $e) {}
         }
 
         header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang) . '&deleted=1');
         exit;
     }
 }
+// Handle Bulk Actions (posts & pages): delete, change status / author / language
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_action') {
+    if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        die('Invalid CSRF');
+    }
+
+    $bulkType = (string)($_POST['bulk_action_type'] ?? '');
+    $selectedIds = array_values(array_unique(array_filter(
+        array_map('intval', (array)($_POST['ids'] ?? [])),
+        static fn($id) => $id > 0
+    )));
+
+    $affected = 0;
+    $bulkResult = 'none';
+
+    if (!empty($selectedIds) && in_array($bulkType, ['delete', 'status', 'author', 'lang'], true)) {
+        // Restrict the operation to rows the current user is allowed to modify.
+        $idMap = buildIdPlaceholders($selectedIds);
+        $inClause = $idMap['sqlPlaceholders'];
+        $baseParams = $idMap['params'];
+        $ownershipClause = '';
+        if (!Auth::can('edit_others_pages')) {
+            $ownershipClause = ' AND author_id = :own';
+            $baseParams[':own'] = Auth::id();
+        }
+
+        if ($bulkType === 'delete') {
+            Auth::requireCapability('delete_pages');
+            foreach ($selectedIds as $id) {
+                if (deleteDocumentCascade($db, (int)$id, $lookupPages)) {
+                    $affected++;
+                }
+            }
+            if ($affected > 0 && class_exists('Core\Sitemap')) {
+                try { Sitemap::generate(); } catch (\Throwable $e) {}
+            }
+            $bulkResult = 'deleted';
+        } elseif ($bulkType === 'status') {
+            Auth::requireCapability('publish_pages');
+            $newStatus = ($_POST['bulk_status'] ?? '') === 'published' ? 'published' : 'draft';
+            $params = $baseParams + [':val' => $newStatus];
+            $stmt = $db->prepare("UPDATE pages SET status = :val, updated_at = CURRENT_TIMESTAMP WHERE id IN ($inClause)$ownershipClause");
+            $stmt->execute($params);
+            $affected = $stmt->rowCount();
+            $bulkResult = 'updated';
+        } elseif ($bulkType === 'author') {
+            Auth::requireCapability('edit_others_pages');
+            $newAuthor = (int)($_POST['bulk_author'] ?? 0);
+            if ($newAuthor > 0) {
+                $authorCheck = $db->prepare("SELECT id FROM users WHERE id = :id LIMIT 1");
+                $authorCheck->execute([':id' => $newAuthor]);
+                if ($authorCheck->fetchColumn()) {
+                    $params = $baseParams + [':author' => $newAuthor];
+                    $stmt = $db->prepare("UPDATE pages SET author_id = :author, updated_at = CURRENT_TIMESTAMP WHERE id IN ($inClause)$ownershipClause");
+                    $stmt->execute($params);
+                    $affected = $stmt->rowCount();
+                    $bulkResult = 'updated';
+                }
+            }
+        } elseif ($bulkType === 'lang') {
+            Auth::requireCapability('manage_pages');
+            $newLang = trim((string)($_POST['bulk_lang'] ?? ''));
+            if ($newLang !== '' && array_key_exists($newLang, \Core\I18n::getAvailableLanguages())) {
+                $params = $baseParams + [':lang' => $newLang];
+                $stmt = $db->prepare("UPDATE pages SET lang = :lang, updated_at = CURRENT_TIMESTAMP WHERE id IN ($inClause)$ownershipClause");
+                $stmt->execute($params);
+                $affected = $stmt->rowCount();
+                $bulkResult = 'updated';
+            }
+        }
+    }
+
+    header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang)
+        . '&bulk=' . urlencode($bulkResult) . '&count=' . (int)$affected);
+    exit;
+}
+
+
 
 // Build query with filters
 $sql = "SELECT p.*, u.username as author_name FROM pages p LEFT JOIN users u ON p.author_id = u.id";
@@ -168,6 +270,13 @@ $items = $stmt->fetchAll();
 $countAll = (int)$db->query("SELECT COUNT(*) FROM pages")->fetchColumn();
 $countPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post'")->fetchColumn();
 $countPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page'")->fetchColumn();
+// Authors list for the bulk "Change author" action (privileged users only)
+$allUsers = [];
+if (Auth::can('edit_others_pages')) {
+    $allUsers = $db->query("SELECT id, username FROM users ORDER BY username")->fetchAll();
+}
+
+
 
 require_once __DIR__ . '/views/header.php';
 ?>
@@ -186,6 +295,12 @@ require_once __DIR__ . '/views/header.php';
 <?php if (isset($_GET['deleted'])): ?>
     <div class="card" style="border-left: 4px solid var(--success, #10b981); background: rgba(16, 185, 129, 0.08); padding: 12px 16px; margin-bottom: 20px; color: #34d399; font-weight: 500;">
         <?= _e('Document deleted successfully and removed from menus.') ?>
+    </div>
+<?php endif; ?>
+
+<?php if (isset($_GET['bulk']) && $_GET['bulk'] !== 'none'): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); background: rgba(16, 185, 129, 0.08); padding: 12px 16px; margin-bottom: 20px; color: #34d399; font-weight: 500;">
+        <?= _e('Bulk action applied to') ?> <strong><?= (int)($_GET['count'] ?? 0) ?></strong> <?= _e('item(s).') ?>
     </div>
 <?php endif; ?>
 
@@ -221,10 +336,56 @@ require_once __DIR__ . '/views/header.php';
     </div>
 </div>
 
+<form method="post" id="bulk-form" style="margin: 0;">
+<input type="hidden" name="action" value="bulk_action">
+<input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+<input type="hidden" name="bulk_action_type" id="bulk-action-type" value="">
+
+<!-- Bulk Actions Bar -->
+<div id="bulk-bar" class="card" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 16px; border: 1px solid var(--border-subtle);">
+    <span id="bulk-count" style="font-size: 13px; font-weight: 600; color: var(--text-main);"></span>
+    <select class="form-control" id="bulk-action-picker" style="width: auto; padding: 6px 10px; font-size: 13px;">
+        <option value=""><?= _e('Bulk actions') ?></option>
+        <?php if (Auth::can('delete_pages')): ?>
+            <option value="delete"><?= _e('Delete') ?></option>
+        <?php endif; ?>
+        <?php if (Auth::can('publish_pages')): ?>
+            <option value="status"><?= _e('Change status') ?></option>
+        <?php endif; ?>
+        <?php if (Auth::can('edit_others_pages')): ?>
+            <option value="author"><?= _e('Change author') ?></option>
+        <?php endif; ?>
+        <option value="lang"><?= _e('Change language') ?></option>
+    </select>
+
+    <select class="form-control" id="bulk-status-field" name="bulk_status" style="display: none; width: auto; padding: 6px 10px; font-size: 13px;">
+        <option value="published"><?= _e('Published') ?></option>
+        <option value="draft"><?= _e('Draft') ?></option>
+    </select>
+
+    <?php if (Auth::can('edit_others_pages')): ?>
+    <select class="form-control" id="bulk-author-field" name="bulk_author" style="display: none; width: auto; padding: 6px 10px; font-size: 13px;">
+        <?php foreach ($allUsers as $u): ?>
+            <option value="<?= (int)$u['id'] ?>"><?= htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') ?></option>
+        <?php endforeach; ?>
+    </select>
+    <?php endif; ?>
+
+    <select class="form-control" id="bulk-lang-field" name="bulk_lang" style="display: none; width: auto; padding: 6px 10px; font-size: 13px;">
+        <?php foreach (\Core\I18n::getAvailableLanguages() as $code => $name): ?>
+            <option value="<?= htmlspecialchars($code, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?> (<?= strtoupper($code) ?>)</option>
+        <?php endforeach; ?>
+    </select>
+
+    <button type="button" class="btn btn-primary" id="bulk-apply-btn" style="padding: 6px 16px; font-size: 13px;"><?= _e('Apply') ?></button>
+    <button type="button" class="btn btn-secondary" id="bulk-clear-btn" style="padding: 6px 16px; font-size: 13px;"><?= _e('Cancel') ?></button>
+</div>
+
 <div class="table-container card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-subtle);">
     <table class="pro-table">
         <thead>
             <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" aria-label="<?= _e('Select all') ?>"></th>
                 <th style="width: 54px; text-align: center;"><?= _e('Image') ?></th>
                 <th><?= _e('Title & Route') ?></th>
                 <th style="width: 90px;"><?= _e('Type') ?></th>
@@ -238,7 +399,7 @@ require_once __DIR__ . '/views/header.php';
         <tbody>
             <?php if (empty($items)): ?>
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 48px 20px;">
+                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 48px 20px;">
                         <p style="margin: 0; font-size: 14px;"><?= _e('No matching documents found.') ?></p>
                     </td>
                 </tr>
@@ -248,6 +409,9 @@ require_once __DIR__ . '/views/header.php';
                     $deleteUrl = "pages.php?action=delete&id={$item['id']}&csrf=" . Security::generateCsrfToken() . "&type=" . urlencode($currentType) . "&lang=" . urlencode($currentLang);
                 ?>
                     <tr>
+                        <td style="text-align: center; vertical-align: middle;">
+                            <input type="checkbox" class="bulk-checkbox" name="ids[]" value="<?= (int)$item['id'] ?>" aria-label="<?= _e('Select') ?>">
+                        </td>
                         <td style="text-align: center; vertical-align: middle;">
                             <?php if (!empty($item['featured_image'])): ?>
                                 <img src="<?= htmlspecialchars($item['featured_image'], ENT_QUOTES, 'UTF-8') ?>" 
@@ -311,6 +475,7 @@ require_once __DIR__ . '/views/header.php';
         </tbody>
     </table>
 </div>
+</form>
 
 <!-- Modal potwierdzenia usunięcia -->
 <div id="delete-page-modal" style="display: none; position: fixed; inset: 0; background: rgba(11, 15, 25, 0.8); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(6px);">
@@ -352,5 +517,97 @@ delModal.addEventListener('click', (e) => {
     if (e.target === delModal) closeDeleteModal();
 });
 </script>
+
+<script>
+(function () {
+    const form = document.getElementById('bulk-form');
+    if (!form) return;
+
+    const selectAll = document.getElementById('bulk-select-all');
+    const checkboxes = Array.from(document.querySelectorAll('.bulk-checkbox'));
+    const bar = document.getElementById('bulk-bar');
+    const countEl = document.getElementById('bulk-count');
+    const picker = document.getElementById('bulk-action-picker');
+    const typeField = document.getElementById('bulk-action-type');
+    const statusField = document.getElementById('bulk-status-field');
+    const authorField = document.getElementById('bulk-author-field');
+    const langField = document.getElementById('bulk-lang-field');
+    const applyBtn = document.getElementById('bulk-apply-btn');
+    const clearBtn = document.getElementById('bulk-clear-btn');
+
+    const LBL = {
+        barTitle: <?= json_encode(__('Bulk actions')) ?>,
+        selected: <?= json_encode(__('item(s) selected')) ?>,
+        selectItem: <?= json_encode(__('Please select at least one item.')) ?>,
+        chooseAction: <?= json_encode(__('Please choose a bulk action.')) ?>,
+        confirmTitle: <?= json_encode(__('Delete selected items')) ?>,
+        confirmMsg: <?= json_encode(__('This action cannot be undone.')) ?>,
+        deleteLabel: <?= json_encode(__('Delete')) ?>
+    };
+
+    const selectedCount = () => checkboxes.filter(c => c.checked).length;
+
+    const updateBar = () => {
+        const n = selectedCount();
+        bar.style.display = n > 0 ? 'flex' : 'none';
+        countEl.textContent = n + ' ' + LBL.selected;
+        if (selectAll) {
+            selectAll.checked = n > 0 && n === checkboxes.length;
+            selectAll.indeterminate = n > 0 && n < checkboxes.length;
+        }
+    };
+
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            checkboxes.forEach(c => { c.checked = selectAll.checked; });
+            updateBar();
+        });
+    }
+    checkboxes.forEach(c => c.addEventListener('change', updateBar));
+
+    const toggleFields = (val) => {
+        typeField.value = val;
+        if (statusField) statusField.style.display = val === 'status' ? 'inline-block' : 'none';
+        if (authorField) authorField.style.display = val === 'author' ? 'inline-block' : 'none';
+        if (langField) langField.style.display = val === 'lang' ? 'inline-block' : 'none';
+    };
+    picker.addEventListener('change', () => toggleFields(picker.value));
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            checkboxes.forEach(c => { c.checked = false; });
+            picker.value = '';
+            toggleFields('');
+            updateBar();
+        });
+    }
+
+    applyBtn.addEventListener('click', () => {
+        const n = selectedCount();
+        const val = picker.value;
+        if (n === 0) {
+            UI.alert({ title: LBL.barTitle, message: LBL.selectItem });
+            return;
+        }
+        if (!val) {
+            UI.alert({ title: LBL.barTitle, message: LBL.chooseAction });
+            return;
+        }
+        if (val === 'delete') {
+            UI.confirm({
+                title: LBL.confirmTitle,
+                message: n + ' ' + LBL.selected + '. ' + LBL.confirmMsg,
+                okText: LBL.deleteLabel,
+                danger: true
+            }).then(ok => { if (ok) form.submit(); });
+        } else {
+            form.submit();
+        }
+    });
+
+    updateBar();
+})();
+</script>
+
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>

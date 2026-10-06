@@ -294,9 +294,13 @@ require_once __DIR__ . '/views/header.php';
     </form>
     <div style="display: flex; gap: 10px;">
         <?php if ($currentMenu && count($allMenus) > 1): ?>
-            <a href="menus.php?delete_menu=<?= $currentMenu['id'] ?>&csrf=<?= Security::generateCsrfToken() ?>" 
-               class="btn btn-danger-ghost" 
-               onclick="return confirm('<?= _e('Delete this entire menu?') ?>');"><?= _e('Delete Menu') ?></a>
+            <a href="menus.php?delete_menu=<?= $currentMenu['id'] ?>&csrf=<?= Security::generateCsrfToken() ?>"
+               class="btn btn-danger-ghost"
+               data-confirm
+               data-confirm-title="<?= _e('Delete Menu') ?>"
+               data-confirm-message="<?= _e('Delete this entire menu? All links inside it will be removed.') ?>"
+               data-confirm-ok="<?= _e('Delete') ?>"
+               data-confirm-danger><?= _e('Delete Menu') ?></a>
         <?php endif; ?>
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-menu-box').style.display='block'"><?= _e('+ New Menu') ?></button>
     </div>
@@ -434,9 +438,13 @@ require_once __DIR__ . '/views/header.php';
                                                     <button type="button" class="action-icon-btn primary-hover" onclick="toggleDetails(<?= $nid ?>)" title="<?= _e('Edit Details') ?>">
                                                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                                     </button>
-                                                    <a href="menus.php?menu=<?= $menuId ?>&delete_item=<?= $nid ?>&csrf=<?= Security::generateCsrfToken() ?>" 
-                                                       class="action-icon-btn danger-hover" 
-                                                       onclick="return confirm('<?= _e('Delete this link and its sub-items?') ?>');" 
+                                                    <a href="menus.php?menu=<?= $menuId ?>&delete_item=<?= $nid ?>&csrf=<?= Security::generateCsrfToken() ?>"
+                                                       class="action-icon-btn danger-hover"
+                                                       data-confirm
+                                                       data-confirm-title="<?= _e('Delete Link') ?>"
+                                                       data-confirm-message="<?= _e('Delete this link and its sub-items?') ?>"
+                                                       data-confirm-ok="<?= _e('Delete') ?>"
+                                                       data-confirm-danger
                                                        title="<?= _e('Delete Link') ?>">
                                                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                                     </a>

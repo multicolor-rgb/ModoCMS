@@ -210,6 +210,8 @@ final class Database {
             'multilingual_frontend' => '0',
             'default_language' => 'en',
             'available_languages' => 'en:English,pl:Polski',
+            'header_menu_slug' => 'main-menu',
+            'lang_switcher_style' => 'inline',
             'security_brute_force_enabled' => '1',
             'security_headers_enabled' => '1',
             'security_brute_force_max' => '5',

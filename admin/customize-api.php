@@ -83,28 +83,6 @@ try {
             echo json_encode(['ok' => true]);
             break;
 
-        case 'panel':
-            // Re-render the "Customize" tab so newly saved settings appear without a page reload.
-            $schema = Customizer::getSchema($theme);
-            $values = Customizer::getMods($theme);
-            $draft = Customizer::getDraft($theme);
-            if (!empty($draft)) {
-                $values = array_merge($values, $draft);
-            }
-            $cssMap = [];
-            foreach ($schema['sections'] as $panelSection) {
-                foreach ($panelSection['controls'] as $panelControl) {
-                    if (($panelControl['css_var'] ?? '') !== '') {
-                        $cssMap[$panelControl['id']] = ['var' => $panelControl['css_var'], 'unit' => $panelControl['css_unit']];
-                    }
-                }
-            }
-            ob_start();
-            require __DIR__ . '/views/customize-panel.php';
-            $html = ob_get_clean();
-            echo json_encode(['ok' => true, 'html' => $html, 'cssMap' => $cssMap]);
-            break;
-
         case 'preview_token':
             echo json_encode(['ok' => true, 'token' => Customizer::startPreview($theme)]);
             break;

@@ -30,29 +30,30 @@ if (!class_exists('ModoCookieConsent')) {
             'text_color'     => '',
             'radius'         => '14',
             'zindex'         => '999999',
-            'title'          => 'Szanujemy Twoją prywatność',
-            'message'        => 'Używamy plików cookies, aby zapewnić działanie strony, analizować ruch oraz personalizować treści. Możesz zaakceptować wszystkie, odrzucić opcjonalne lub dostosować ustawienia.',
-            'btn_accept'     => 'Akceptuję wszystkie',
-            'btn_reject'     => 'Odrzuć opcjonalne',
-            'btn_settings'   => 'Dostosuj',
-            'btn_save'       => 'Zapisz wybór',
-            'btn_revoke'     => 'Zmień zgodę',
+            // Treści domyślnie puste – wypełniane tłumaczeniem z języków CMS (__()).
+            'title'          => '',
+            'message'        => '',
+            'btn_accept'     => '',
+            'btn_reject'     => '',
+            'btn_settings'   => '',
+            'btn_save'       => '',
+            'btn_revoke'     => '',
             'policy_url'     => '',
-            'policy_label'   => 'Polityka prywatności',
+            'policy_label'   => '',
             'cookie_url'     => '',
-            'cookie_label'   => 'Polityka cookies',
+            'cookie_label'   => '',
 
             'cat_pref_enabled'    => '1',
-            'cat_pref_name'       => 'Funkcjonalne',
-            'cat_pref_desc'       => 'Umożliwiają zapamiętanie preferencji (język, motyw, region).',
+            'cat_pref_name'       => '',
+            'cat_pref_desc'       => '',
 
             'cat_analytics_enabled' => '1',
-            'cat_analytics_name'    => 'Analityczne',
-            'cat_analytics_desc'    => 'Pomagają zrozumieć, jak odwiedzający korzystają ze strony (statystyki ruchu).',
+            'cat_analytics_name'    => '',
+            'cat_analytics_desc'    => '',
 
             'cat_marketing_enabled' => '1',
-            'cat_marketing_name'    => 'Marketingowe',
-            'cat_marketing_desc'    => 'Służą do wyświetlania dopasowanych reklam i mierzenia ich skuteczności.',
+            'cat_marketing_name'    => '',
+            'cat_marketing_desc'    => '',
 
             'scripts_analytics' => '',
             'scripts_marketing' => '',
@@ -124,6 +125,21 @@ if (!class_exists('ModoCookieConsent')) {
         public static function default(string $key): string
         {
             return self::$defaults[$key] ?? '';
+        }
+
+        /**
+         * Zwraca treść z ustawień, a gdy pusta – tłumaczenie z języków CMS (klucz "cc_<key>").
+         * Dzięki temu domyślne treści banera są wielojęzyczne, a administrator może je nadpisać.
+         */
+        public static function t(string $key): string
+        {
+            $custom = self::opt($key);
+            if ($custom !== '') {
+                return $custom;
+            }
+            $translated = function_exists('__') ? __('cc_' . $key) : '';
+            // __() zwraca klucz, gdy brak tłumaczenia – wtedy pokazujemy surowy klucz.
+            return $translated !== '' ? $translated : $key;
         }
 
         /** @return array<string,string> */
@@ -238,8 +254,8 @@ if (!class_exists('ModoCookieConsent')) {
                 }
                 $cats[] = [
                     'id'   => $cat,
-                    'name' => self::opt('cat_' . $cat . '_name'),
-                    'desc' => self::opt('cat_' . $cat . '_desc'),
+                    'name' => self::t('cat_' . $cat . '_name'),
+                    'desc' => self::t('cat_' . $cat . '_desc'),
                 ];
             }
 
@@ -259,17 +275,17 @@ if (!class_exists('ModoCookieConsent')) {
                 'revokePosition'=> self::opt('revoke_position'),
                 'categories'    => $cats,
                 'labels'        => [
-                    'title'      => self::opt('title'),
-                    'message'    => self::opt('message'),
-                    'accept'     => self::opt('btn_accept'),
-                    'reject'     => self::opt('btn_reject'),
-                    'settings'   => self::opt('btn_settings'),
-                    'save'       => self::opt('btn_save'),
-                    'revoke'     => self::opt('btn_revoke'),
-                    'necessary'  => 'Niezbędne',
-                    'alwaysOn'   => 'Zawsze aktywne',
-                    'policyLabel'=> self::opt('policy_label'),
-                    'cookieLabel'=> self::opt('cookie_label'),
+                    'title'      => self::t('title'),
+                    'message'    => self::t('message'),
+                    'accept'     => self::t('btn_accept'),
+                    'reject'     => self::t('btn_reject'),
+                    'settings'   => self::t('btn_settings'),
+                    'save'       => self::t('btn_save'),
+                    'revoke'     => self::t('btn_revoke'),
+                    'necessary'  => function_exists('__') ? __('cc_necessary') : 'Necessary',
+                    'alwaysOn'   => function_exists('__') ? __('cc_always_on') : 'Always active',
+                    'policyLabel'=> self::t('policy_label'),
+                    'cookieLabel'=> self::t('cookie_label'),
                 ],
                 'policyUrl'     => self::opt('policy_url'),
                 'cookieUrl'     => self::opt('cookie_url'),
@@ -555,10 +571,12 @@ if (!class_exists('ModoCookieConsent')) {
             $chk = static function (string $k): string {
                 return self::opt($k) === '1' ? ' checked' : '';
             };
+            // Podpowiedź = domyślna treść przetłumaczona na język panelu (gdy pole puste).
+            $ph = static fn(string $k): string => htmlspecialchars(self::t($k), ENT_QUOTES, 'UTF-8');
             ?>
             <?php if (isset($_GET['cc_saved'])): ?>
                 <div class="card" style="padding:14px 18px; margin-bottom:16px; border-left:4px solid #16a34a; background:#f0fdf4; color:#166534;">
-                    Ustawienia zapisane.
+                    <?php _e('cc_settings_saved'); ?>
                 </div>
             <?php endif; ?>
 
@@ -568,224 +586,218 @@ if (!class_exists('ModoCookieConsent')) {
                 <div class="card" style="padding:20px; margin-bottom:16px;">
                     <h2 style="margin:0 0 4px; font-size:18px;">Cookie Consent &amp; RODO / GDPR / CCPA</h2>
                     <p style="margin:0 0 16px; color:var(--text-muted); font-size:13px;">
-                        Blokuje skrypty analityczne i marketingowe do momentu wyrażenia zgody. Zgodne z RODO (GDPR),
-                        ePrivacy, CCPA/CPRA oraz Google Consent Mode v2.
+                        <?php _e('cc_plugin_intro'); ?>
                     </p>
                     <label style="display:flex; align-items:center; gap:10px; font-weight:600;">
                         <input type="checkbox" name="cc_enabled" value="1"<?= $chk('enabled') ?>>
-                        Włącz baner zgody na stronie
+                        <?php _e('cc_enable_banner'); ?>
                     </label>
                 </div>
 
                 <div class="card" style="padding:20px; margin-bottom:16px;">
-                    <h3 style="margin:0 0 14px; font-size:15px;">Wygląd</h3>
+                    <h3 style="margin:0 0 14px; font-size:15px;"><?php _e('cc_appearance'); ?></h3>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px;">
                         <div class="form-group">
-                            <label class="form-label">Układ</label>
+                            <label class="form-label"><?php _e('cc_layout'); ?></label>
                             <select class="form-control" name="cc_layout">
-                                <option value="bar"<?= $sel('layout','bar') ?>>Pasek (bar)</option>
-                                <option value="card"<?= $sel('layout','card') ?>>Karta (card)</option>
-                                <option value="modal"<?= $sel('layout','modal') ?>>Modal (nakładka)</option>
+                                <option value="bar"<?= $sel('layout','bar') ?>><?php _e('cc_layout_bar'); ?></option>
+                                <option value="card"<?= $sel('layout','card') ?>><?php _e('cc_layout_card'); ?></option>
+                                <option value="modal"<?= $sel('layout','modal') ?>><?php _e('cc_layout_modal'); ?></option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Pozycja</label>
+                            <label class="form-label"><?php _e('cc_position'); ?></label>
                             <select class="form-control" name="cc_position">
-                                <option value="bottom"<?= $sel('position','bottom') ?>>Dół</option>
-                                <option value="top"<?= $sel('position','top') ?>>Góra</option>
-                                <option value="bottom-left"<?= $sel('position','bottom-left') ?>>Dół – lewo</option>
-                                <option value="bottom-right"<?= $sel('position','bottom-right') ?>>Dół – prawo</option>
+                                <option value="bottom"<?= $sel('position','bottom') ?>><?php _e('cc_position_bottom'); ?></option>
+                                <option value="top"<?= $sel('position','top') ?>><?php _e('cc_position_top'); ?></option>
+                                <option value="bottom-left"<?= $sel('position','bottom-left') ?>><?php _e('cc_position_bottom_left'); ?></option>
+                                <option value="bottom-right"<?= $sel('position','bottom-right') ?>><?php _e('cc_position_bottom_right'); ?></option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Styl / motyw</label>
+                            <label class="form-label"><?php _e('cc_theme'); ?></label>
                             <select class="form-control" name="cc_theme">
-                                <option value="light"<?= $sel('theme','light') ?>>Jasny</option>
-                                <option value="dark"<?= $sel('theme','dark') ?>>Ciemny</option>
-                                <option value="glass"<?= $sel('theme','glass') ?>>Glass (szkło)</option>
-                                <option value="minimal"<?= $sel('theme','minimal') ?>>Minimal</option>
-                                <option value="gradient"<?= $sel('theme','gradient') ?>>Gradient</option>
+                                <option value="light"<?= $sel('theme','light') ?>><?php _e('cc_theme_light'); ?></option>
+                                <option value="dark"<?= $sel('theme','dark') ?>><?php _e('cc_theme_dark'); ?></option>
+                                <option value="glass"<?= $sel('theme','glass') ?>><?php _e('cc_theme_glass'); ?></option>
+                                <option value="minimal"<?= $sel('theme','minimal') ?>><?php _e('cc_theme_minimal'); ?></option>
+                                <option value="gradient"<?= $sel('theme','gradient') ?>><?php _e('cc_theme_gradient'); ?></option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Kolor akcentu</label>
+                            <label class="form-label"><?php _e('cc_accent_color'); ?></label>
                             <input class="form-control" type="color" name="cc_accent" value="<?= $v('accent') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Tło (opcjonalnie)</label>
+                            <label class="form-label"><?php _e('cc_bg_optional'); ?></label>
                             <input class="form-control" type="text" name="cc_bg" value="<?= $v('bg') ?>" placeholder="#ffffff / rgba(...)">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Kolor tekstu (opcjonalnie)</label>
+                            <label class="form-label"><?php _e('cc_text_color_optional'); ?></label>
                             <input class="form-control" type="text" name="cc_text_color" value="<?= $v('text_color') ?>" placeholder="#111827">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Zaokrąglenie (px)</label>
+                            <label class="form-label"><?php _e('cc_radius'); ?></label>
                             <input class="form-control" type="number" name="cc_radius" value="<?= $v('radius') ?>" min="0" max="40">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Z-index</label>
+                            <label class="form-label"><?php _e('cc_zindex'); ?></label>
                             <input class="form-control" type="number" name="cc_zindex" value="<?= $v('zindex') ?>">
                         </div>
                     </div>
                 </div>
 
                 <div class="card" style="padding:20px; margin-bottom:16px;">
-                    <h3 style="margin:0 0 14px; font-size:15px;">Treści i przyciski</h3>
+                    <h3 style="margin:0 0 14px; font-size:15px;"><?php _e('cc_content_buttons'); ?></h3>
                     <div class="form-group">
-                        <label class="form-label">Nagłówek</label>
-                        <input class="form-control" type="text" name="cc_title" value="<?= $v('title') ?>">
+                        <label class="form-label"><?php _e('cc_heading'); ?></label>
+                        <input class="form-control" type="text" name="cc_title" value="<?= $v('title') ?>" placeholder="<?= $ph('title') ?>">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Opis</label>
-                        <textarea class="form-control" name="cc_message" rows="4"><?= $v('message') ?></textarea>
+                        <label class="form-label"><?php _e('cc_description'); ?></label>
+                        <textarea class="form-control" name="cc_message" rows="4" placeholder="<?= $ph('message') ?>"><?= $v('message') ?></textarea>
                     </div>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;">
                         <div class="form-group">
-                            <label class="form-label">Przycisk: akceptuj wszystkie</label>
-                            <input class="form-control" type="text" name="cc_btn_accept" value="<?= $v('btn_accept') ?>">
+                            <label class="form-label"><?php _e('cc_btn_accept_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_btn_accept" value="<?= $v('btn_accept') ?>" placeholder="<?= $ph('btn_accept') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Przycisk: odrzuć opcjonalne</label>
-                            <input class="form-control" type="text" name="cc_btn_reject" value="<?= $v('btn_reject') ?>">
+                            <label class="form-label"><?php _e('cc_btn_reject_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_btn_reject" value="<?= $v('btn_reject') ?>" placeholder="<?= $ph('btn_reject') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Przycisk: dostosuj</label>
-                            <input class="form-control" type="text" name="cc_btn_settings" value="<?= $v('btn_settings') ?>">
+                            <label class="form-label"><?php _e('cc_btn_settings_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_btn_settings" value="<?= $v('btn_settings') ?>" placeholder="<?= $ph('btn_settings') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Przycisk: zapisz wybór</label>
-                            <input class="form-control" type="text" name="cc_btn_save" value="<?= $v('btn_save') ?>">
+                            <label class="form-label"><?php _e('cc_btn_save_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_btn_save" value="<?= $v('btn_save') ?>" placeholder="<?= $ph('btn_save') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Przycisk: zmień zgodę</label>
-                            <input class="form-control" type="text" name="cc_btn_revoke" value="<?= $v('btn_revoke') ?>">
+                            <label class="form-label"><?php _e('cc_btn_revoke_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_btn_revoke" value="<?= $v('btn_revoke') ?>" placeholder="<?= $ph('btn_revoke') ?>">
                         </div>
                     </div>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;">
                         <div class="form-group">
-                            <label class="form-label">URL polityki prywatności</label>
+                            <label class="form-label"><?php _e('cc_policy_url'); ?></label>
                             <input class="form-control" type="text" name="cc_policy_url" value="<?= $v('policy_url') ?>" placeholder="/polityka-prywatnosci">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Etykieta polityki prywatności</label>
-                            <input class="form-control" type="text" name="cc_policy_label" value="<?= $v('policy_label') ?>">
+                            <label class="form-label"><?php _e('cc_policy_label_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_policy_label" value="<?= $v('policy_label') ?>" placeholder="<?= $ph('policy_label') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">URL polityki cookies</label>
+                            <label class="form-label"><?php _e('cc_cookie_url'); ?></label>
                             <input class="form-control" type="text" name="cc_cookie_url" value="<?= $v('cookie_url') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Etykieta polityki cookies</label>
-                            <input class="form-control" type="text" name="cc_cookie_label" value="<?= $v('cookie_label') ?>">
+                            <label class="form-label"><?php _e('cc_cookie_label_field'); ?></label>
+                            <input class="form-control" type="text" name="cc_cookie_label" value="<?= $v('cookie_label') ?>" placeholder="<?= $ph('cookie_label') ?>">
                         </div>
                     </div>
                 </div>
 
                 <div class="card" style="padding:20px; margin-bottom:16px;">
-                    <h3 style="margin:0 0 6px; font-size:15px;">Kategorie zgody</h3>
-                    <p style="margin:0 0 14px; color:var(--text-muted); font-size:12px;">„Niezbędne" są zawsze aktywne. Pozostałe kategorie można włączyć/wyłączyć.</p>
+                    <h3 style="margin:0 0 6px; font-size:15px;"><?php _e('cc_categories'); ?></h3>
+                    <p style="margin:0 0 14px; color:var(--text-muted); font-size:12px;"><?php _e('cc_categories_hint'); ?></p>
 
                     <?php
                     $catDefs = [
-                        'pref'      => ['Funkcjonalne', 'cat_pref'],
-                        'analytics' => ['Analityczne', 'cat_analytics'],
-                        'marketing' => ['Marketingowe', 'cat_marketing'],
+                        'pref'      => 'cc_cat_functional_label',
+                        'analytics' => 'cc_cat_analytics_label',
+                        'marketing' => 'cc_cat_marketing_label',
                     ];
-                    foreach ($catDefs as $cid => $info):
-                        [$label, $prefix] = $info;
+                    foreach ($catDefs as $cid => $labelKey):
+                        $prefix = 'cat_' . $cid;
                     ?>
                         <div style="border:1px solid var(--border-color,#e5e7eb); border-radius:10px; padding:14px; margin-bottom:12px;">
                             <label style="display:flex; align-items:center; gap:10px; font-weight:600; margin-bottom:10px;">
                                 <input type="checkbox" name="cc_<?= $prefix ?>_enabled" value="1"<?= $chk($prefix . '_enabled') ?>>
-                                <?= $label ?>
+                                <?php _e($labelKey); ?>
                             </label>
                             <div class="form-group">
-                                <label class="form-label">Nazwa wyświetlana</label>
-                                <input class="form-control" type="text" name="cc_<?= $prefix ?>_name" value="<?= $v($prefix . '_name') ?>">
+                                <label class="form-label"><?php _e('cc_display_name'); ?></label>
+                                <input class="form-control" type="text" name="cc_<?= $prefix ?>_name" value="<?= $v($prefix . '_name') ?>" placeholder="<?= $ph($prefix . '_name') ?>">
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Opis</label>
-                                <textarea class="form-control" name="cc_<?= $prefix ?>_desc" rows="2"><?= $v($prefix . '_desc') ?></textarea>
+                                <label class="form-label"><?php _e('cc_description_field'); ?></label>
+                                <textarea class="form-control" name="cc_<?= $prefix ?>_desc" rows="2" placeholder="<?= $ph($prefix . '_desc') ?>"><?= $v($prefix . '_desc') ?></textarea>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
 
                 <div class="card" style="padding:20px; margin-bottom:16px;">
-                    <h3 style="margin:0 0 6px; font-size:15px;">Blokowane skrypty</h3>
-                    <p style="margin:0 0 14px; color:var(--text-muted); font-size:12px;">
-                        Wklej tutaj kod skryptów analitycznych / marketingowych. Zostaną one wstrzymane
-                        (jako <code>type="text/plain"</code>) i uruchomione dopiero po wyrażeniu odpowiedniej zgody.
-                        Możesz też ręcznie oznaczać własne znaczniki atrybutem
-                        <code>data-cookieconsent="analytics|marketing|pref"</code>.
-                    </p>
+                    <h3 style="margin:0 0 6px; font-size:15px;"><?php _e('cc_blocked_scripts'); ?></h3>
+                    <p style="margin:0 0 14px; color:var(--text-muted); font-size:12px;"><?php _e('cc_blocked_scripts_hint'); ?></p>
                     <div class="form-group">
-                        <label class="form-label">Skrypty analityczne (np. Google Analytics, Matomo)</label>
+                        <label class="form-label"><?php _e('cc_scripts_analytics'); ?></label>
                         <textarea class="form-control" name="cc_scripts_analytics" rows="5" style="font-family:monospace; font-size:12px;"><?= $v('scripts_analytics') ?></textarea>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Skrypty marketingowe (np. Meta Pixel, Google Ads)</label>
+                        <label class="form-label"><?php _e('cc_scripts_marketing'); ?></label>
                         <textarea class="form-control" name="cc_scripts_marketing" rows="5" style="font-family:monospace; font-size:12px;"><?= $v('scripts_marketing') ?></textarea>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Skrypty funkcjonalne</label>
+                        <label class="form-label"><?php _e('cc_scripts_functional'); ?></label>
                         <textarea class="form-control" name="cc_scripts_pref" rows="4" style="font-family:monospace; font-size:12px;"><?= $v('scripts_pref') ?></textarea>
                     </div>
                 </div>
 
                 <div class="card" style="padding:20px; margin-bottom:16px;">
-                    <h3 style="margin:0 0 14px; font-size:15px;">Zgodność i zaawansowane</h3>
+                    <h3 style="margin:0 0 14px; font-size:15px;"><?php _e('cc_compliance_advanced'); ?></h3>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px;">
                         <div class="form-group">
-                            <label class="form-label">Wyświetlanie według regionu</label>
+                            <label class="form-label"><?php _e('cc_region_mode'); ?></label>
                             <select class="form-control" name="cc_region_mode">
-                                <option value="all"<?= $sel('region_mode','all') ?>>Wszystkim odwiedzającym</option>
-                                <option value="eu"<?= $sel('region_mode','eu') ?>>Tylko UE/EOG (RODO)</option>
+                                <option value="all"<?= $sel('region_mode','all') ?>><?php _e('cc_region_all'); ?></option>
+                                <option value="eu"<?= $sel('region_mode','eu') ?>><?php _e('cc_region_eu'); ?></option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Ważność zgody (dni)</label>
+                            <label class="form-label"><?php _e('cc_expiry_days'); ?></label>
                             <input class="form-control" type="number" name="cc_expiry_days" value="<?= $v('expiry_days') ?>" min="1">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Wersja polityki (zmiana wymusza ponowną zgodę)</label>
+                            <label class="form-label"><?php _e('cc_policy_version'); ?></label>
                             <input class="form-control" type="text" name="cc_policy_version" value="<?= $v('policy_version') ?>">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Pozycja przycisku „Zmień zgodę"</label>
+                            <label class="form-label"><?php _e('cc_revoke_position'); ?></label>
                             <select class="form-control" name="cc_revoke_position">
-                                <option value="right"<?= $sel('revoke_position','right') ?>>Prawy dolny róg</option>
-                                <option value="left"<?= $sel('revoke_position','left') ?>>Lewy dolny róg</option>
+                                <option value="right"<?= $sel('revoke_position','right') ?>><?php _e('cc_revoke_right'); ?></option>
+                                <option value="left"<?= $sel('revoke_position','left') ?>><?php _e('cc_revoke_left'); ?></option>
                             </select>
                         </div>
                     </div>
                     <div style="display:grid; gap:8px; margin-top:6px;">
                         <label style="display:flex; align-items:center; gap:10px;">
                             <input type="checkbox" name="cc_consent_mode" value="1"<?= $chk('consent_mode') ?>>
-                            Google Consent Mode v2 (domyślnie „denied", aktualizacja po zgodzie)
+                            <?php _e('cc_consent_mode'); ?>
                         </label>
                         <label style="display:flex; align-items:center; gap:10px;">
                             <input type="checkbox" name="cc_respect_gpc" value="1"<?= $chk('respect_gpc') ?>>
-                            Respektuj Global Privacy Control / Do Not Sell (CCPA/CPRA)
+                            <?php _e('cc_respect_gpc'); ?>
                         </label>
                         <label style="display:flex; align-items:center; gap:10px;">
                             <input type="checkbox" name="cc_respect_dnt" value="1"<?= $chk('respect_dnt') ?>>
-                            Respektuj nagłówek Do Not Track (DNT)
+                            <?php _e('cc_respect_dnt'); ?>
                         </label>
                         <label style="display:flex; align-items:center; gap:10px;">
                             <input type="checkbox" name="cc_show_revoke" value="1"<?= $chk('show_revoke') ?>>
-                            Pokaż pływający przycisk „Zmień zgodę" (wycofanie/zmiana zgody)
+                            <?php _e('cc_show_revoke'); ?>
                         </label>
                         <label style="display:flex; align-items:center; gap:10px;">
                             <input type="checkbox" name="cc_log_enabled" value="1"<?= $chk('log_enabled') ?>>
-                            Zapisuj dowody zgody w dzienniku (wymóg rozliczalności RODO)
+                            <?php _e('cc_log_enabled'); ?>
                         </label>
                     </div>
                 </div>
 
                 <div style="position:sticky; bottom:0; padding:14px 0; background:var(--bg-body,#fff);">
-                    <button type="submit" name="cc_save" value="1" class="btn btn-primary">Zapisz ustawienia</button>
+                    <button type="submit" name="cc_save" value="1" class="btn btn-primary"><?php _e('cc_save_settings'); ?></button>
                 </div>
             </form>
             <?php
@@ -811,20 +823,20 @@ if (!class_exists('ModoCookieConsent')) {
             ?>
             <div class="card" style="padding:20px; margin-top:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <h3 style="margin:0; font-size:15px;">Dziennik zgód (ostatnie 50)</h3>
+                    <h3 style="margin:0; font-size:15px;"><?php _e('cc_log_title'); ?></h3>
                     <a class="btn btn-secondary" style="font-size:12px; padding:4px 10px;"
-                       href="plugins.php?id=<?= self::PLUGIN_ID ?>&cc_export=1&csrf=<?= $esc($csrf) ?>">Eksport CSV</a>
+                       href="plugins.php?id=<?= self::PLUGIN_ID ?>&cc_export=1&csrf=<?= $esc($csrf) ?>"><?php _e('cc_export_csv'); ?></a>
                 </div>
                 <div style="overflow-x:auto;">
                     <table class="pro-table" style="width:100%;">
                         <thead>
                             <tr>
-                                <th>Data</th><th>Akcja</th><th>Kategorie</th><th>Wersja</th><th>ID zgody</th>
+                                <th><?php _e('cc_log_date'); ?></th><th><?php _e('cc_log_action'); ?></th><th><?php _e('cc_log_categories'); ?></th><th><?php _e('cc_log_version'); ?></th><th><?php _e('cc_log_consent_id'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php if (empty($rows)): ?>
-                            <tr><td colspan="5" style="text-align:center; padding:18px; color:var(--text-muted);">Brak zapisanych zgód.</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding:18px; color:var(--text-muted);"><?php _e('cc_log_empty'); ?></td></tr>
                         <?php else: foreach ($rows as $r): ?>
                             <tr>
                                 <td><?= $esc($r['created_at'] ?? '') ?></td>

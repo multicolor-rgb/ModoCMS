@@ -422,6 +422,8 @@ HTACCESS;
                 'multilingual_frontend'        => '0',
                 'default_language'             => $defaultLang,
                 'available_languages'          => $availableLangsString,
+                'header_menu_slug'             => 'main-menu',
+                'lang_switcher_style'          => 'inline',
                 'custom_head_scripts'          => '',
                 'custom_footer_scripts'        => '',
                 'security_brute_force_enabled' => '1',

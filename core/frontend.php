@@ -483,22 +483,112 @@ function lang_switch(string $cssClass = 'lang-switcher'): void {
         }
     }
 
-    echo '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES, 'UTF-8') . '">';
+    // Build a normalized list of languages with resolved URLs.
+    $langs = [];
     foreach ($available as $code => $label) {
-        $isCur = ($code === $cur);
+        $code = (string)$code;
         if (isset($translations[$code])) {
-            $url = modo_locale_url($translations[$code], (string)$code, $def, $basePrefix);
+            $url = modo_locale_url($translations[$code], $code, $def, $basePrefix);
         } else {
-            $prefix = ($code === $def) ? '' : '/' . rawurlencode((string)$code);
+            $prefix = ($code === $def) ? '' : '/' . rawurlencode($code);
             $url = $basePrefix . $prefix . '/';
         }
-
-        $activeAttr = $isCur ? ' class="active" style="font-weight:bold;"' : '';
-        echo '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $activeAttr . '>';
-        echo htmlspecialchars(strtoupper((string)$code), ENT_QUOTES, 'UTF-8');
-        echo '</a> ';
+        $langs[] = [
+            'code'   => $code,
+            'label'  => (string)$label,
+            'url'    => $url,
+            'isCur'  => ($code === $cur),
+        ];
     }
-    echo '</div>';
+
+    $style = class_exists('Core\\Router') ? Router::getOption('lang_switcher_style', 'inline') : 'inline';
+    $wrapClass = htmlspecialchars($cssClass, ENT_QUOTES, 'UTF-8');
+
+    // Emoji flag resolver for the "flags" variant.
+    $flagFor = static function (string $code): string {
+        $map = [
+            'en' => '🇬🇧', 'pl' => '🇵🇱', 'de' => '🇩🇪', 'fr' => '🇫🇷', 'es' => '🇪🇸',
+            'it' => '🇮🇹', 'pt' => '🇵🇹', 'nl' => '🇳🇱', 'ru' => '🇷🇺', 'uk' => '🇺🇦',
+            'cs' => '🇨🇿', 'sk' => '🇸🇰', 'sv' => '🇸🇪', 'no' => '🇳🇴', 'da' => '🇩🇰',
+            'fi' => '🇫🇮', 'tr' => '🇹🇷', 'ja' => '🇯🇵', 'zh' => '🇨🇳', 'ko' => '🇰🇷',
+            'ar' => '🇸🇦', 'he' => '🇮🇱', 'el' => '🇬🇷', 'hu' => '🇭🇺', 'ro' => '🇷🇴',
+            'bg' => '🇧🇬', 'hr' => '🇭🇷', 'lt' => '🇱🇹', 'lv' => '🇱🇻', 'et' => '🇪🇪',
+        ];
+        $key = strtolower(substr($code, 0, 2));
+        return $map[$key] ?? '';
+    };
+
+    switch ($style) {
+        case 'dropdown':
+            $curLang = null;
+            foreach ($langs as $l) {
+                if ($l['isCur']) { $curLang = $l; break; }
+            }
+            $curLang = $curLang ?? ($langs[0] ?? null);
+            echo '<div class="dropdown ' . $wrapClass . '">';
+            echo '<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">';
+            echo htmlspecialchars($curLang ? strtoupper($curLang['code']) : '', ENT_QUOTES, 'UTF-8');
+            echo '</button>';
+            echo '<ul class="dropdown-menu dropdown-menu-end">';
+            foreach ($langs as $l) {
+                $active = $l['isCur'] ? ' active' : '';
+                echo '<li><a class="dropdown-item' . $active . '" href="' . htmlspecialchars($l['url'], ENT_QUOTES, 'UTF-8') . '">';
+                echo htmlspecialchars($l['label'] . ' (' . strtoupper($l['code']) . ')', ENT_QUOTES, 'UTF-8');
+                echo '</a></li>';
+            }
+            echo '</ul></div>';
+            break;
+
+        case 'select':
+            echo '<form class="lang-switcher-select ' . $wrapClass . '" method="get" action="">';
+            echo '<select class="form-select form-select-sm" onchange="if(this.value){window.location.href=this.value;}">';
+            foreach ($langs as $l) {
+                $sel = $l['isCur'] ? ' selected' : '';
+                echo '<option value="' . htmlspecialchars($l['url'], ENT_QUOTES, 'UTF-8') . '"' . $sel . '>';
+                echo htmlspecialchars($l['label'] . ' (' . strtoupper($l['code']) . ')', ENT_QUOTES, 'UTF-8');
+                echo '</option>';
+            }
+            echo '</select></form>';
+            break;
+
+        case 'flags':
+            echo '<div class="' . $wrapClass . '">';
+            foreach ($langs as $l) {
+                $activeAttr = $l['isCur'] ? ' class="active" style="font-weight:bold;"' : '';
+                $flag = $flagFor($l['code']);
+                echo '<a href="' . htmlspecialchars($l['url'], ENT_QUOTES, 'UTF-8') . '"' . $activeAttr . ' title="' . htmlspecialchars($l['label'], ENT_QUOTES, 'UTF-8') . '">';
+                if ($flag !== '') {
+                    echo '<span class="lang-flag">' . $flag . '</span> ';
+                }
+                echo htmlspecialchars(strtoupper($l['code']), ENT_QUOTES, 'UTF-8');
+                echo '</a> ';
+            }
+            echo '</div>';
+            break;
+
+        case 'inline_full':
+            echo '<div class="' . $wrapClass . '">';
+            foreach ($langs as $l) {
+                $activeAttr = $l['isCur'] ? ' class="active" style="font-weight:bold;"' : '';
+                echo '<a href="' . htmlspecialchars($l['url'], ENT_QUOTES, 'UTF-8') . '"' . $activeAttr . '>';
+                echo htmlspecialchars($l['label'], ENT_QUOTES, 'UTF-8');
+                echo '</a> ';
+            }
+            echo '</div>';
+            break;
+
+        case 'inline':
+        default:
+            echo '<div class="' . $wrapClass . '">';
+            foreach ($langs as $l) {
+                $activeAttr = $l['isCur'] ? ' class="active" style="font-weight:bold;"' : '';
+                echo '<a href="' . htmlspecialchars($l['url'], ENT_QUOTES, 'UTF-8') . '"' . $activeAttr . '>';
+                echo htmlspecialchars(strtoupper($l['code']), ENT_QUOTES, 'UTF-8');
+                echo '</a> ';
+            }
+            echo '</div>';
+            break;
+    }
 }
 
 function theme_head(): void {

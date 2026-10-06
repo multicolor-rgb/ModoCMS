@@ -9,6 +9,15 @@
 
     const CFG = window.MODO_CUSTOMIZER || {};
     const L = CFG.labels || {};
+
+    // Confirmation helper: use the global styled modal when available,
+    // otherwise fall back to the native confirm dialog.
+    const uiConfirm = (message, title) => {
+        if (window.UI && typeof window.UI.confirm === 'function') {
+            return window.UI.confirm({ title: title || 'Confirm', message: message, okText: 'Confirm', danger: true });
+        }
+        return Promise.resolve(window.confirm(message));
+    };
     const root = document.getElementById('modo-cz-panel');
     if (!root) return;
 
@@ -184,12 +193,14 @@
 
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
-            if (!window.confirm(L.confirmReset)) return;
-            api('reset', {}).then((res) => {
-                if (res.token) CFG.token = res.token;
-                setStatus(L.reset, 'ok');
-                reloadPreview();
-            }).catch(() => setStatus(L.error, 'err'));
+            uiConfirm(L.confirmReset, L.reset).then((ok) => {
+                if (!ok) return;
+                api('reset', {}).then((res) => {
+                    if (res.token) CFG.token = res.token;
+                    setStatus(L.reset, 'ok');
+                    reloadPreview();
+                }).catch(() => setStatus(L.error, 'err'));
+            });
         });
     }
 

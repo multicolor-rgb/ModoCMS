@@ -66,8 +66,33 @@ namespace {
         }
     }
 
+    /**
+     * Builds the sidebar icon markup for an extension nav item.
+     * Falls back to a sensible default icon so items stay recognisable
+     * when the sidebar is collapsed to icon-only mode.
+     *
+     * @param string $icon Full inline SVG markup, a "d" path, or empty for default.
+     */
+    if (!function_exists('render_admin_sidebar_icon')) {
+        function render_admin_sidebar_icon(string $icon = ''): string {
+            $icon = trim($icon);
+
+            if ($icon !== '' && str_contains($icon, '<svg')) {
+                // Full custom SVG supplied by a plugin.
+                return $icon;
+            }
+
+            // Default extension icon (puzzle/plug) or a custom "d" path.
+            $d = ($icon !== '' && !preg_match('/[<>&"\']/', $icon))
+                ? $icon
+                : 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4';
+
+            return '<svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="' . htmlspecialchars($d, ENT_QUOTES, 'UTF-8') . '"/></svg>';
+        }
+    }
+
     if (!function_exists('createSideMenu')) {
-        function createSideMenu(string $id, string $title, string $action = ''): void {
+        function createSideMenu(string $id, string $title, string $action = '', string $icon = ''): void {
             foreach (\Core\GSRegistry::$adminSidebarItems as $item) {
                 if ($item['id'] === $id && $item['action'] === ($action ?: $id)) {
                     return;
@@ -78,19 +103,20 @@ namespace {
                 'id'     => $id,
                 'title'  => $title,
                 'action' => $action ?: $id,
+                'icon'   => $icon,
             ];
         }
     }
 
     if (!function_exists('create_side_menu')) {
-        function create_side_menu(string $id, string $title, string $action = ''): void {
-            createSideMenu($id, $title, $action);
+        function create_side_menu(string $id, string $title, string $action = '', string $icon = ''): void {
+            createSideMenu($id, $title, $action, $icon);
         }
     }
 
     if (!function_exists('createNavTab')) {
-        function createNavTab(string $name, string $plugin, string $label, string $action = ''): void {
-            createSideMenu($plugin, $label, $action);
+        function createNavTab(string $name, string $plugin, string $label, string $action = '', string $icon = ''): void {
+            createSideMenu($plugin, $label, $action, $icon);
         }
     }
 
@@ -107,9 +133,10 @@ namespace {
                 }
 
                 $activeClass = $isActive ? ' active' : '';
-                echo '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="' . htmlspecialchars($cssItemClass, ENT_QUOTES, 'UTF-8') . $activeClass . '">';
-                echo '<span class="nav-icon">&bull;</span>';
-                echo '<span class="nav-label">' . htmlspecialchars(i18n_r($item['title']), ENT_QUOTES, 'UTF-8') . '</span>';
+                $label = function_exists('i18n_r') ? i18n_r($item['title']) : $item['title'];
+                echo '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="' . htmlspecialchars($cssItemClass, ENT_QUOTES, 'UTF-8') . $activeClass . '" title="' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '">';
+                echo render_admin_sidebar_icon($item['icon'] ?? '');
+                echo '<span class="nav-text">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
                 echo '</a>' . PHP_EOL;
             }
 

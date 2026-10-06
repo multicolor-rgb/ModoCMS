@@ -82,6 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'multilingual_frontend'  => $multilingual,
             'default_language'       => trim($_POST['default_language'] ?? 'en'),
             'admin_language'         => trim($_POST['admin_language'] ?? 'en'),
+            'header_menu_slug'       => trim($_POST['header_menu_slug'] ?? 'main-menu'),
+            'lang_switcher_style'    => in_array($_POST['lang_switcher_style'] ?? '', ['inline', 'inline_full', 'dropdown', 'select', 'flags'], true) ? $_POST['lang_switcher_style'] : 'inline',
             'site_logo'              => trim($_POST['site_logo'] ?? ''),
             'site_favicon'           => trim($_POST['site_favicon'] ?? ''),
             'og_default_image'       => trim($_POST['og_default_image'] ?? ''),
@@ -139,6 +141,9 @@ $availablePages = $db->query("
     WHERE type = 'page' AND status = 'published' 
     ORDER BY lang ASC, title ASC
 ")->fetchAll();
+
+// Menus created in the Navigation manager (admin/menus.php)
+$availableMenus = $db->query("SELECT id, name, slug FROM menus ORDER BY name ASC")->fetchAll();
 
 require_once __DIR__ . '/views/header.php';
 ?>
@@ -315,6 +320,18 @@ require_once __DIR__ . '/views/header.php';
                 </div>
             </div>
 
+            <div class="form-group">
+                <label class="form-label" for="header_menu_slug"><?= _e('Header Menu') ?></label>
+                <select class="form-control" name="header_menu_slug" id="header_menu_slug">
+                    <?php foreach ($availableMenus as $mn): ?>
+                        <option value="<?= htmlspecialchars($mn['slug'], ENT_QUOTES, 'UTF-8') ?>" <?= Router::getOption('header_menu_slug', 'main-menu') === $mn['slug'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($mn['name'], ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($mn['slug'], ENT_QUOTES, 'UTF-8') ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <small style="color: var(--text-muted);"><?= _e('Menu rendered in the header of the default themes. Built in Navigation & Menus.') ?></small>
+            </div>
+
             <div class="form-group" style="padding: 14px; background: var(--bg-surface, #1e293b); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 4px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: var(--text-main);">
                     <input type="checkbox" name="multilingual_frontend" value="1" <?= Router::getOption('multilingual_frontend', '0') === '1' ? 'checked' : '' ?>>
@@ -323,6 +340,25 @@ require_once __DIR__ . '/views/header.php';
                 <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px; margin-left: 24px; line-height: 1.4;">
                     <?= _e('When disabled, the frontend routes straight to single-language URLs without language prefix segments.') ?>
                 </p>
+
+                <div class="form-group" style="margin-top: 14px;">
+                    <label class="form-label" for="lang_switcher_style"><?= _e('Language Switcher Style') ?></label>
+                    <select class="form-control" name="lang_switcher_style" id="lang_switcher_style">
+                        <?php
+                        $switcherStyles = [
+                            'inline'      => __('Inline codes (EN PL)'),
+                            'inline_full' => __('Inline full names (English Polski)'),
+                            'dropdown'    => __('Dropdown menu'),
+                            'select'      => __('Native select box'),
+                            'flags'       => __('Flags with codes'),
+                        ];
+                        $currentSwitcher = Router::getOption('lang_switcher_style', 'inline');
+                        foreach ($switcherStyles as $val => $lbl): ?>
+                            <option value="<?= $val ?>" <?= $currentSwitcher === $val ? 'selected' : '' ?>><?= htmlspecialchars($lbl, ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="color: var(--text-muted);"><?= _e('Applies to the language switcher rendered by the lang_switch() template tag.') ?></small>
+                </div>
             </div>
         </div>
 
@@ -552,7 +588,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <!-- Submit Button Card -->
-        <div class="card" style="display: flex; justify-content: flex-end;">
+        <div class="card" id="settings-submit-card" style="display: flex; justify-content: flex-end;">
             <button type="submit" class="btn btn-primary" style="padding: 10px 28px; font-size: 14px;">
                 <?= _e('Save Configuration') ?>
             </button>
@@ -590,7 +626,12 @@ require_once __DIR__ . '/views/header.php';
                 <?= _e('Automatic Redirects') ?>
             </h3>
             <?php if (!empty($redirectList)): ?>
-                <form method="POST" action="" style="margin: 0;" onsubmit="return confirm('<?= _e('Remove all redirects?') ?>');">
+                <form method="POST" action="" style="margin: 0;"
+                      data-confirm
+                      data-confirm-title="<?= _e('Clear All Redirects') ?>"
+                      data-confirm-message="<?= _e('Remove all redirects?') ?>"
+                      data-confirm-ok="<?= _e('Clear All') ?>"
+                      data-confirm-danger>
                     <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
                     <input type="hidden" name="action" value="clear_redirects">
                     <button type="submit" class="btn btn-danger-ghost" style="font-size: 12px;"><?= _e('Clear All') ?></button>
@@ -696,7 +737,11 @@ require_once __DIR__ . '/views/header.php';
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button type="submit" name="mode" value="preview" class="btn btn-secondary"><?= _e('Preview Changes') ?></button>
             <button type="submit" name="mode" value="run" class="btn btn-primary"
-                    onclick="return confirm('<?= _e('This will permanently rewrite the selected content. Continue?') ?>');">
+                    data-confirm
+                    data-confirm-title="<?= _e('Run Migration') ?>"
+                    data-confirm-message="<?= _e('This will permanently rewrite the selected content. Continue?') ?>"
+                    data-confirm-ok="<?= _e('Run Migration') ?>"
+                    data-confirm-danger>
                 <?= _e('Run Migration') ?>
             </button>
         </div>
@@ -767,11 +812,11 @@ filePicker.addEventListener('change', () => {
             currentPreviewImg.style.display = 'block';
             currentPlaceholder.style.display = 'none';
         } else {
-            alert(data.error || '<?= _e('File upload failed.') ?>');
+            UI.alert({ title: '<?= _e('Upload Error') ?>', message: data.error || '<?= _e('File upload failed.') ?>', danger: true });
         }
     })
     .catch(() => {
-        alert('<?= _e('Network error occurred while uploading.') ?>');
+        UI.alert({ title: '<?= _e('Upload Error') ?>', message: '<?= _e('Network error occurred while uploading.') ?>', danger: true });
     });
 });
 </script>
@@ -783,6 +828,8 @@ filePicker.addEventListener('change', () => {
     function activate(name) {
         tabs.forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
         panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-tab') === name); });
+        var submitCard = document.getElementById('settings-submit-card');
+        if (submitCard) submitCard.style.display = (name === 'tools') ? 'none' : 'flex';
         try { localStorage.setItem('modo_settings_tab', name); } catch (e) {}
     }
     tabs.forEach(function (t) {

@@ -200,7 +200,11 @@ require_once __DIR__ . '/views/header.php';
                 <input class="form-control" type="text" value="<?= Security::sanitize((string)$currentApiToken) ?>" readonly style="background: #f8fafc; font-family: monospace; font-size: 12px;">
             </div>
 
-            <button type="submit" class="btn btn-secondary" style="width: 100%;" onclick="return confirm('Regenerate API token? Current key will stop working immediately.');">
+            <button type="submit" class="btn btn-secondary" style="width: 100%;"
+                    data-confirm
+                    data-confirm-title="<?= empty($currentApiToken) ? 'Generate API Token' : 'Regenerate API Token' ?>"
+                    data-confirm-message="<?= _e('Regenerate API token? Current key will stop working immediately.') ?>"
+                    data-confirm-ok="<?= _e('Confirm') ?>">
                 <?= empty($currentApiToken) ? 'Generate API Token' : 'Regenerate API Token' ?>
             </button>
         </form>
@@ -227,7 +231,12 @@ require_once __DIR__ . '/views/header.php';
         <p style="font-size: 13px; color: var(--success, #10b981); font-weight: 600; margin: 0 0 12px 0;">
             <?= _e('Two-factor authentication is active on your account.') ?>
         </p>
-        <form method="POST" action="" onsubmit="return confirm('<?= _e('Disable two-factor authentication?') ?>');">
+        <form method="POST" action=""
+              data-confirm
+              data-confirm-title="<?= _e('Disable Two-Factor Authentication') ?>"
+              data-confirm-message="<?= _e('Disable two-factor authentication?') ?>"
+              data-confirm-ok="<?= _e('Disable') ?>"
+              data-confirm-danger>
             <input type="hidden" name="action" value="disable_2fa">
             <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
             <button type="submit" class="btn btn-danger-ghost"><?= _e('Disable 2FA') ?></button>
