@@ -61,6 +61,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!isset($_POST['action']) || $_POST
     $user = Auth::user();
 }
 
+// ---------------------------------------------------------------------
+// Two-Factor Authentication (2FA / TOTP) management
+// ---------------------------------------------------------------------
+$twoFactorAvailable = \Core\Router::getOption('security_2fa_enabled', '0') === '1';
+
+$totpStmt = $db->prepare("SELECT totp_secret, totp_enabled FROM users WHERE id = :id");
+$totpStmt->execute([':id' => Auth::id()]);
+$totpRow = $totpStmt->fetch() ?: [];
+$totpEnabled = (int)($totpRow['totp_enabled'] ?? 0) === 1;
+$pendingSecret = (string)($totpRow['totp_secret'] ?? '');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'enable_2fa') {
+    if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) die('Invalid CSRF');
+    $secret = \Core\Totp::generateSecret();
+    $db->prepare("UPDATE users SET totp_secret = :s, totp_enabled = 0 WHERE id = :id")
+       ->execute([':s' => $secret, ':id' => Auth::id()]);
+    $pendingSecret = $secret;
+    $msg = __('Scan the QR code, then confirm with a code to activate 2FA.');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'confirm_2fa') {
+    if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) die('Invalid CSRF');
+    $code = trim($_POST['totp_code'] ?? '');
+    $secretStmt = $db->prepare("SELECT totp_secret FROM users WHERE id = :id");
+    $secretStmt->execute([':id' => Auth::id()]);
+    $secret = (string)$secretStmt->fetchColumn();
+    if ($secret !== '' && \Core\Totp::verify($secret, $code)) {
+        $db->prepare("UPDATE users SET totp_enabled = 1 WHERE id = :id")->execute([':id' => Auth::id()]);
+        $totpEnabled = true;
+        $msg = __('Two-factor authentication has been enabled.');
+    } else {
+        $err = __('Invalid authentication code. Please try again.');
+        $pendingSecret = $secret;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'disable_2fa') {
+    if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) die('Invalid CSRF');
+    $db->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = :id")->execute([':id' => Auth::id()]);
+    $totpEnabled = false;
+    $pendingSecret = '';
+    $msg = __('Two-factor authentication has been disabled.');
+}
+
+$totpUri = '';
+if (!$totpEnabled && $pendingSecret !== '') {
+    $issuer = \Core\Router::getOption('site_title', 'Modo CMS');
+    $totpUri = \Core\Totp::provisioningUri($pendingSecret, (string)($user['username'] ?? 'admin'), $issuer);
+}
+
 $tokenStmt = $db->prepare("SELECT api_token FROM users WHERE id = :id");
 $tokenStmt->execute([':id' => Auth::id()]);
 $currentApiToken = $tokenStmt->fetchColumn();
@@ -163,4 +213,71 @@ require_once __DIR__ . '/views/header.php';
         </div>
     </div>
 </div>
+<div class="card" style="margin-top: 24px;">
+    <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 12px;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; background: <?= $totpEnabled ? 'var(--success, #10b981)' : 'var(--text-muted, #94a3b8)' ?>;"></span>
+        <?= _e('Two-Factor Authentication (2FA)') ?>
+    </h2>
+
+    <?php if (!$twoFactorAvailable): ?>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
+            <?= _e('Two-factor authentication is currently disabled globally. Enable it under Settings → Security Hardening.') ?>
+        </p>
+    <?php elseif ($totpEnabled): ?>
+        <p style="font-size: 13px; color: var(--success, #10b981); font-weight: 600; margin: 0 0 12px 0;">
+            <?= _e('Two-factor authentication is active on your account.') ?>
+        </p>
+        <form method="POST" action="" onsubmit="return confirm('<?= _e('Disable two-factor authentication?') ?>');">
+            <input type="hidden" name="action" value="disable_2fa">
+            <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+            <button type="submit" class="btn btn-danger-ghost"><?= _e('Disable 2FA') ?></button>
+        </form>
+    <?php else: ?>
+        <?php if ($totpUri !== ''): ?>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 14px 0;">
+                <?= _e('Scan this QR code with Google Authenticator, Microsoft Authenticator or any TOTP app, then confirm with the generated code.') ?>
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-bottom: 16px;">
+                <div id="totp-qr" style="background: #fff; padding: 8px; border-radius: 8px;"></div>
+                <div style="font-size: 13px; max-width: 320px;">
+                    <p style="margin: 0 0 4px 0; color: var(--text-muted);"><?= _e('Or enter this key manually:') ?></p>
+                    <code style="display:block; background:#f1f5f9; color:#0f172a; padding:8px; border-radius:6px; font-size:13px; word-break: break-all;"><?= htmlspecialchars($pendingSecret, ENT_QUOTES, 'UTF-8') ?></code>
+                </div>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="action" value="confirm_2fa">
+                <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+                <div class="form-group" style="max-width: 220px;">
+                    <label class="form-label" for="totp_code"><?= _e('Confirmation Code') ?></label>
+                    <input class="form-control" type="text" name="totp_code" id="totp_code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autocomplete="one-time-code">
+                </div>
+                <button type="submit" class="btn btn-primary"><?= _e('Activate 2FA') ?></button>
+            </form>
+        <?php else: ?>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 14px 0;">
+                <?= _e('Add an extra layer of security by requiring a one-time code from your authenticator app at every sign in.') ?>
+            </p>
+            <form method="POST" action="">
+                <input type="hidden" name="action" value="enable_2fa">
+                <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+                <button type="submit" class="btn btn-primary"><?= _e('Enable 2FA') ?></button>
+            </form>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
+
+<?php if ($totpUri !== ''): ?>
+<script src="assets/js/qrcode.js"></script>
+<script>
+(function () {
+    var el = document.getElementById('totp-qr');
+    if (!el || typeof qrcode !== 'function') return;
+    var otpauthUri = <?= json_encode($totpUri, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+    var qr = qrcode(0, 'M');
+    qr.addData(otpauthUri);
+    qr.make();
+    el.innerHTML = qr.createSvgTag(4, 2);
+})();
+</script>
+<?php endif; ?>
 <?php require_once __DIR__ . '/views/footer.php'; ?>

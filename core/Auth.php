@@ -36,31 +36,98 @@ final class Auth {
 
     /**
      * Verifies login credentials (username or email) and regenerates session ID to prevent Session Fixation.
+     *
+     * @return string 'ok' on full success, 'totp' when a second factor is required,
+     *                'locked' when the IP is temporarily throttled, 'fail' otherwise.
      */
-    public static function login(string $identifier, string $password): bool {
+    public static function login(string $identifier, string $password): string {
+        $ip = Security::clientIp();
+
+        if (Security::tooManyAttempts($ip)) {
+            return 'locked';
+        }
+
         $db = Database::getConnection();
-        
+
         $stmt = $db->prepare("
-            SELECT id, username, password_hash, email, role, admin_lang 
-            FROM users 
-            WHERE username = :id OR email = :id 
+            SELECT id, username, password_hash, email, role, admin_lang, totp_secret, totp_enabled
+            FROM users
+            WHERE username = :id OR email = :id
             LIMIT 1
         ");
         $stmt->execute([':id' => $identifier]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_regenerate_id(true);
+            Security::clearAttempts($ip);
+
+            // Second factor required: park a short-lived pending state.
+            if ((int)($user['totp_enabled'] ?? 0) === 1 && !empty($user['totp_secret'])) {
+                $_SESSION['pending_2fa_user_id'] = (int)$user['id'];
+                $_SESSION['pending_2fa_started'] = time();
+                return 'totp';
             }
-            $_SESSION['user_id'] = (int)$user['id'];
-            $_SESSION['user_name'] = $user['username'];
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_role'] = $user['role'];
-            $_SESSION['user_admin_lang'] = $user['admin_lang'] ?? 'en';
-            return true;
+
+            self::establishSession($user);
+            return 'ok';
         }
-        return false;
+
+        Security::recordFailedAttempt($ip);
+        return 'fail';
+    }
+
+    /**
+     * Establishes the authenticated session (shared by direct and 2FA logins).
+     */
+    private static function establishSession(array $user): void {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+        $_SESSION['user_id'] = (int)$user['id'];
+        $_SESSION['user_name'] = $user['username'];
+        $_SESSION['user_email'] = $user['email'];
+        $_SESSION['user_role'] = $user['role'];
+        $_SESSION['user_admin_lang'] = $user['admin_lang'] ?? 'en';
+    }
+
+    /**
+     * Returns the id of the user currently awaiting a 2FA code, or 0 when none
+     * (the pending state expires after 5 minutes to limit brute-forcing codes).
+     */
+    public static function pendingTotpUserId(): int {
+        $id = (int)($_SESSION['pending_2fa_user_id'] ?? 0);
+        if ($id <= 0) {
+            return 0;
+        }
+        if (time() - (int)($_SESSION['pending_2fa_started'] ?? 0) > 300) {
+            unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_started']);
+            return 0;
+        }
+        return $id;
+    }
+
+    /**
+     * Validates a TOTP code against the pending user and, on success, completes
+     * the login (regenerating the session id).
+     */
+    public static function verifyTotp(string $code): bool {
+        $id = self::pendingTotpUserId();
+        if ($id <= 0) {
+            return false;
+        }
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT id, username, email, role, admin_lang, totp_secret FROM users WHERE id = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $user = $stmt->fetch();
+
+        if (!$user || empty($user['totp_secret']) || !Totp::verify((string)$user['totp_secret'], $code)) {
+            return false;
+        }
+
+        unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_started']);
+        self::establishSession($user);
+        return true;
     }
 
     public static function check(): bool {

@@ -15,7 +15,7 @@ $db = Database::getConnection();$basePrefix = class_exists('Core\Router') ? Rout
 if (isset($_GET['delete']) && isset($_GET['csrf'])) {
     if (Security::verifyCsrfToken($_GET['csrf'])) {
         $delId = (int)$_GET['delete'];
-        $stmt =$db->prepare("SELECT filepath FROM media WHERE id = :id LIMIT 1");
+        $stmt =$db->prepare("SELECT filepath, webp_path FROM media WHERE id = :id LIMIT 1");
         $stmt->execute([':id' =>$delId]);
         $fileRecord =$stmt->fetch();
 
@@ -23,6 +23,12 @@ if (isset($_GET['delete']) && isset($_GET['csrf'])) {
             $physicalPath = __DIR__ . '/..' .$fileRecord['filepath'];
             if (file_exists($physicalPath)) {
                 @unlink($physicalPath);
+            }
+            if (!empty($fileRecord['webp_path'])) {
+                $webpPhysical = __DIR__ . '/..' .$fileRecord['webp_path'];
+                if (file_exists($webpPhysical)) {
+                    @unlink($webpPhysical);
+                }
             }
             $db->prepare("DELETE FROM media WHERE id = :id")->execute([':id' => $delId]);
         }

@@ -77,17 +77,27 @@ if (move_uploaded_file($file['tmp_name'], $uploadDir . $safeName)) {
     $publicUrl = $basePrefix . '/uploads/' . $safeName;
     $storagePath = '/uploads/' . $safeName;
 
+    // Automatic WebP conversion (Settings → Media & Images).
+    $webpPath = null;
+    if (\Core\ImageOptimizer::isEnabled() && \Core\ImageOptimizer::isSupported()) {
+        $converted = \Core\ImageOptimizer::convertToWebp($uploadDir . $safeName);
+        if ($converted !== null) {
+            $webpPath = '/uploads/' . basename($converted);
+        }
+    }
+
     // Record media entry in database
     $db = Database::getConnection();
     $stmt = $db->prepare("
-        INSERT INTO media (filename, filepath, mime_type, file_size, user_id) 
-        VALUES (:f, :p, :m, :s, :u)
+        INSERT INTO media (filename, filepath, mime_type, file_size, webp_path, user_id) 
+        VALUES (:f, :p, :m, :s, :w, :u)
     ");
     $stmt->execute([
         ':f' => basename($file['name']),
         ':p' => $storagePath,
         ':m' => $mime,
         ':s' => $file['size'],
+        ':w' => $webpPath,
         ':u' => Auth::id()
     ]);
 

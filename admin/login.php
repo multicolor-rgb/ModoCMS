@@ -12,15 +12,34 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
     $success = __('Password updated successfully. You can now sign in.');
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+$needsTotp = Auth::pendingTotpUserId() > 0;
 
-    if (Auth::login($username, $password)) {
-        header('Location: index.php');
-        exit;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? 'login';
+
+    if ($action === 'verify_totp') {
+        $code = trim($_POST['totp_code'] ?? '');
+        if (Auth::verifyTotp($code)) {
+            header('Location: index.php');
+            exit;
+        }
+        $error = __('Invalid authentication code.');
+        $needsTotp = Auth::pendingTotpUserId() > 0;
     } else {
-        $error = __('Invalid username or password.');
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        $result = Auth::login($username, $password);
+        if ($result === 'ok') {
+            header('Location: index.php');
+            exit;
+        } elseif ($result === 'totp') {
+            $needsTotp = true;
+        } elseif ($result === 'locked') {
+            $error = __('Too many failed login attempts. Please try again later.');
+        } else {
+            $error = __('Invalid username or password.');
+        }
     }
 }
 ?>
@@ -62,6 +81,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
+        <?php if ($needsTotp): ?>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;">
+            <?= _e('Enter the 6-digit code from your authenticator app.') ?>
+        </p>
+        <form method="POST" action="">
+            <input type="hidden" name="action" value="verify_totp">
+            <div class="form-group">
+                <label class="form-label" for="totp_code"><?= _e('Authentication Code') ?></label>
+                <input class="form-control" type="text" name="totp_code" id="totp_code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus autocomplete="one-time-code" style="letter-spacing: 8px; font-size: 20px; text-align: center;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 14px; margin-top: 8px;">
+                <?= _e('Verify Code') ?>
+            </button>
+            <p style="text-align: center; margin: 14px 0 0 0;">
+                <a href="login.php" class="forgot-link"><?= _e('Back to sign in') ?></a>
+            </p>
+        </form>
+        <?php else: ?>
         <form method="POST" action="">
             <div class="form-group">
                 <label class="form-label" for="username"><?= _e('Username or Email') ?></label>
@@ -80,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?= _e('Sign In') ?>
             </button>
         </form>
+        <?php endif; ?>
     </div>
 </body>
 </html>

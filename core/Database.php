@@ -39,6 +39,9 @@ final class Database {
 
                 if ($isFirstRun) {
                     self::initSchema(self::$instance);
+                } else {
+                    // Apply additive migrations (idempotent) to existing databases.
+                    self::ensureSchemaAdditions(self::$instance);
                 }
             } catch (PDOException $e) {
                 http_response_code(500);
@@ -63,6 +66,8 @@ final class Database {
                 api_token TEXT UNIQUE,
                 reset_token TEXT UNIQUE,
                 reset_expires DATETIME,
+                totp_secret TEXT,
+                totp_enabled INTEGER NOT NULL DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -107,6 +112,12 @@ final class Database {
                 PRIMARY KEY (theme, mod_key)
             );
 
+            -- Tabela na schemę customizera tworzoną w builderze GUI (sekcje + kontrolki)
+            CREATE TABLE IF NOT EXISTS customize_schema (
+                theme TEXT PRIMARY KEY,
+                schema TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -144,6 +155,7 @@ final class Database {
                 filepath TEXT NOT NULL,
                 mime_type TEXT NOT NULL,
                 file_size INTEGER NOT NULL,
+                webp_path TEXT,
                 user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -166,6 +178,22 @@ final class Database {
                 visited_at DATE DEFAULT (DATE('now'))
             );
             CREATE INDEX IF NOT EXISTS idx_visits_date ON visits(visited_at);
+
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_address TEXT NOT NULL,
+                attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_time ON login_attempts(ip_address, attempted_at);
+
+            CREATE TABLE IF NOT EXISTS redirects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                from_path TEXT NOT NULL UNIQUE,
+                to_path TEXT NOT NULL,
+                hits INTEGER NOT NULL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_redirects_from ON redirects(from_path);
         ");
 
         // Seed default administrator: admin / admin123
@@ -181,7 +209,18 @@ final class Database {
             'posts_per_page' => '6',
             'multilingual_frontend' => '0',
             'default_language' => 'en',
-            'available_languages' => 'en:English,pl:Polski'
+            'available_languages' => 'en:English,pl:Polski',
+            'security_brute_force_enabled' => '1',
+            'security_headers_enabled' => '1',
+            'security_brute_force_max' => '5',
+            'security_brute_force_window' => '15',
+            'security_2fa_enabled' => '0',
+            'cache_enabled' => '0',
+            'cache_ttl' => '3600',
+            'webp_enabled' => '0',
+            'webp_quality' => '82',
+            'redirects_enabled' => '1',
+            'hreflang_enabled' => '0',
         ];
 
         $setStmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
@@ -220,5 +259,90 @@ final class Database {
         $db->exec("INSERT OR IGNORE INTO menus (id, name, slug) VALUES (1, 'Main Menu', 'main-menu')");
         $db->exec("INSERT OR IGNORE INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, 'Home', '/', 1)");
         $db->exec("INSERT OR IGNORE INTO menu_items (menu_id, parent_id, title, url, sort_order) VALUES (1, 0, 'Blog', '/blog', 2)");
+    }
+
+    /**
+     * Applies additive, idempotent schema changes so databases created by older
+     * versions of the CMS pick up newly introduced tables without a reinstall.
+     */
+    private static function ensureSchemaAdditions(PDO $db): void
+    {
+        try {
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS customize_schema (
+                    theme TEXT PRIMARY KEY,
+                    schema TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT NOT NULL,
+                    attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_time ON login_attempts(ip_address, attempted_at);
+
+                CREATE TABLE IF NOT EXISTS redirects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    from_path TEXT NOT NULL UNIQUE,
+                    to_path TEXT NOT NULL,
+                    hits INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_redirects_from ON redirects(from_path);
+            ");
+        } catch (PDOException $e) {
+            // Never block the request on an optional migration failure.
+        }
+
+        // Additive column migrations (idempotent — guarded by a column presence check).
+        self::ensureColumn($db, 'users', 'totp_secret', 'TEXT');
+        self::ensureColumn($db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
+        self::ensureColumn($db, 'media', 'webp_path', 'TEXT');
+
+        // Seed newly introduced settings on databases created by older versions.
+        try {
+            $seed = [
+                'security_brute_force_enabled' => '1',
+                'security_headers_enabled' => '1',
+                'security_brute_force_max' => '5',
+                'security_brute_force_window' => '15',
+                'security_2fa_enabled' => '0',
+                'cache_enabled' => '0',
+                'cache_ttl' => '3600',
+                'webp_enabled' => '0',
+                'webp_quality' => '82',
+                'redirects_enabled' => '1',
+                'hreflang_enabled' => '0',
+            ];
+            $stmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
+            foreach ($seed as $k => $v) {
+                $stmt->execute([':k' => $k, ':v' => $v]);
+            }
+        } catch (PDOException $e) {
+            // Optional — ignore.
+        }
+    }
+
+    /**
+     * Adds a column to an existing table only when it is not already present.
+     * SQLite has no "ADD COLUMN IF NOT EXISTS", so the current schema is
+     * inspected through PRAGMA table_info first.
+     */
+    private static function ensureColumn(PDO $db, string $table, string $column, string $definition): void
+    {
+        try {
+            $exists = false;
+            foreach ($db->query("PRAGMA table_info(" . $table . ")") as $info) {
+                if (($info['name'] ?? '') === $column) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $db->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
+            }
+        } catch (PDOException $e) {
+            // Never block the request on an optional migration failure.
+        }
     }
 }

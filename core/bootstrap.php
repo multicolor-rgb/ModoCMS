@@ -43,5 +43,26 @@ require_once __DIR__ . '/Backup.php';
 
 // Initialize storage, localization and load active plugins
 \Core\Database::getConnection();
+
+// Emit hardening HTTP security headers (Settings → Security).
+\Core\Security::sendHeaders();
+
+// Content-affecting admin writes invalidate the anonymous full-page cache.
+if (defined('IN_ADMIN') && IN_ADMIN === true
+    && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'
+    && \Core\Auth::check()
+    && class_exists(\Core\PageCache::class)) {
+    \Core\PageCache::purge();
+}
+
 \Core\I18n::init();
 \Core\PluginLoader::loadActivePlugins();
+
+// Boot the live customizer (detects an active preview token & draft overlay).
+\Core\Customizer::init();
+
+// Frontend admin toolbar for logged-in users.
+\Core\AdminBar::init();
+
+// Frontend "Edit template settings" sidebar (live theme Customizer) for admins.
+\Core\CustomizerPanel::init();

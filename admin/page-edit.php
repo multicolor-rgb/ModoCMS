@@ -79,6 +79,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $slug), '-'));
     }
 
+    // Capture pre-save public paths so slug / parent changes can create 301s.
+    $oldPublicPath = '';
+    $descendantOldPaths = [];
+    if ($id > 0 && class_exists(\Core\Redirects::class)) {
+        $lookupBefore = \Core\Redirects::pageLookup();
+        $oldPublicPath = \Core\Redirects::publicPathFromLookup($id, $lookupBefore);
+        foreach (\Core\Redirects::descendantIds($id, $lookupBefore) as $childId) {
+            $descendantOldPaths[$childId] = \Core\Redirects::publicPathFromLookup($childId, $lookupBefore);
+        }
+    }
+
     if ($id > 0) {
         $stmt = $db->prepare("
             UPDATE pages 
@@ -136,6 +147,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $attachStmt->execute([':pid' => $id, ':tid' => (int)$tagId]);
             }
         }
+    }
+
+    // Automatic permanent redirects when the slug or parent hierarchy changed.
+    if (class_exists(\Core\Redirects::class) && \Core\Redirects::isEnabled()) {
+        $lookupAfter = \Core\Redirects::pageLookup();
+        $newPublicPath = \Core\Redirects::publicPathFromLookup($id, $lookupAfter);
+        if ($oldPublicPath !== '' && $newPublicPath !== '' && $oldPublicPath !== $newPublicPath) {
+            \Core\Redirects::add($oldPublicPath, $newPublicPath);
+        }
+        foreach ($descendantOldPaths as $childId => $oldChildPath) {
+            $newChildPath = \Core\Redirects::publicPathFromLookup($childId, $lookupAfter);
+            if ($oldChildPath !== '' && $newChildPath !== '' && $oldChildPath !== $newChildPath) {
+                \Core\Redirects::add($oldChildPath, $newChildPath);
+            }
+        }
+    }
+
+    // Invalidate the full-page cache after any content change.
+    if (class_exists(\Core\PageCache::class)) {
+        \Core\PageCache::purge();
     }
 
     if (class_exists('Hooks')) {

@@ -26,5 +26,10 @@ try {
 
 require_once __DIR__ . '/core/bootstrap.php';
 
+// Full-page cache: serve a cached copy to anonymous visitors when enabled.
+if (class_exists('\\Core\\PageCache')) {
+    \Core\PageCache::maybeServe();
+}
+
 $router = new \Core\Router();
 $router->dispatch();

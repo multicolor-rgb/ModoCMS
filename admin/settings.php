@@ -46,6 +46,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (\Throwable $e) {
             $migrationError = $e->getMessage();
         }
+    } elseif (($_POST['action'] ?? '') === 'purge_cache') {
+        if (class_exists(\Core\PageCache::class)) {
+            \Core\PageCache::purge();
+        }
+        header('Location: settings.php?cache_purged=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'clear_redirects') {
+        if (class_exists(\Core\Redirects::class)) {
+            \Core\Redirects::clear();
+        }
+        header('Location: settings.php?redirects_cleared=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'delete_redirect') {
+        if (class_exists(\Core\Redirects::class)) {
+            \Core\Redirects::delete((int)($_POST['redirect_id'] ?? 0));
+        }
+        header('Location: settings.php?redirect_deleted=1');
+        exit;
     } else {
         // -------------------------------------------------------------
         // Standard settings save
@@ -71,7 +89,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'tinymce_preset'         => trim($_POST['tinymce_preset'] ?? 'standard'),
             'tinymce_custom_toolbar' => trim($_POST['tinymce_custom_toolbar'] ?? ''),
             'custom_head_scripts'    => trim($_POST['custom_head_scripts'] ?? ''),
-            'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? '')
+            'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? ''),
+            'security_brute_force_enabled' => isset($_POST['security_brute_force_enabled']) ? '1' : '0',
+            'security_brute_force_max'     => (string)max(1, (int)($_POST['security_brute_force_max'] ?? 5)),
+            'security_brute_force_window'  => (string)max(1, (int)($_POST['security_brute_force_window'] ?? 15)),
+            'security_headers_enabled'     => isset($_POST['security_headers_enabled']) ? '1' : '0',
+            'security_2fa_enabled'         => isset($_POST['security_2fa_enabled']) ? '1' : '0',
+            'cache_enabled'                => isset($_POST['cache_enabled']) ? '1' : '0',
+            'cache_ttl'                    => (string)max(1, (int)($_POST['cache_ttl'] ?? 3600)),
+            'webp_enabled'                 => isset($_POST['webp_enabled']) ? '1' : '0',
+            'webp_quality'                 => (string)max(1, min(100, (int)($_POST['webp_quality'] ?? 82))),
+            'redirects_enabled'            => isset($_POST['redirects_enabled']) ? '1' : '0',
+            'hreflang_enabled'             => isset($_POST['hreflang_enabled']) ? '1' : '0'
         ];
 
         $stmt = $db->prepare("
@@ -89,6 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Sitemap::generate();
                 Sitemap::generateRobotsTxt();
             } catch (\Throwable $e) {}
+        }
+
+        // Refresh the full-page cache after configuration changes.
+        if (class_exists(\Core\PageCache::class)) {
+            \Core\PageCache::purge();
         }
 
         $saved = true;
@@ -122,13 +156,47 @@ require_once __DIR__ . '/views/header.php';
     </div>
 <?php endif; ?>
 
+<?php if (isset($_GET['cache_purged'])): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 24px;">
+        <?= _e('Page cache cleared successfully.') ?>
+    </div>
+<?php endif; ?>
+<?php if (isset($_GET['redirects_cleared'])): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 24px;">
+        <?= _e('All automatic redirects have been removed.') ?>
+    </div>
+<?php endif; ?>
+<?php if (isset($_GET['redirect_deleted'])): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 24px;">
+        <?= _e('Redirect removed.') ?>
+    </div>
+<?php endif; ?>
+
+<div class="settings-wrap" id="settings-wrap">
+<div class="settings-tabs">
+    <button type="button" class="settings-tab active" data-tab="general"><?= _e('General') ?></button>
+    <button type="button" class="settings-tab" data-tab="content"><?= _e('Content') ?></button>
+    <button type="button" class="settings-tab" data-tab="seo"><?= _e('SEO & Social') ?></button>
+    <button type="button" class="settings-tab" data-tab="security"><?= _e('Security') ?></button>
+    <button type="button" class="settings-tab" data-tab="performance"><?= _e('Performance') ?></button>
+    <button type="button" class="settings-tab" data-tab="tools"><?= _e('Tools') ?></button>
+</div>
+<script>document.getElementById('settings-wrap').classList.add('tabs-ready');</script>
+<style>
+.settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+.settings-tab { appearance: none; border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 13px; font-weight: 600; padding: 10px 16px; border-radius: 8px 8px 0 0; cursor: pointer; margin-bottom: -1px; }
+.settings-tab:hover { color: var(--text-main, #0f172a); }
+.settings-tab.active { color: var(--primary, #3b82f6); border-color: var(--border-subtle); background: var(--bg-card, #fff); }
+.settings-wrap.tabs-ready .settings-panel:not(.active) { display: none !important; }
+</style>
+
 <form method="POST" action="">
     <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
 
     <div style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
         
         <!-- 1. Site Identity & Presentation -->
-        <div class="card">
+        <div class="card settings-panel" data-tab="general">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('General Configuration') ?>
             </h3>
@@ -218,7 +286,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <!-- 2. Regional & Localization Settings -->
-        <div class="card">
+        <div class="card settings-panel" data-tab="general">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('Language & Regional Settings') ?>
             </h3>
@@ -259,7 +327,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <!-- 3. Branding Images (Logo & Favicon) -->
-        <div class="card">
+        <div class="card settings-panel" data-tab="general">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('Branding Assets') ?>
             </h3>
@@ -301,7 +369,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <!-- 4. OpenGraph Social Metadata -->
-        <div class="card">
+        <div class="card settings-panel" data-tab="seo">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('OpenGraph & Social Sharing') ?>
             </h3>
@@ -330,7 +398,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <!-- 5. Content Editor (TinyMCE) Toolbar Configuration -->
-        <div class="card">
+        <div class="card settings-panel" data-tab="content">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('WYSIWYG Editor Configuration') ?>
             </h3>
@@ -368,7 +436,7 @@ require_once __DIR__ . '/views/header.php';
         </div>
 
         <!-- 6. Custom Scripts & Tracking (Google Analytics, Search Console, Pixels) -->
-        <div class="card">
+        <div class="card settings-panel" data-tab="seo">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('Custom Scripts & Tracking (SEO / Analytics)') ?>
             </h3>
@@ -394,6 +462,95 @@ require_once __DIR__ . '/views/header.php';
             </div>
         </div>
 
+        <!-- 7. Security Hardening -->
+        <div class="card settings-panel" data-tab="security">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Security Hardening') ?>
+            </h3>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="security_brute_force_enabled" value="1" <?= Router::getOption('security_brute_force_enabled', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Brute-Force protection (limit failed sign-in attempts per IP)') ?>
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0 16px 0;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="security_brute_force_max"><?= _e('Max failed attempts') ?></label>
+                    <input class="form-control" type="number" min="1" id="security_brute_force_max" name="security_brute_force_max" value="<?= (int)Router::getOption('security_brute_force_max', '5') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="security_brute_force_window"><?= _e('Detection window (minutes)') ?></label>
+                    <input class="form-control" type="number" min="1" id="security_brute_force_window" name="security_brute_force_window" value="<?= (int)Router::getOption('security_brute_force_window', '15') ?>">
+                </div>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 12px;">
+                <input type="checkbox" name="security_headers_enabled" value="1" <?= Router::getOption('security_headers_enabled', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Send security headers (HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy)') ?>
+            </label>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="security_2fa_enabled" value="1" <?= Router::getOption('security_2fa_enabled', '0') === '1' ? 'checked' : '' ?>>
+                <?= _e('Two-factor authentication (TOTP) — users activate it from their profile') ?>
+            </label>
+        </div>
+
+        <!-- 8. Performance & Caching -->
+        <div class="card settings-panel" data-tab="performance">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Performance & Caching') ?>
+            </h3>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="cache_enabled" value="1" <?= Router::getOption('cache_enabled', '0') === '1' ? 'checked' : '' ?>>
+                <?= _e('Full-page cache for anonymous visitors') ?>
+            </label>
+            <div class="form-group" style="margin: 14px 0 0 0; max-width: 260px;">
+                <label class="form-label" for="cache_ttl"><?= _e('Cache lifetime (seconds)') ?></label>
+                <input class="form-control" type="number" min="1" id="cache_ttl" name="cache_ttl" value="<?= (int)Router::getOption('cache_ttl', '3600') ?>">
+            </div>
+        </div>
+
+        <!-- 9. Media & Images -->
+        <div class="card settings-panel" data-tab="performance">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Media & Images') ?>
+            </h3>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="webp_enabled" value="1" <?= Router::getOption('webp_enabled', '0') === '1' ? 'checked' : '' ?>>
+                <?= _e('Automatically create a WebP copy for every uploaded JPEG / PNG') ?>
+            </label>
+            <div class="form-group" style="margin: 14px 0 0 0; max-width: 260px;">
+                <label class="form-label" for="webp_quality"><?= _e('WebP quality (1-100)') ?></label>
+                <input class="form-control" type="number" min="1" max="100" id="webp_quality" name="webp_quality" value="<?= (int)Router::getOption('webp_quality', '82') ?>">
+            </div>
+            <?php if (!\Core\ImageOptimizer::isSupported()): ?>
+                <small style="font-size: 11px; color: var(--danger, #ef4444); display: block; margin-top: 8px;">
+                    <?= _e('GD with WebP support was not detected on this server — conversion will be skipped.') ?>
+                </small>
+            <?php endif; ?>
+        </div>
+
+        <!-- 10. SEO & Internationalization -->
+        <div class="card settings-panel" data-tab="seo">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('SEO & Internationalization') ?>
+            </h3>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 12px;">
+                <input type="checkbox" name="redirects_enabled" value="1" <?= Router::getOption('redirects_enabled', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Automatically create 301 redirects when a page slug or its parent changes') ?>
+            </label>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="hreflang_enabled" value="1" <?= Router::getOption('hreflang_enabled', '0') === '1' ? 'checked' : '' ?>>
+                <?= _e('Emit hreflang alternate tags (rel="alternate") for multilingual SEO') ?>
+            </label>
+            <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px;">
+                <?= _e('hreflang tags require multilingual frontend mode (Languages tab) to be enabled.') ?>
+            </small>
+        </div>
+
         <!-- Submit Button Card -->
         <div class="card" style="display: flex; justify-content: flex-end;">
             <button type="submit" class="btn btn-primary" style="padding: 10px 28px; font-size: 14px;">
@@ -406,8 +563,70 @@ require_once __DIR__ . '/views/header.php';
     <!-- Hidden Generic File Input for AJAX Uploads -->
     <input type="file" id="settings-file-picker" accept="image/*" style="display: none;">
 </form>
+
+<!-- ===================== Cache & Redirects Management ===================== -->
+<?php
+    $cacheStats = class_exists(\Core\PageCache::class) ? \Core\PageCache::stats() : ['count' => 0, 'bytes' => 0];
+    $redirectList = class_exists(\Core\Redirects::class) ? \Core\Redirects::all() : [];
+?>
+<div class="settings-panel" data-tab="tools" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+    <div class="card">
+        <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+            <?= _e('Page Cache') ?>
+        </h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 14px 0;">
+            <?= sprintf(__('%d cached page(s), %s on disk.'), $cacheStats['count'], number_format($cacheStats['bytes'] / 1024, 1) . ' KB') ?>
+        </p>
+        <form method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+            <input type="hidden" name="action" value="purge_cache">
+            <button type="submit" class="btn btn-secondary"><?= _e('Purge Page Cache') ?></button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; margin: 0; color: var(--text-main);">
+                <?= _e('Automatic Redirects') ?>
+            </h3>
+            <?php if (!empty($redirectList)): ?>
+                <form method="POST" action="" style="margin: 0;" onsubmit="return confirm('<?= _e('Remove all redirects?') ?>');">
+                    <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+                    <input type="hidden" name="action" value="clear_redirects">
+                    <button type="submit" class="btn btn-danger-ghost" style="font-size: 12px;"><?= _e('Clear All') ?></button>
+                </form>
+            <?php endif; ?>
+        </div>
+
+        <?php if (empty($redirectList)): ?>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
+                <?= _e('No redirects recorded yet. They are created automatically when a page slug or parent changes.') ?>
+            </p>
+        <?php else: ?>
+            <div style="max-height: 320px; overflow: auto;">
+                <?php foreach ($redirectList as $redirect): ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); font-size: 12px;">
+                        <div style="font-family: monospace; word-break: break-all;">
+                            <?= htmlspecialchars($redirect['from_path'], ENT_QUOTES, 'UTF-8') ?>
+                            <span style="color: var(--text-muted);">&rarr;</span>
+                            <?= htmlspecialchars($redirect['to_path'], ENT_QUOTES, 'UTF-8') ?>
+                            <span style="color: var(--text-muted);">(<?= (int)$redirect['hits'] ?>)</span>
+                        </div>
+                        <form method="POST" action="" style="margin: 0;">
+                            <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+                            <input type="hidden" name="action" value="delete_redirect">
+                            <input type="hidden" name="redirect_id" value="<?= (int)$redirect['id'] ?>">
+                            <button type="submit" class="btn btn-danger-ghost" style="padding: 2px 8px; font-size: 11px;">&times;</button>
+                        </form>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <!-- ===================== Domain Migration Tool ===================== -->
-<div class="card" style="margin-top: 24px;">
+<div class="card settings-panel" data-tab="tools" style="margin-top: 24px;">
     <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
         <?= _e('Domain Migration') ?>
     </h3>
@@ -556,5 +775,25 @@ filePicker.addEventListener('change', () => {
     });
 });
 </script>
+
+<script>
+(function () {
+    var tabs = document.querySelectorAll('.settings-tab');
+    var panels = document.querySelectorAll('.settings-panel');
+    function activate(name) {
+        tabs.forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
+        panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-tab') === name); });
+        try { localStorage.setItem('modo_settings_tab', name); } catch (e) {}
+    }
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
+    });
+    var initial = 'general';
+    try { var saved = localStorage.getItem('modo_settings_tab'); if (saved) initial = saved; } catch (e) {}
+    if (!document.querySelector('.settings-tab[data-tab="' + initial + '"]')) initial = 'general';
+    activate(initial);
+})();
+</script>
+</div><!-- /settings-wrap -->
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>

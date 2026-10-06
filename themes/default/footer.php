@@ -38,14 +38,16 @@
 
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 small text-body-secondary">
                 <span>&copy; <?= date('Y') ?> <?= site_title(false) ?>. <?= _e('All rights reserved.') ?></span>
-                <span><?= _e('Zbudowano na') ?> <strong>Modo CMS</strong></span>
+                <span><?= htmlspecialchars((string) get_theme_mod('modo_footer_text', __('Built with Modo CMS')), ENT_QUOTES, 'UTF-8') ?></span>
             </div>
         </div>
     </footer>
 
+    <?php if ((string) get_theme_mod('modo_show_back_to_top', '1') === '1'): ?>
     <button id="backToTop" type="button" class="btn btn-primary btn-back-to-top" aria-label="<?= _e('Wróć do góry') ?>">
         <i class="bi bi-arrow-up"></i>
     </button>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= htmlspecialchars(get_theme_url(), ENT_QUOTES, 'UTF-8') ?>/assets/js/theme.js"></script>

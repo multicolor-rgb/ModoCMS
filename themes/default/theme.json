@@ -9,5 +9,59 @@
         "header.php", "footer.php", "page.php", "single.php",
         "archive.php", "front-page.php", "404.php",
         "assets/css/style.css", "assets/js/theme.js"
-    ]
+    ],
+    "customize": {
+        "sections": [
+            {
+                "id": "branding",
+                "title": "Branding",
+                "description": "Kolory i elementy identyfikacji wizualnej witryny.",
+                "priority": 10,
+                "controls": [
+                    {
+                        "id": "modo_primary_color",
+                        "type": "color",
+                        "label": "Kolor akcentu (primary)",
+                        "description": "Główny kolor motywu używany w nagłówku i przyciskach.",
+                        "default": "#0d6efd",
+                        "css_var": "modo-primary",
+                        "priority": 10
+                    },
+                    {
+                        "id": "modo_show_back_to_top",
+                        "type": "checkbox",
+                        "label": "Przycisk \"Wróć do góry\"",
+                        "default": "1",
+                        "priority": 20
+                    }
+                ]
+            },
+            {
+                "id": "typography",
+                "title": "Typografia",
+                "priority": 20,
+                "controls": [
+                    {
+                        "id": "modo_base_font_size",
+                        "type": "range",
+                        "label": "Bazowy rozmiar czcionki",
+                        "default": "16",
+                        "min": 14,
+                        "max": 20,
+                        "step": 1,
+                        "css_var": "modo-base-font-size",
+                        "css_unit": "px",
+                        "priority": 10
+                    },
+                    {
+                        "id": "modo_footer_text",
+                        "type": "text",
+                        "label": "Tekst w stopce",
+                        "default": "Zbudowano na Modo CMS",
+                        "priority": 20
+                    }
+                ]
+            }
+        ]
+    }
 }

@@ -273,6 +273,8 @@ HTACCESS;
                     api_token TEXT UNIQUE,
                     reset_token TEXT UNIQUE,
                     reset_expires DATETIME,
+                    totp_secret TEXT,
+                    totp_enabled INTEGER NOT NULL DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
 
@@ -315,6 +317,11 @@ HTACCESS;
                     PRIMARY KEY (theme, mod_key)
                 );
 
+                CREATE TABLE customize_schema (
+                    theme TEXT PRIMARY KEY,
+                    schema TEXT NOT NULL
+                );
+
                 CREATE TABLE tags (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -352,9 +359,19 @@ HTACCESS;
                     filepath TEXT NOT NULL,
                     mime_type TEXT NOT NULL,
                     file_size INTEGER NOT NULL,
+                    webp_path TEXT,
                     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
+
+                CREATE TABLE redirects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    from_path TEXT NOT NULL UNIQUE,
+                    to_path TEXT NOT NULL,
+                    hits INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX idx_redirects_from ON redirects(from_path);
 
                 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
                 CREATE TABLE plugins (folder TEXT PRIMARY KEY, is_active INTEGER DEFAULT 0);
@@ -408,7 +425,16 @@ HTACCESS;
                 'custom_head_scripts'          => '',
                 'custom_footer_scripts'        => '',
                 'security_brute_force_enabled' => '1',
-                'security_headers_enabled'     => '1'
+                'security_headers_enabled'     => '1',
+                'security_brute_force_max'     => '5',
+                'security_brute_force_window'  => '15',
+                'security_2fa_enabled'         => '0',
+                'cache_enabled'                => '0',
+                'cache_ttl'                    => '3600',
+                'webp_enabled'                 => '0',
+                'webp_quality'                 => '82',
+                'redirects_enabled'            => '1',
+                'hreflang_enabled'             => '0'
             ];
             $setStmt = $pdo->prepare("INSERT INTO settings (key, value) VALUES (:k, :v)");
             foreach ($settings as $k => $v) {

@@ -1,0 +1,210 @@
+/* ==========================================================================
+   Modo CMS — Frontend Theme Settings Panel ("Edit template settings")
+   A theme-agnostic slide-in sidebar rendered on the live frontend.
+   Self-contained palette so it renders correctly on any theme.
+   ========================================================================== */
+#modo-cz-panel {
+    --cz-bg: #ffffff;
+    --cz-surface: #ffffff;
+    --cz-main: #f6f7f7;
+    --cz-border: #e2e4e7;
+    --cz-border-strong: #c3c4c7;
+    --cz-text: #1d2327;
+    --cz-muted: #646970;
+    --cz-primary: #2271b1;
+    --cz-success: #00a32a;
+    --cz-danger: #d63638;
+    --cz-input-bg: #ffffff;
+    --cz-input-border: #8c8f94;
+    --cz-radius: 8px;
+
+    position: fixed;
+    top: 32px;
+    left: 0;
+    width: 360px;
+    max-width: 92vw;
+    height: calc(100vh - 32px);
+    z-index: 100001;
+    display: flex;
+    flex-direction: column;
+    background: var(--cz-surface);
+    color: var(--cz-text);
+    border-right: 1px solid var(--cz-border);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, .18);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    box-sizing: border-box;
+}
+#modo-cz-panel *,
+#modo-cz-panel *::before,
+#modo-cz-panel *::after { box-sizing: border-box; }
+
+/* Sit flush to the top when the admin bar is absent/collapsed. */
+html:not(.modo-has-admin-bar) #modo-cz-panel,
+html.modo-admin-bar-collapsed #modo-cz-panel {
+    top: 0;
+    height: 100vh;
+}
+
+html.modo-cz-panel-collapsed #modo-cz-panel { display: none; }
+
+/* Reopen button (visible only after the panel is collapsed) ---------------- */
+.modo-czp-reopen {
+    position: fixed;
+    top: 44px;
+    left: 0;
+    z-index: 100001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 0 8px 8px 0;
+    background: #2271b1;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, .25);
+}
+html.modo-cz-panel-collapsed .modo-czp-reopen { display: flex; }
+.modo-czp-reopen:hover { background: #135e96; }
+
+/* Top bar ------------------------------------------------------------------ */
+.modo-czp-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--cz-border);
+    background: var(--cz-surface);
+    flex-shrink: 0;
+}
+.modo-czp-title { font-weight: 700; font-size: 14px; color: var(--cz-text); }
+.modo-czp-actions { display: flex; align-items: center; gap: 8px; }
+
+.modo-cz-status { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.modo-cz-status.is-ok { color: var(--cz-success); }
+.modo-cz-status.is-err { color: var(--cz-danger); }
+
+.modo-czp-btn {
+    border: 1px solid var(--cz-input-border);
+    background: var(--cz-surface);
+    color: var(--cz-text);
+    border-radius: var(--cz-radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+}
+.modo-czp-btn:hover { background: var(--cz-main); }
+.modo-czp-btn-primary { background: var(--cz-primary); border-color: var(--cz-primary); color: #fff; }
+.modo-czp-btn-primary:hover { background: #135e96; border-color: #135e96; }
+.modo-czp-btn:disabled { opacity: .6; cursor: default; }
+
+.modo-czp-close {
+    border: 0;
+    background: transparent;
+    color: var(--cz-muted);
+    font-size: 22px;
+    line-height: 1;
+    padding: 0 4px;
+    cursor: pointer;
+}
+.modo-czp-close:hover { color: var(--cz-text); }
+
+/* Body --------------------------------------------------------------------- */
+.modo-czp-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--cz-main);
+}
+
+/* Form controls (fallback so the panel looks right on non-Bootstrap themes) - */
+#modo-cz-panel .form-control {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--cz-text);
+    background: var(--cz-input-bg);
+    border: 1px solid var(--cz-input-border);
+    border-radius: var(--cz-radius);
+    outline: none;
+}
+#modo-cz-panel .form-control:focus {
+    border-color: var(--cz-primary);
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, .15);
+}
+#modo-cz-panel textarea.form-control { resize: vertical; }
+#modo-cz-panel .form-range { width: 100%; }
+#modo-cz-panel select.form-control { appearance: auto; }
+#modo-cz-panel .btn {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--cz-input-border);
+    border-radius: var(--cz-radius);
+    background: var(--cz-surface);
+    color: var(--cz-text);
+    cursor: pointer;
+}
+#modo-cz-panel .btn:hover { background: var(--cz-main); }
+#modo-cz-panel .btn-primary { background: var(--cz-primary); border-color: var(--cz-primary); color: #fff; }
+
+/* Sections (collapsible) --------------------------------------------------- */
+.modo-cz-section {
+    border: 1px solid var(--cz-border);
+    border-radius: var(--cz-radius);
+    margin-bottom: 10px;
+    background: var(--cz-surface);
+    overflow: hidden;
+}
+.modo-cz-section summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--cz-text);
+    list-style: none;
+}
+.modo-cz-section summary::-webkit-details-marker { display: none; }
+.modo-cz-section summary svg { width: 16px; height: 16px; transition: transform .15s ease; color: var(--cz-muted); }
+.modo-cz-section[open] summary svg { transform: rotate(180deg); }
+.modo-cz-section-body { padding: 4px 12px 12px; border-top: 1px solid var(--cz-border); }
+.modo-cz-section-desc { font-size: 12px; color: var(--cz-muted); margin: 8px 0; line-height: 1.5; }
+
+.modo-cz-control { margin-bottom: 16px; }
+.modo-cz-label { display: block; font-size: 12px; font-weight: 600; color: var(--cz-text); margin-bottom: 6px; }
+.modo-cz-desc { font-size: 11px; color: var(--cz-muted); margin-top: 6px; line-height: 1.5; }
+.modo-cz-empty { font-size: 13px; color: var(--cz-muted); }
+.modo-control-heading { font-size: 13px; font-weight: 700; color: var(--cz-text); margin: 14px 0 6px; }
+.modo-control-hr { border: 0; border-top: 1px solid var(--cz-border); margin: 14px 0; }
+
+/* Toggle ------------------------------------------------------------------- */
+.modo-toggle { display: inline-flex; cursor: pointer; }
+.modo-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.modo-toggle-track { width: 42px; height: 24px; background: var(--cz-border-strong); border-radius: 999px; position: relative; transition: background .15s ease; }
+.modo-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform .15s ease; }
+.modo-toggle input:checked + .modo-toggle-track { background: var(--cz-primary); }
+.modo-toggle input:checked + .modo-toggle-track .modo-toggle-thumb { transform: translateX(18px); }
+
+/* Range / color / media ---------------------------------------------------- */
+.modo-range-wrap { display: flex; align-items: center; gap: 10px; }
+.modo-range-value { font-size: 12px; color: var(--cz-muted); min-width: 32px; text-align: right; }
+.modo-color-wrap { display: flex; align-items: center; gap: 8px; }
+.modo-color-input { width: 42px; height: 34px; padding: 2px; border: 1px solid var(--cz-input-border); border-radius: var(--cz-radius); background: var(--cz-input-bg); cursor: pointer; }
+.modo-media-wrap { display: flex; gap: 8px; align-items: center; }
+.modo-media-wrap .form-control { flex: 1 1 auto; width: auto; min-width: 0; }
+.modo-media-wrap .modo-media-btn { flex: 0 0 auto; white-space: nowrap; }
+.modo-radio { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; cursor: pointer; color: var(--cz-text); }
+

@@ -1,0 +1,121 @@
+/* ==========================================================================
+   Modo CMS — Live Customizer
+   Reuses the admin palette (see admin.css :root variables).
+   ========================================================================== */
+.modo-customizer {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--topbar-height, 64px) - 48px);
+    min-height: 480px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md, 10px);
+    overflow: hidden;
+    background: var(--bg-surface);
+}
+
+/* Top bar ---------------------------------------------------------------- */
+.modo-cz-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+}
+.modo-cz-title { font-weight: 700; color: var(--text-main); font-size: 14px; }
+.modo-cz-subtitle { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
+.modo-cz-topbar-center { flex: 1; display: flex; justify-content: center; }
+.modo-cz-topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.modo-cz-devices { display: inline-flex; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); overflow: hidden; }
+.modo-cz-device {
+    border: 0; background: transparent; cursor: pointer;
+    padding: 6px 12px; font-size: 12px; color: var(--text-muted);
+}
+.modo-cz-device.active { background: var(--primary); color: #fff; }
+
+.modo-cz-status { font-size: 12px; font-weight: 600; }
+.modo-cz-status.is-ok { color: var(--success); }
+.modo-cz-status.is-err { color: var(--danger); }
+
+/* Body layout ------------------------------------------------------------ */
+.modo-cz-body { display: flex; flex: 1; min-height: 0; }
+
+.modo-cz-sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-subtle);
+    background: var(--bg-main);
+}
+
+.modo-cz-tabs { display: flex; border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; background: var(--bg-surface); z-index: 2; }
+.modo-cz-tab {
+    flex: 1; border: 0; background: transparent; cursor: pointer;
+    padding: 10px; font-size: 12px; font-weight: 600; color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+}
+.modo-cz-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.modo-cz-panel { padding: 12px; }
+.modo-cz-empty { font-size: 13px; color: var(--text-muted); }
+
+/* Sections (collapsible) ------------------------------------------------- */
+.modo-cz-section { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 10px; background: var(--bg-surface); overflow: hidden; }
+.modo-cz-section summary {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; cursor: pointer; font-weight: 700; font-size: 13px; color: var(--text-main);
+    list-style: none;
+}
+.modo-cz-section summary::-webkit-details-marker { display: none; }
+.modo-cz-section summary svg { width: 16px; height: 16px; transition: transform .15s ease; color: var(--text-muted); }
+.modo-cz-section[open] summary svg { transform: rotate(180deg); }
+.modo-cz-section-body { padding: 4px 12px 12px; border-top: 1px solid var(--border-subtle); }
+.modo-cz-section-desc { font-size: 12px; color: var(--text-muted); margin: 8px 0; line-height: 1.5; }
+
+.modo-cz-control { margin-bottom: 16px; }
+.modo-cz-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; }
+.modo-cz-desc { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+.modo-control-heading { font-size: 13px; font-weight: 700; color: var(--text-main); margin: 14px 0 6px; }
+.modo-control-hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 14px 0; }
+
+/* Toggle ----------------------------------------------------------------- */
+.modo-toggle { display: inline-flex; cursor: pointer; }
+.modo-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.modo-toggle-track { width: 42px; height: 24px; background: var(--border-strong); border-radius: 999px; position: relative; transition: background .15s ease; }
+.modo-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform .15s ease; }
+.modo-toggle input:checked + .modo-toggle-track { background: var(--primary); }
+.modo-toggle input:checked + .modo-toggle-track .modo-toggle-thumb { transform: translateX(18px); }
+
+/* Range / color / media -------------------------------------------------- */
+.modo-range-wrap { display: flex; align-items: center; gap: 10px; }
+.modo-range-value { font-size: 12px; color: var(--text-muted); min-width: 32px; text-align: right; }
+.modo-color-wrap { display: flex; align-items: center; gap: 8px; }
+.modo-color-input { width: 42px; height: 34px; padding: 2px; border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: var(--input-bg); cursor: pointer; }
+.modo-media-wrap { display: flex; gap: 8px; align-items: center; }
+.modo-media-wrap .form-control { flex: 1 1 auto; width: auto; min-width: 0; }
+.modo-media-wrap .modo-media-btn { flex: 0 0 auto; white-space: nowrap; }
+.modo-radio { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; cursor: pointer; color: var(--text-main); }
+
+/* Preview ---------------------------------------------------------------- */
+.modo-cz-preview { flex: 1; min-width: 0; background: #0b1120; display: flex; align-items: stretch; justify-content: center; padding: 16px; overflow: auto; }
+.modo-cz-frame-wrap { width: 100%; height: 100%; margin: 0 auto; background: #fff; transition: max-width .2s ease; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+.modo-cz-frame-wrap[data-device="desktop"] { max-width: 100%; }
+.modo-cz-frame-wrap[data-device="tablet"] { max-width: 820px; }
+.modo-cz-frame-wrap[data-device="mobile"] { max-width: 420px; }
+.modo-cz-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+
+/* Schema builder --------------------------------------------------------- */
+.modo-builder-section { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px; background: var(--bg-surface); }
+.modo-builder-section-head, .modo-builder-control-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.modo-builder-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--primary); }
+.modo-builder-control-title { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.modo-builder-control { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px; margin: 8px 0; background: var(--bg-main); }
+.modo-builder-remove { border: 0; background: transparent; color: var(--danger); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.modo-bf { margin-bottom: 8px; }
+.modo-bf-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 3px; }
+.modo-builder-actions { display: flex; gap: 8px; margin-top: 12px; }
+.modo-builder-add-control { margin-top: 6px; font-size: 12px; }
+.modo-builder-controls { margin-top: 4px; }
+

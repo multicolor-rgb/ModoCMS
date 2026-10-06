@@ -169,3 +169,42 @@ if (!function_exists('theme_footer')) {
         }
     }
 }
+
+/**
+ * Resolves a live-customizer theme modification (theme_mods) value.
+ *
+ * Values published from the Customizer are read here; while a live preview
+ * session is active the unsaved draft overlay is returned instead.
+ */
+if (!function_exists('get_theme_mod')) {
+    function get_theme_mod(string $key, mixed $default = ''): mixed {
+        if (!class_exists('Core\\Customizer')) {
+            return $default;
+        }
+        return \Core\Customizer::getMod($key, $default);
+    }
+}
+
+/**
+ * Echoes a sanitized live-customizer value (escaped for HTML output).
+ */
+if (!function_exists('the_theme_mod')) {
+    function the_theme_mod(string $key, mixed $default = ''): void {
+        $value = get_theme_mod($key, $default);
+        echo htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
+ * Outputs the CSS custom properties generated from the customizer controls that
+ * declare a "css_var" mapping. Instant, hook-free live updates for colours,
+ * sizes, etc. Safe to call inside <head>.
+ */
+if (!function_exists('customizer_css')) {
+    function customizer_css(): void {
+        if (!class_exists('Core\\Customizer')) {
+            return;
+        }
+        echo \Core\Customizer::renderCssVars();
+    }
+}

@@ -35,6 +35,31 @@ function resolve_media_url(string $path): string {
     return ($basePrefix !== '' ? $basePrefix : '') . '/' . $cleanPath;
 }
 
+/**
+ * Returns the WebP counterpart of a JPEG/PNG URL when the generated file exists
+ * on disk (WebP conversion feature), otherwise returns the original URL.
+ */
+if (!function_exists('webp_url')) {
+    function webp_url(string $url): string {
+        if ($url === '' || preg_match('/\.webp$/i', $url)) {
+            return $url;
+        }
+        if (!preg_match('/\.(jpe?g|png)$/i', $url)) {
+            return $url;
+        }
+
+        $candidate = preg_replace('/\.(jpe?g|png)$/i', '.webp', $url);
+        $path = (string)parse_url($candidate, PHP_URL_PATH);
+        $basePrefix = class_exists('Core\\Router') ? Router::getBaseSubdirectory() : '';
+        if ($basePrefix !== '' && str_starts_with($path, $basePrefix)) {
+            $path = substr($path, strlen($basePrefix));
+        }
+        $absolute = dirname(__DIR__) . '/' . ltrim($path, '/');
+
+        return is_file($absolute) ? $candidate : $url;
+    }
+}
+
 // Site Details
 function site_title(bool $echo = true): string {
     $val = Hooks::applyFilters('site_title', Router::getOption('site_title', 'Modo CMS'));
@@ -360,6 +385,83 @@ function menu(string $slug, string $cssClass = 'nav-menu'): void {
     Hooks::doAction('after_render_menu', $slug);
 }
 
+/**
+ * Builds a locale-aware, hierarchy-aware URL for a page row in a target language.
+ */
+function modo_locale_url(array $page, string $lang, string $defaultLang, string $basePrefix): string {
+    $segments = [];
+
+    if (($page['type'] ?? '') === 'post') {
+        $segments[] = Router::getPostsPageSlug();
+        $segments[] = $page['slug'];
+    } else {
+        if (($page['slug'] ?? '') !== 'home') {
+            $segments[] = $page['slug'];
+        }
+        $parentId = (int)($page['parent_id'] ?? 0);
+        $db = Database::getConnection();
+        $guard = 0;
+        while ($parentId > 0 && $guard++ < 50) {
+            $stmt = $db->prepare("SELECT slug, parent_id FROM pages WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => $parentId]);
+            $parent = $stmt->fetch();
+            if (!$parent) break;
+            if ($parent['slug'] !== 'home') {
+                array_unshift($segments, $parent['slug']);
+            }
+            $parentId = (int)$parent['parent_id'];
+        }
+    }
+
+    $path = implode('/', array_map('rawurlencode', $segments));
+    $prefix = ($lang === $defaultLang) ? '' : '/' . rawurlencode($lang);
+    $full = $basePrefix . $prefix . ($path !== '' ? '/' . $path : '');
+
+    return $full === '' ? '/' : $full;
+}
+
+/**
+ * Emits <link rel="alternate" hreflang="..."> tags for the current document,
+ * or for the language homepages when no translated document context exists.
+ */
+function hreflang_tags(bool $echo = true): string {
+    if (Router::getOption('multilingual_frontend', '0') !== '1') return '';
+    if (Router::getOption('hreflang_enabled', '0') !== '1') return '';
+
+    $available = I18n::getAvailableLanguages();
+    if (count($available) < 2) return '';
+
+    $default = I18n::getDefaultLocale();
+    $basePrefix = Router::getBaseSubdirectory();
+    $group = ThemeState::$currentPage['translation_group'] ?? null;
+
+    $urlsByLang = [];
+    if ($group) {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published'");
+        $stmt->execute([':g' => $group]);
+        foreach ($stmt->fetchAll() as $row) {
+            $urlsByLang[$row['lang']] = modo_locale_url($row, (string)$row['lang'], $default, $basePrefix);
+        }
+    } else {
+        foreach ($available as $code => $label) {
+            $urlsByLang[$code] = modo_locale_url(['slug' => 'home', 'type' => 'page', 'parent_id' => 0], (string)$code, $default, $basePrefix);
+        }
+    }
+
+    $out = '';
+    foreach ($available as $code => $label) {
+        if (!isset($urlsByLang[$code])) continue;
+        $out .= '<link rel="alternate" hreflang="' . htmlspecialchars((string)$code, ENT_QUOTES, 'UTF-8') . '" href="' . htmlspecialchars($urlsByLang[$code], ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+    }
+    if (isset($urlsByLang[$default])) {
+        $out .= '<link rel="alternate" hreflang="x-default" href="' . htmlspecialchars($urlsByLang[$default], ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+    }
+
+    if ($echo) echo $out;
+    return $out;
+}
+
 function lang_switch(string $cssClass = 'lang-switcher'): void {
     if (Router::getOption('multilingual_frontend', '0') !== '1') return;
 
@@ -374,28 +476,26 @@ function lang_switch(string $cssClass = 'lang-switcher'): void {
 
     if ($group) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT slug, lang FROM pages WHERE translation_group = :g AND status = 'published'");
+        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published'");
         $stmt->execute([':g' => $group]);
         while ($r = $stmt->fetch()) {
-            $translations[$r['lang']] = $r['slug'];
+            $translations[$r['lang']] = $r;
         }
     }
 
     echo '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES, 'UTF-8') . '">';
     foreach ($available as $code => $label) {
         $isCur = ($code === $cur);
-        $prefix = ($code === $def) ? '' : '/' . $code;
         if (isset($translations[$code])) {
-            $slugPart = ($translations[$code] === 'home') ? '' : '/' . $translations[$code];
-            $url = $basePrefix . $prefix . $slugPart;
-            $url = $url === '' ? '/' : $url;
+            $url = modo_locale_url($translations[$code], (string)$code, $def, $basePrefix);
         } else {
-            $url = $basePrefix . ($prefix ?: '/');
+            $prefix = ($code === $def) ? '' : '/' . rawurlencode((string)$code);
+            $url = $basePrefix . $prefix . '/';
         }
 
         $activeAttr = $isCur ? ' class="active" style="font-weight:bold;"' : '';
         echo '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $activeAttr . '>';
-        echo htmlspecialchars(strtoupper($code), ENT_QUOTES, 'UTF-8');
+        echo htmlspecialchars(strtoupper((string)$code), ENT_QUOTES, 'UTF-8');
         echo '</a> ';
     }
     echo '</div>';
@@ -452,6 +552,11 @@ function theme_head(): void {
     echo '<link rel="canonical" href="' . htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
     echo '<meta property="og:url" content="' . htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
 
+    // Multilingual hreflang alternates (Settings → SEO).
+    if (function_exists('hreflang_tags')) {
+        hreflang_tags();
+    }
+
     if ($ogSiteName !== '') {
         echo '<meta property="og:site_name" content="' . htmlspecialchars($ogSiteName, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
     }
@@ -464,6 +569,11 @@ function theme_head(): void {
     $headScripts = Router::getOption('custom_head_scripts', '');
     if ($headScripts !== '') {
         echo $headScripts . PHP_EOL;
+    }
+
+    // Live customizer CSS variables (theme_mods -> :root custom properties)
+    if (function_exists('customizer_css')) {
+        customizer_css();
     }
 
     Hooks::doAction('theme_head');

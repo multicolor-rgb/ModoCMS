@@ -410,6 +410,18 @@ final class Router {
             return;
         }
 
+        // 3.5 Trwałe przekierowania (301) — automatyczna obsługa zmian sluga / rodzica
+        if (class_exists('Core\\Redirects')) {
+            $redirect = \Core\Redirects::find($normalizedPath);
+            if ($redirect) {
+                \Core\Redirects::hit((int)$redirect['id']);
+                $toPath = (string)$redirect['to_path'];
+                $target = rtrim(self::getSiteUrl(), '/') . ($toPath === '/' ? '/' : $toPath);
+                header('Location: ' . $target, true, 301);
+                return;
+            }
+        }
+
         // 4. Błąd 404
         http_response_code(404);
         \ThemeState::$seoPayload = ['title' => __('Page not found.'), 'description' => '', 'og_image' => ''];
