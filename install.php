@@ -310,6 +310,17 @@ HTACCESS;
                 );
                 CREATE INDEX idx_page_meta_page ON page_meta(page_id);
 
+                CREATE TABLE snippets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    label TEXT,
+                    content TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX idx_snippets_name ON snippets(name);
+
                 CREATE TABLE theme_mods (
                     theme TEXT NOT NULL,
                     mod_key TEXT NOT NULL,

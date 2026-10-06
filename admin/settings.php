@@ -687,6 +687,7 @@ require_once __DIR__ . '/views/header.php';
             $tableLabels = [
                 'pages'      => __('Pages & Posts'),
                 'page_meta'  => __('Custom Fields'),
+                'snippets'   => __('Snippets'),
                 'menu_items' => __('Menus'),
                 'settings'   => __('Settings'),
                 'theme_mods' => __('Theme Options'),

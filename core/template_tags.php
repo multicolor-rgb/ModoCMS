@@ -350,3 +350,155 @@ if (!function_exists('customizer_css')) {
         echo \Core\Customizer::renderCssVars();
     }
 }
+
+/**
+ * Reads a custom field (metadata) attached to a page/post.
+ *
+ * When $pageId is omitted the value is resolved for the current page in the
+ * loop. Values are cast according to the field "meta_type" (text, number,
+ * boolean, json) so themes can use them directly.
+ */
+if (!function_exists('get_meta')) {
+    function get_meta(string $key, mixed $default = '', ?int $pageId = null): mixed {
+        $pageId = $pageId ?? (int) (ThemeState::$currentPage['id'] ?? 0);
+        if ($pageId <= 0 || $key === '') {
+            return $default;
+        }
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT meta_value, meta_type FROM page_meta WHERE page_id = :pid AND meta_key = :k LIMIT 1");
+            $stmt->execute([':pid' => $pageId, ':k' => $key]);
+            $row = $stmt->fetch();
+            if (!$row) {
+                return $default;
+            }
+
+            $value = $row['meta_value'];
+            return match ($row['meta_type'] ?? 'text') {
+                'number'   => is_numeric($value) ? ($value + 0) : $default,
+                'boolean', 'checkbox' => (bool) (int) $value,
+                'json'     => (json_decode((string) $value, true) ?? $default),
+                default    => (string) $value,
+            };
+        } catch (\Throwable $e) {
+            return $default;
+        }
+    }
+}
+
+/**
+ * Echoes a custom field value (escaped for safe HTML output).
+ */
+if (!function_exists('the_meta')) {
+    function the_meta(string $key, mixed $default = ''): void {
+        $value = get_meta($key, $default);
+        if (is_array($value) || is_object($value)) {
+            $value = json_encode($value);
+        }
+        echo htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
+ * Returns all custom fields of a page as an associative array (key => value).
+ *
+ * @return array<string,mixed>
+ */
+if (!function_exists('get_all_meta')) {
+    function get_all_meta(?int $pageId = null): array {
+        $pageId = $pageId ?? (int) (ThemeState::$currentPage['id'] ?? 0);
+        if ($pageId <= 0) {
+            return [];
+        }
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY meta_key ASC");
+            $stmt->execute([':pid' => $pageId]);
+            $out = [];
+            foreach ($stmt->fetchAll() as $row) {
+                $value = $row['meta_value'];
+                $out[$row['meta_key']] = match ($row['meta_type'] ?? 'text') {
+                    'number'   => is_numeric($value) ? ($value + 0) : $value,
+                    'boolean', 'checkbox' => (bool) (int) $value,
+                    'json'     => (json_decode((string) $value, true) ?? $value),
+                    default    => (string) $value,
+                };
+            }
+            return $out;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+}
+
+/**
+ * Resolves a reusable snippet (global HTML/text block) by its shortcode name.
+ * Snippet content is expanded recursively (nested [snippet:...] tags) with a
+ * safeguard against infinite loops. Disabled or missing snippets yield ''.
+ */
+if (!function_exists('snippet_content')) {
+    function snippet_content(string $name, string $default = ''): string {
+        static $cache = [];
+        static $rendering = [];
+
+        $name = strtolower(trim($name));
+        if ($name === '') {
+            return $default;
+        }
+        if (isset($rendering[$name])) {
+            return '';
+        }
+
+        if (!array_key_exists($name, $cache)) {
+            try {
+                $db = Database::getConnection();
+                $stmt = $db->prepare("SELECT content FROM snippets WHERE name = :n AND enabled = 1 LIMIT 1");
+                $stmt->execute([':n' => $name]);
+                $val = $stmt->fetchColumn();
+                $cache[$name] = ($val === false || $val === null) ? null : (string) $val;
+            } catch (\Throwable $e) {
+                $cache[$name] = null;
+            }
+        }
+
+        if ($cache[$name] === null) {
+            return $default;
+        }
+
+        $rendering[$name] = true;
+        $out = render_snippets((string) $cache[$name]);
+        unset($rendering[$name]);
+
+        return $out;
+    }
+}
+
+/**
+ * Expands every [snippet:name] shortcode found in a string of content.
+ */
+if (!function_exists('render_snippets')) {
+    function render_snippets(string $content): string {
+        if ($content === '' || !str_contains($content, '[snippet:')) {
+            return $content;
+        }
+        return (string) preg_replace_callback(
+            '/\[snippet:([a-zA-Z0-9_\-]+)\]/i',
+            static fn (array $m): string => snippet_content($m[1]),
+            $content
+        );
+    }
+}
+
+/**
+ * Echoes a reusable snippet by name (expanded, raw HTML).
+ */
+if (!function_exists('the_snippet')) {
+    function the_snippet(string $name): void {
+        echo snippet_content($name);
+    }
+}
+
+// Expand snippet shortcodes inside every rendered content stream.
+if (class_exists('Core\\Hooks')) {
+    Hooks::addFilter('the_content', 'render_snippets', 5);
+}

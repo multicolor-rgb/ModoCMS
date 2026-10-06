@@ -50,6 +50,130 @@ if ($id > 0) {
     }
 }
 
+// Load custom fields (page_meta) attached to this record.
+$customFields = [];
+if ($id > 0) {
+    $metaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+    $metaStmt->execute([':pid' => $id]);
+    $customFields = $metaStmt->fetchAll();
+}
+
+// Build the list of other pages/posts that already have custom fields, so their
+// field definitions and values can be copied into this document.
+$cfSources = [];
+try {
+    $srcStmt = $db->prepare("
+        SELECT p.id, p.title, p.type
+        FROM pages p
+        WHERE p.id <> :cur
+          AND EXISTS (SELECT 1 FROM page_meta pm WHERE pm.page_id = p.id)
+        ORDER BY p.title ASC
+        LIMIT 200
+    ");
+    $srcStmt->execute([':cur' => $id]);
+    $srcRows = $srcStmt->fetchAll();
+    $srcMetaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+    foreach ($srcRows as $srcRow) {
+        $srcMetaStmt->execute([':pid' => $srcRow['id']]);
+        $fields = [];
+        foreach ($srcMetaStmt->fetchAll() as $m) {
+            $fields[] = [
+                'key'   => (string) $m['meta_key'],
+                'value' => (string) $m['meta_value'],
+                'type'  => (string) $m['meta_type'],
+            ];
+        }
+        $cfSources[] = [
+            'id'     => (int) $srcRow['id'],
+            'title'  => (string) $srcRow['title'],
+            'type'   => (string) $srcRow['type'],
+            'fields' => $fields,
+        ];
+    }
+} catch (\Throwable $e) {
+    $cfSources = [];
+}
+
+/**
+ * Renders a single Custom Field editor row (used for existing fields and as the
+ * clone source for the JS <template>). The canonical value always lives in a
+ * hidden input so exactly one value is submitted per row, whatever the widget.
+ */
+if (!function_exists('renderCustomFieldRow')) {
+function renderCustomFieldRow(array $cf = []): string
+{
+    $types = [
+        'text'     => 'Text',
+        'textarea' => 'Textarea',
+        'richtext' => 'Rich Text',
+        'image'    => 'Image',
+        'checkbox' => 'Checkbox',
+        'number'   => 'Number',
+        'html'     => 'HTML',
+        'php'      => 'PHP',
+        'js'       => 'JavaScript',
+        'css'      => 'CSS',
+        'json'     => 'JSON',
+        'code'     => 'Code',
+    ];
+
+    $key  = htmlspecialchars((string) ($cf['meta_key'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $val  = (string) ($cf['meta_value'] ?? '');
+    $valE = htmlspecialchars($val, ENT_QUOTES, 'UTF-8');
+    $type = (string) ($cf['meta_type'] ?? 'text');
+    if (!isset($types[$type])) {
+        $type = 'text';
+    }
+
+    $opts = '';
+    foreach ($types as $tv => $tl) {
+        $opts .= '<option value="' . $tv . '"' . ($tv === $type ? ' selected' : '') . '>'
+               . htmlspecialchars(__($tl), ENT_QUOTES, 'UTF-8') . '</option>';
+    }
+
+    $checked = ((int) $val === 1) ? ' checked' : '';
+    $imgShow = ($val !== '') ? 'block' : 'none';
+
+    $lUpload   = htmlspecialchars(__('Upload'), ENT_QUOTES, 'UTF-8');
+    $lImageUrl = htmlspecialchars(__('Image URL'), ENT_QUOTES, 'UTF-8');
+    $lEnabled  = htmlspecialchars(__('Enabled'), ENT_QUOTES, 'UTF-8');
+    $lRemove   = htmlspecialchars(__('Remove'), ENT_QUOTES, 'UTF-8');
+    $lValue    = htmlspecialchars(__('Field Value'), ENT_QUOTES, 'UTF-8');
+
+    return <<<HTML
+<div class="custom-field-row" data-type="{$type}" style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+    <div class="cf-settings" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input class="form-control cf-key" type="text" name="custom_field_key[]" value="{$key}" placeholder="key" style="flex: 1 1 160px; min-width: 120px; font-size: 13px;">
+        <select class="form-control cf-type" name="custom_field_type[]" style="flex: 0 0 140px; font-size: 13px;">{$opts}</select>
+        <button type="button" class="btn btn-danger-ghost remove-custom-field" title="{$lRemove}" style="flex: 0 0 auto; font-size: 16px; padding: 4px 12px; line-height: 1;">&times;</button>
+    </div>
+    <div class="cf-value-part" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="cf-field-label" style="font-size: 12px; font-weight: 600; color: var(--text-muted); font-family: monospace;">{$key}</label>
+        <input type="hidden" class="cf-value" name="custom_field_value[]" value="{$valE}">
+        <input type="text" class="form-control cf-widget cf-w-text" value="{$valE}" placeholder="{$lValue}" style="font-size: 13px; display: none;">
+        <textarea class="form-control cf-widget cf-w-textarea" rows="3" style="font-size: 13px; display: none;">{$valE}</textarea>
+        <textarea class="cf-widget cf-w-richtext" style="display: none;">{$valE}</textarea>
+        <textarea class="cf-widget cf-w-code" style="display: none;">{$valE}</textarea>
+        <input type="number" class="form-control cf-widget cf-w-number" value="{$valE}" style="font-size: 13px; display: none;">
+        <label class="cf-widget cf-w-checkbox" style="align-items: center; gap: 8px; font-size: 13px; cursor: pointer; display: none;">
+            <input type="checkbox" class="cf-check-input" value="1"{$checked}> <span>{$lEnabled}</span>
+        </label>
+        <div class="cf-widget cf-w-image" style="display: none;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="text" class="form-control cf-image-url" value="{$valE}" placeholder="{$lImageUrl}" style="flex: 1 1 160px; font-size: 13px;">
+                <button type="button" class="btn btn-secondary cf-image-upload" style="font-size: 12px;">{$lUpload}</button>
+                <button type="button" class="btn btn-danger-ghost cf-image-clear" style="font-size: 14px;">&times;</button>
+                <input type="file" class="cf-image-file" accept="image/*" style="display: none;">
+            </div>
+            <img class="cf-image-preview" src="{$valE}" alt="" style="max-height: 90px; margin-top: 8px; border-radius: 6px; display: {$imgShow};">
+        </div>
+    </div>
+</div>
+HTML;
+}
+}
+
+
 // Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -146,6 +270,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $attachStmt = $db->prepare("INSERT OR IGNORE INTO page_tags (page_id, tag_id) VALUES (:pid, :tid)");
                 $attachStmt->execute([':pid' => $id, ':tid' => (int)$tagId]);
             }
+        }
+    }
+
+    // Persist custom fields (page_meta): upsert posted keys, drop removed ones.
+    $postedKeys = $_POST['custom_field_key'] ?? [];
+    if (is_array($postedKeys)) {
+        $postedValues = $_POST['custom_field_value'] ?? [];
+        $postedTypes = $_POST['custom_field_type'] ?? [];
+        $allowedTypes = ['text', 'textarea', 'richtext', 'image', 'checkbox', 'number', 'html', 'php', 'js', 'css', 'json', 'code'];
+        $keptKeys = [];
+        $metaUpsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type) VALUES (:pid, :k, :v, :t)");
+
+        foreach (array_values($postedKeys) as $i => $rawKey) {
+            $metaKey = strtolower(trim((string) preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) $rawKey), '_'));
+            if ($metaKey === '' || in_array($metaKey, $keptKeys, true)) {
+                continue;
+            }
+            $keptKeys[] = $metaKey;
+
+            $metaType = (string) ($postedTypes[$i] ?? 'text');
+            if (!in_array($metaType, $allowedTypes, true)) {
+                $metaType = 'text';
+            }
+
+            $metaUpsert->execute([
+                ':pid' => $id,
+                ':k'   => $metaKey,
+                ':v'   => (string) ($postedValues[$i] ?? ''),
+                ':t'   => $metaType,
+            ]);
+        }
+
+        if (empty($keptKeys)) {
+            $db->prepare("DELETE FROM page_meta WHERE page_id = :pid")->execute([':pid' => $id]);
+        } else {
+            $placeholders = implode(',', array_fill(0, count($keptKeys), '?'));
+            $delMeta = $db->prepare("DELETE FROM page_meta WHERE page_id = ? AND meta_key NOT IN ($placeholders)");
+            $delMeta->execute(array_merge([$id], $keptKeys));
         }
     }
 
@@ -373,6 +535,58 @@ require_once __DIR__ . '/views/header.php';
 
 <script src="assets/vendor/tinymce/tinymce.min.js"></script>
 
+<link rel="stylesheet" href="assets/vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="assets/vendor/codemirror/theme/dracula.min.css">
+<script src="assets/vendor/codemirror/codemirror.min.js"></script>
+<script src="assets/vendor/codemirror/mode/xml/xml.min.js"></script>
+<script src="assets/vendor/codemirror/mode/javascript/javascript.min.js"></script>
+<script src="assets/vendor/codemirror/mode/css/css.min.js"></script>
+<script src="assets/vendor/codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="assets/vendor/codemirror/mode/clike/clike.min.js"></script>
+<script src="assets/vendor/codemirror/mode/php/php.min.js"></script>
+<style>
+.custom-field-row .CodeMirror {
+    height: auto;
+    min-height: 90px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm, 8px);
+    font-size: 13px;
+}
+#custom-fields-card .cf-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 14px;
+    margin-bottom: -1px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+#custom-fields-card .cf-tab.active {
+    color: var(--text-main);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+#custom-fields-card[data-tab="settings"] .cf-value-part,
+#custom-fields-card[data-tab="settings"] .cf-fields-hint {
+    display: none !important;
+}
+#custom-fields-card[data-tab="fields"] .cf-settings,
+#custom-fields-card[data-tab="fields"] #cf-settings-toolbar {
+    display: none !important;
+}
+#custom-fields-card[data-tab="copy"] #custom-fields-list,
+#custom-fields-card[data-tab="copy"] .cf-fields-hint,
+#custom-fields-card[data-tab="copy"] #cf-settings-toolbar,
+#custom-fields-card[data-tab="copy"] .cf-settings,
+#custom-fields-card[data-tab="copy"] .cf-value-part {
+    display: none !important;
+}
+#custom-fields-card:not([data-tab="copy"]) .cf-copy {
+    display: none !important;
+}
+</style>
+
 <div class="page-header" style="margin-bottom: 24px;">
     <div>
         <h1 class="page-title" style="display: flex; align-items: center; gap: 10px;">
@@ -430,6 +644,62 @@ require_once __DIR__ . '/views/header.php';
             </div>
 
             <?php if (class_exists('Hooks')) { \Hooks::doAction('admin-edit-form-content', $id); } ?>
+            <div class="card" id="custom-fields-card" data-tab="fields" style="padding: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                    <h2 style="font-size: 15px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <svg style="width: 18px; height: 18px; color: var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                        <?= _e('Custom Fields') ?>
+                    </h2>
+                </div>
+
+                <div class="cf-tabs" style="display: flex; gap: 4px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 16px; flex-wrap: wrap;">
+                    <button type="button" class="cf-tab" data-tab="fields"><?= _e('Fields') ?></button>
+                    <button type="button" class="cf-tab" data-tab="settings"><?= _e('Field Settings') ?></button>
+                    <?php if (!empty($cfSources)): ?>
+                        <button type="button" class="cf-tab" data-tab="copy"><?= _e('Copy from other pages') ?></button>
+                    <?php endif; ?>
+                </div>
+
+                <?php if (!empty($cfSources)): ?>
+                <div class="cf-copy" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 12px; border: 1px dashed var(--border-subtle); border-radius: 8px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-muted);"><?= _e('Copy from:') ?></label>
+                    <select id="cf-source" class="form-control" style="flex: 1 1 220px; min-width: 160px; font-size: 13px;">
+                        <option value=""><?= _e('Select a page or post...') ?></option>
+                        <?php foreach ($cfSources as $src): ?>
+                            <option value="<?= (int) $src['id'] ?>">
+                                <?= htmlspecialchars($src['title'], ENT_QUOTES, 'UTF-8') ?>
+                                (<?= $src['type'] === 'post' ? _e('Post') : _e('Page') ?>, <?= count($src['fields']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="cf-copy-settings" checked> <?= _e('Field Settings') ?>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="cf-copy-values" checked> <?= _e('Content') ?>
+                    </label>
+                    <button type="button" id="cf-copy-btn" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;"><?= _e('Copy fields') ?></button>
+                </div>
+                <script type="application/json" id="cf-sources-data"><?= json_encode($cfSources, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+                <?php endif; ?>
+
+                <div id="cf-settings-toolbar" style="margin-bottom: 14px;">
+                    <button type="button" id="add-custom-field" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">+ <?= _e('Add Field') ?></button>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 10px 0 0; line-height: 1.5;"><?= _e('Define each field key and type. Fill in the values in the "Fields" tab.') ?></p>
+                </div>
+
+                <p class="cf-fields-hint" style="font-size: 12px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.5;"><?= _e("Enter a value for each field. Read them in your theme using get_meta('key').") ?></p>
+
+                <div id="custom-fields-list" style="display: flex; flex-direction: column; gap: 14px;">
+                    <?php foreach ($customFields as $cf) { echo renderCustomFieldRow($cf); } ?>
+                </div>
+
+                <template id="custom-field-template">
+                    <?php echo renderCustomFieldRow(); ?>
+                </template>
+            </div>
+
+
 
             <div class="card" style="padding: 24px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 18px;">
@@ -886,5 +1156,315 @@ mediaItems.forEach(item => {
         hideModal();
     });
 });
+
+// Custom fields (page_meta) dynamic repeater with per-type widgets.
+(function () {
+    const cfList = document.getElementById('custom-fields-list');
+    const cfTemplate = document.getElementById('custom-field-template');
+    const cfAddBtn = document.getElementById('add-custom-field');
+    if (!cfList || !cfTemplate || !cfAddBtn) return;
+
+    const codeTypes = {
+        html: 'htmlmixed',
+        php: { name: 'application/x-httpd-php', startOpen: true },
+        js: 'text/javascript',
+        css: 'text/css',
+        json: 'text/javascript',
+        code: 'clike'
+    };
+    const cmMap = new Map();
+    const tmMap = new Map();
+
+    const cfCard = document.getElementById('custom-fields-card');
+    if (cfCard) {
+        const activateTab = (name) => {
+            cfCard.setAttribute('data-tab', name);
+            cfCard.querySelectorAll('.cf-tab').forEach((b) => b.classList.toggle('active', b.getAttribute('data-tab') === name));
+            if (name === 'fields') {
+                cfList.querySelectorAll('.cf-w-code').forEach((ta) => { const cm = cmMap.get(ta); if (cm) cm.refresh(); });
+                setTimeout(() => window.dispatchEvent(new Event('resize')), 20);
+            }
+        };
+        cfCard.querySelectorAll('.cf-tab').forEach((btn) => {
+            btn.addEventListener('click', () => activateTab(btn.getAttribute('data-tab')));
+        });
+        activateTab(cfCard.getAttribute('data-tab') || 'fields');
+    }
+
+    const q = (row, sel) => row.querySelector(sel);
+    const hidden = (row) => q(row, '.cf-value');
+    const currentType = (row) => { const s = q(row, '.cf-type'); return s ? s.value : 'text'; };
+
+    function commit(row) {
+        const type = currentType(row);
+        const h = hidden(row);
+        if (!h) return;
+        if (codeTypes[type]) {
+            const cm = cmMap.get(q(row, '.cf-w-code'));
+            if (cm) h.value = cm.getValue();
+        } else if (type === 'richtext') {
+            const ed = tmMap.get(q(row, '.cf-w-richtext'));
+            if (ed) h.value = ed.getContent();
+        } else if (type === 'checkbox') {
+            const cb = q(row, '.cf-check-input');
+            if (cb) h.value = cb.checked ? '1' : '0';
+        } else if (type === 'image') {
+            const u = q(row, '.cf-image-url');
+            if (u) h.value = u.value;
+        } else if (type === 'textarea') {
+            const t = q(row, '.cf-w-textarea');
+            if (t) h.value = t.value;
+        } else if (type === 'number') {
+            const n = q(row, '.cf-w-number');
+            if (n) h.value = n.value;
+        } else {
+            const t = q(row, '.cf-w-text');
+            if (t) h.value = t.value;
+        }
+    }
+
+    function ensureEditor(row, type) {
+        if (type === 'richtext') {
+            const ta = q(row, '.cf-w-richtext');
+            if (!ta || tmMap.has(ta) || typeof tinymce === 'undefined') return;
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            tinymce.init({
+                target: ta,
+                height: 300,
+                menubar: false,
+                plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
+                toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
+                skin: isDark ? 'oxide-dark' : 'oxide',
+                content_css: isDark ? 'dark' : 'default',
+                relative_urls: false,
+                remove_script_host: false,
+                images_upload_url: 'upload.php',
+                automatic_uploads: true,
+                setup: (editor) => {
+                    editor.on('init', () => tmMap.set(ta, editor));
+                    editor.on('change', () => { const h = hidden(row); if (h) h.value = editor.getContent(); });
+                }
+            });
+        } else if (codeTypes[type]) {
+            const ta = q(row, '.cf-w-code');
+            if (!ta || cmMap.has(ta) || typeof CodeMirror === 'undefined') return;
+            const cm = CodeMirror.fromTextArea(ta, {
+                lineNumbers: true, lineWrapping: true, theme: 'dracula',
+                mode: codeTypes[type], indentUnit: 4, tabSize: 4, viewportMargin: Infinity
+            });
+            cm.on('change', () => { const h = hidden(row); if (h) h.value = cm.getValue(); });
+            cmMap.set(ta, cm);
+        }
+    }
+
+    function showWidget(row, type) {
+        row.setAttribute('data-type', type);
+        row.querySelectorAll('.cf-widget').forEach((w) => { w.style.display = 'none'; });
+        let sel = '.cf-w-text';
+        if (type === 'textarea') sel = '.cf-w-textarea';
+        else if (type === 'richtext') sel = '.cf-w-richtext';
+        else if (type === 'image') sel = '.cf-w-image';
+        else if (type === 'checkbox') sel = '.cf-w-checkbox';
+        else if (type === 'number') sel = '.cf-w-number';
+        else if (codeTypes[type]) sel = '.cf-w-code';
+        const w = q(row, sel);
+        if (w) w.style.display = (type === 'checkbox') ? 'flex' : 'block';
+        ensureEditor(row, type);
+        if (codeTypes[type]) {
+            const cm = cmMap.get(q(row, '.cf-w-code'));
+            if (cm) setTimeout(() => cm.refresh(), 40);
+        }
+    }
+
+
+    function wireRow(row) {
+        const h = hidden(row);
+        const val = h ? h.value : '';
+        const set = (sel, v) => { const el = q(row, sel); if (el) el.value = v; };
+        set('.cf-w-text', val);
+        set('.cf-w-textarea', val);
+        set('.cf-w-richtext', val);
+        set('.cf-w-code', val);
+        set('.cf-w-number', val);
+        set('.cf-image-url', val);
+        const cb = q(row, '.cf-check-input'); if (cb) cb.checked = (val === '1' || val === 'true');
+        const ip = q(row, '.cf-image-preview'); if (ip) { ip.src = val; ip.style.display = val ? 'block' : 'none'; }
+
+        showWidget(row, currentType(row));
+
+        ['.cf-w-text', '.cf-w-textarea', '.cf-w-number', '.cf-image-url'].forEach((s) => {
+            const el = q(row, s);
+            if (el) el.addEventListener('input', () => { if (h) h.value = el.value; });
+        });
+        const cbx = q(row, '.cf-check-input');
+        if (cbx) cbx.addEventListener('change', () => { if (h) h.value = cbx.checked ? '1' : '0'; });
+
+        const keyInput = q(row, '.cf-key');
+        const labelEl = q(row, '.cf-field-label');
+        if (keyInput && labelEl) {
+            keyInput.addEventListener('input', () => { labelEl.textContent = keyInput.value; });
+        }
+
+        const fileIn = q(row, '.cf-image-file');
+        const upBtn = q(row, '.cf-image-upload');
+        if (upBtn && fileIn) upBtn.addEventListener('click', () => fileIn.click());
+        if (fileIn) fileIn.addEventListener('change', () => {
+            if (!fileIn.files.length) return;
+            const fd = new FormData();
+            fd.append('file', fileIn.files[0]);
+            fetch('upload.php', { method: 'POST', body: fd })
+                .then((r) => r.json())
+                .then((data) => {
+                    if (data.location) {
+                        const u = q(row, '.cf-image-url'); if (u) u.value = data.location;
+                        const p = q(row, '.cf-image-preview'); if (p) { p.src = data.location; p.style.display = 'block'; }
+                        if (h) h.value = data.location;
+                    }
+                }).catch(() => {});
+            fileIn.value = '';
+        });
+        const clr = q(row, '.cf-image-clear');
+        if (clr) clr.addEventListener('click', () => {
+            const u = q(row, '.cf-image-url'); if (u) u.value = '';
+            const p = q(row, '.cf-image-preview'); if (p) { p.src = ''; p.style.display = 'none'; }
+            if (h) h.value = '';
+        });
+
+        const sel = q(row, '.cf-type');
+        if (sel) sel.addEventListener('change', () => onTypeChange(row));
+    }
+
+    function setRowValue(row, value) {
+        const h = hidden(row);
+        const v = (value == null) ? '' : String(value);
+        if (h) h.value = v;
+        const set = (sel, val) => { const el = q(row, sel); if (el) el.value = val; };
+        set('.cf-w-text', v);
+        set('.cf-w-textarea', v);
+        set('.cf-w-number', v);
+        set('.cf-image-url', v);
+        const cb = q(row, '.cf-check-input'); if (cb) cb.checked = (v === '1' || v === 'true');
+        const ip = q(row, '.cf-image-preview'); if (ip) { ip.src = v; ip.style.display = v ? 'block' : 'none'; }
+        const rt = q(row, '.cf-w-richtext'); if (rt) rt.value = v;
+        const rted = tmMap.get(rt); if (rted) rted.setContent(v);
+        const cd = q(row, '.cf-w-code'); if (cd) cd.value = v;
+        const cm = cmMap.get(cd); if (cm) cm.setValue(v);
+    }
+
+    function onTypeChange(row) {
+        const h = hidden(row);
+        setRowValue(row, h ? h.value : '');
+        showWidget(row, currentType(row));
+    }
+
+    function addRow() {
+        const node = cfTemplate.content.firstElementChild;
+        if (!node) return null;
+        const clone = node.cloneNode(true);
+        cfList.appendChild(clone);
+        wireRow(clone);
+        return clone;
+    }
+
+    function findRowByKey(key) {
+        const k = String(key || '').toLowerCase().trim();
+        if (k === '') return null;
+        let found = null;
+        cfList.querySelectorAll('.custom-field-row').forEach((row) => {
+            if (found) return;
+            const ki = q(row, '.cf-key');
+            if (ki && ki.value.toLowerCase().trim() === k) found = row;
+        });
+        return found;
+    }
+
+    // Copy field definitions and/or values from another page/post.
+    const cfSourcesEl = document.getElementById('cf-sources-data');
+    let cfSources = [];
+    try { cfSources = JSON.parse(cfSourcesEl ? cfSourcesEl.textContent : '[]') || []; } catch (err) { cfSources = []; }
+
+    const cfCopyBtn = document.getElementById('cf-copy-btn');
+    const cfSourceSel = document.getElementById('cf-source');
+    const cfCopySettings = document.getElementById('cf-copy-settings');
+    const cfCopyValues = document.getElementById('cf-copy-values');
+    const CF_I18N = <?= json_encode([
+        'confirmTitle' => __('Copy custom fields?'),
+        'confirmMsg'   => __('Copy custom fields from "%s"? Fields with the same key will be updated, new ones will be added.'),
+        'okText'       => __('Copy fields'),
+        'cancelText'   => __('Cancel'),
+        'noSource'     => __('Select a source page or post first.'),
+        'copied'       => __('Copied fields: %s'),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+    if (cfCopyBtn && cfSourceSel) {
+        cfCopyBtn.addEventListener('click', () => {
+            const srcId = cfSourceSel.value;
+            if (!srcId) {
+                if (window.UI) { UI.alert({ title: CF_I18N.confirmTitle, message: CF_I18N.noSource }); }
+                return;
+            }
+            const src = cfSources.find((s) => String(s.id) === String(srcId));
+            if (!src || !Array.isArray(src.fields)) return;
+
+            const doSettings = !cfCopySettings || cfCopySettings.checked;
+            const doValues = !cfCopyValues || cfCopyValues.checked;
+
+            const runCopy = () => {
+                let count = 0;
+                src.fields.forEach((f) => {
+                    let row = findRowByKey(f.key);
+                    if (!row) {
+                        if (!doSettings) return;
+                        row = addRow();
+                        if (!row) return;
+                        const ki = q(row, '.cf-key'); if (ki) ki.value = f.key;
+                        const lbl = q(row, '.cf-field-label'); if (lbl) lbl.textContent = f.key;
+                    }
+                    const sel = q(row, '.cf-type');
+                    if (doSettings && sel) sel.value = f.type;
+                    if (doValues) setRowValue(row, f.value);
+                    showWidget(row, currentType(row));
+                    count++;
+                });
+                if (window.UI) {
+                    UI.alert({ title: CF_I18N.confirmTitle, message: CF_I18N.copied.replace('%s', String(count)) });
+                }
+            };
+
+            if (window.UI && UI.confirm) {
+                UI.confirm({
+                    title: CF_I18N.confirmTitle,
+                    message: CF_I18N.confirmMsg.replace('%s', src.title),
+                    okText: CF_I18N.okText,
+                    cancelText: CF_I18N.cancelText
+                }).then((ok) => { if (ok) runCopy(); });
+            } else {
+                runCopy();
+            }
+        });
+    }
+
+    cfList.querySelectorAll('.custom-field-row').forEach(wireRow);
+
+    cfAddBtn.addEventListener('click', () => addRow());
+
+    cfList.addEventListener('click', (e) => {
+        const btn = e.target.closest('.remove-custom-field');
+        if (!btn) return;
+        const row = btn.closest('.custom-field-row');
+        if (!row) return;
+        const cd = q(row, '.cf-w-code');
+        if (cd && cmMap.has(cd)) { cmMap.get(cd).toTextArea(); cmMap.delete(cd); }
+        const rt = q(row, '.cf-w-richtext');
+        if (rt && tmMap.has(rt)) { try { tmMap.get(rt).remove(); } catch (err) {} tmMap.delete(rt); }
+        row.remove();
+    });
+
+    const ownerForm = cfList.closest('form');
+    if (ownerForm) ownerForm.addEventListener('submit', () => {
+        cfList.querySelectorAll('.custom-field-row').forEach(commit);
+    });
+})();
+
 </script>
 <?php require_once __DIR__ . '/views/footer.php'; ?>

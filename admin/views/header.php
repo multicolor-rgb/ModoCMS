@@ -74,6 +74,10 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
                     <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>
                     <span class="nav-text"><?= _e('Navigation') ?></span>
                 </a>
+                <a href="snippets.php" class="nav-link <?= $currentPage === 'snippets.php' ? 'active' : '' ?>">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span class="nav-text"><?= _e('Snippets') ?></span>
+                </a>
                 <a href="theme-edit.php" class="nav-link <?= $currentPage === 'theme-edit.php' ? 'active' : '' ?>">
                     <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
                     <span class="nav-text"><?= _e('Theme Editor') ?></span>

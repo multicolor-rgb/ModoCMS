@@ -104,6 +104,18 @@ final class Database {
             );
             CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
 
+            -- Tabela na wycinki treści (Reusable Snippets) wstawiane przez [snippet:nazwa]
+            CREATE TABLE IF NOT EXISTS snippets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                label TEXT,
+                content TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_snippets_name ON snippets(name);
+
             -- Tabela na ustawienia Theme Customizera
             CREATE TABLE IF NOT EXISTS theme_mods (
                 theme TEXT NOT NULL,
@@ -291,6 +303,27 @@ final class Database {
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX IF NOT EXISTS idx_redirects_from ON redirects(from_path);
+
+                CREATE TABLE IF NOT EXISTS page_meta (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+                    meta_key TEXT NOT NULL,
+                    meta_value TEXT,
+                    meta_type TEXT DEFAULT 'text',
+                    UNIQUE(page_id, meta_key)
+                );
+                CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
+
+                CREATE TABLE IF NOT EXISTS snippets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    label TEXT,
+                    content TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_snippets_name ON snippets(name);
             ");
         } catch (PDOException $e) {
             // Never block the request on an optional migration failure.

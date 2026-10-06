@@ -22,6 +22,7 @@ final class DomainMigration
     private const TARGETS = [
         'pages'      => ['pk' => ['id'],               'columns' => ['content', 'meta_title', 'meta_description', 'featured_image']],
         'page_meta'  => ['pk' => ['id'],               'columns' => ['meta_value']],
+        'snippets'   => ['pk' => ['id'],               'columns' => ['content']],
         'menu_items' => ['pk' => ['id'],               'columns' => ['url']],
         'settings'   => ['pk' => ['key'],              'columns' => ['value']],
         'theme_mods' => ['pk' => ['theme', 'mod_key'], 'columns' => ['mod_value']],
