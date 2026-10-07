@@ -99,7 +99,7 @@ final class Router {
         } catch (\Throwable $e) {}
     }
 
-    private function renderBlogArchive(\PDO $database, string $themeDirectory, string $activeLocale, string $title = ''): void {
+    private function renderBlogArchive(\PDO $database, string $themeDirectory, string $activeLocale, string $title = '', bool $isHomepage = false): void {
         $currentPageNumber = max(1, (int)($_GET['page'] ?? 1));
         $postsPerPageLimit = (int)self::getOption('posts_per_page', '6');
         $queryOffset = ($currentPageNumber - 1) * $postsPerPageLimit;
@@ -129,7 +129,7 @@ final class Router {
         $archiveTitle = $title !== '' ? $title : __('Blog');
 
         \ThemeState::$seoPayload = [
-            'title' => $archiveTitle . ' &bull; ' . self::getOption('site_title', 'Modo CMS'),
+            'title' => self::formatDocumentTitle($archiveTitle, $isHomepage),
             'description' => self::getOption('site_description', ''),
             'og_image' => ''
         ];
@@ -262,7 +262,7 @@ final class Router {
             $clean_posts_iterator = new \ArrayIterator($postsStmt->fetchAll());
 
             \ThemeState::$seoPayload = [
-                'title' => __('Tag') . ': ' . htmlspecialchars($tag['name'], ENT_QUOTES, 'UTF-8') . ' &bull; ' . self::getOption('site_title', 'Modo CMS'),
+                'title' => self::formatDocumentTitle(__('Tag') . ': ' . $tag['name'], false),
                 'description' => sprintf(__('Articles tagged with %s'), $tag['name']),
                 'og_image' => ''
             ];
@@ -289,7 +289,7 @@ final class Router {
 
             // Przypadek A: Na stronie głównej wyświetlaj najnowsze wpisy
             if ($homepageType === 'posts') {
-                $this->renderBlogArchive($database, $themeDirectory, $activeLocale);
+                $this->renderBlogArchive($database, $themeDirectory, $activeLocale, '', true);
                 return;
             }
 
@@ -390,7 +390,7 @@ final class Router {
         if ($documentRecord) {
             \ThemeState::$currentPage = $documentRecord;
             \ThemeState::$seoPayload = [
-                'title' => !empty($documentRecord['meta_title']) ? $documentRecord['meta_title'] : $documentRecord['title'] . ' &bull; ' . self::getOption('site_title', 'Modo CMS'),
+                'title' => !empty($documentRecord['meta_title']) ? $documentRecord['meta_title'] : self::formatDocumentTitle($documentRecord['title'], empty($pathSegments)),
                 'description' => !empty($documentRecord['meta_description']) ? $documentRecord['meta_description'] : self::getOption('site_description', ''),
                 'og_image' => $documentRecord['featured_image'] ?? ''
             ];
@@ -440,6 +440,46 @@ final class Router {
         $resultRow = $statement->fetch();
 
         return $resultRow ? (string)$resultRow['value'] : $defaultFallback;
+    }
+
+    /**
+     * Builds the document <title> from the configured title-format settings.
+     *
+     * Two independent formats are supported (homepage vs. every other page)
+     * and a configurable separator. Returns a raw string (no HTML entities) so
+     * that the escaping performed in theme_head() renders it correctly.
+     *
+     * Formats:
+     *  - site_only : site name only
+     *  - page_only : page name only
+     *  - page_site : page name + separator + site name (default)
+     *  - site_page : site name + separator + page name
+     */
+    public static function formatDocumentTitle(string $pageTitle, bool $isHomepage = false): string {
+        $siteTitle = trim(self::getOption('site_title', 'Modo CMS'));
+        $pageTitle = trim($pageTitle);
+
+        if ($pageTitle === '') {
+            return $siteTitle;
+        }
+        if ($siteTitle === '') {
+            return $pageTitle;
+        }
+
+        $separator = trim(self::getOption('title_separator', '|'));
+        if ($separator === '') {
+            $separator = '|';
+        }
+
+        $formatKey = $isHomepage ? 'homepage_title_format' : 'subpage_title_format';
+        $format = self::getOption($formatKey, 'page_site');
+
+        return match ($format) {
+            'site_only' => $siteTitle,
+            'page_only' => $pageTitle,
+            'site_page' => $siteTitle . ' ' . $separator . ' ' . $pageTitle,
+            default     => $pageTitle . ' ' . $separator . ' ' . $siteTitle,
+        };
     }
 
     /**

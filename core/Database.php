@@ -144,6 +144,32 @@ final class Database {
             CREATE INDEX IF NOT EXISTS idx_page_tags_page ON page_tags(page_id);
             CREATE INDEX IF NOT EXISTS idx_page_tags_tag ON page_tags(tag_id);
 
+            -- Tabela wersji (backupów) wpisów i stron z możliwością przywracania
+            CREATE TABLE IF NOT EXISTS page_revisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                page_id INTEGER NOT NULL,
+                title TEXT,
+                slug TEXT,
+                content TEXT,
+                type TEXT,
+                status TEXT,
+                parent_id INTEGER DEFAULT 0,
+                lang TEXT,
+                translation_group TEXT,
+                featured_image TEXT,
+                meta_title TEXT,
+                meta_description TEXT,
+                meta_json TEXT,
+                tags TEXT,
+                author_id INTEGER,
+                source TEXT NOT NULL DEFAULT 'save',
+                note TEXT,
+                content_hash TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_page_revisions_page ON page_revisions(page_id);
+            CREATE INDEX IF NOT EXISTS idx_page_revisions_created ON page_revisions(page_id, created_at DESC);
+
             CREATE TABLE IF NOT EXISTS menus (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -235,6 +261,16 @@ final class Database {
             'webp_quality' => '82',
             'redirects_enabled' => '1',
             'hreflang_enabled' => '0',
+            'mail_driver' => 'mail',
+            'mail_from_email' => '',
+            'mail_from_name' => '',
+            'mail_smtp_host' => '',
+            'mail_smtp_port' => '587',
+            'mail_smtp_user' => '',
+            'mail_smtp_pass' => '',
+            'mail_smtp_secure' => 'tls',
+            'mail_smtp_auth' => '1',
+            'mail_smtp_timeout' => '15',
         ];
 
         $setStmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
@@ -324,6 +360,31 @@ final class Database {
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX IF NOT EXISTS idx_snippets_name ON snippets(name);
+
+                CREATE TABLE IF NOT EXISTS page_revisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    page_id INTEGER NOT NULL,
+                    title TEXT,
+                    slug TEXT,
+                    content TEXT,
+                    type TEXT,
+                    status TEXT,
+                    parent_id INTEGER DEFAULT 0,
+                    lang TEXT,
+                    translation_group TEXT,
+                    featured_image TEXT,
+                    meta_title TEXT,
+                    meta_description TEXT,
+                    meta_json TEXT,
+                    tags TEXT,
+                    author_id INTEGER,
+                    source TEXT NOT NULL DEFAULT 'save',
+                    note TEXT,
+                    content_hash TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_page_revisions_page ON page_revisions(page_id);
+                CREATE INDEX IF NOT EXISTS idx_page_revisions_created ON page_revisions(page_id, created_at DESC);
             ");
         } catch (PDOException $e) {
             // Never block the request on an optional migration failure.
@@ -348,6 +409,19 @@ final class Database {
                 'webp_quality' => '82',
                 'redirects_enabled' => '1',
                 'hreflang_enabled' => '0',
+                'mail_driver' => 'mail',
+                'mail_from_email' => '',
+                'mail_from_name' => '',
+                'mail_smtp_host' => '',
+                'mail_smtp_port' => '587',
+                'mail_smtp_user' => '',
+                'mail_smtp_pass' => '',
+                'mail_smtp_secure' => 'tls',
+                'mail_smtp_auth' => '1',
+                'mail_smtp_timeout' => '15',
+                'revisions_enabled' => '1',
+                'revisions_max' => '30',
+                'autosave_interval' => '60',
             ];
             $stmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
             foreach ($seed as $k => $v) {

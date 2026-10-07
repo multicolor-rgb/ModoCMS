@@ -447,7 +447,17 @@ HTACCESS;
                 'webp_enabled'                 => '0',
                 'webp_quality'                 => '82',
                 'redirects_enabled'            => '1',
-                'hreflang_enabled'             => '0'
+                'hreflang_enabled'             => '0',
+                'mail_driver'                  => 'mail',
+                'mail_from_email'              => '',
+                'mail_from_name'               => '',
+                'mail_smtp_host'               => '',
+                'mail_smtp_port'               => '587',
+                'mail_smtp_user'               => '',
+                'mail_smtp_pass'               => '',
+                'mail_smtp_secure'             => 'tls',
+                'mail_smtp_auth'               => '1',
+                'mail_smtp_timeout'            => '15'
             ];
             $setStmt = $pdo->prepare("INSERT INTO settings (key, value) VALUES (:k, :v)");
             foreach ($settings as $k => $v) {

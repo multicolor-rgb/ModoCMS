@@ -62,9 +62,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $foundUser['username'],
                         $resetUrl
                     );
-                    $headers = "From: no-reply@" . parse_url($host, PHP_URL_HOST) . "\r\n" .
-                               "Content-Type: text/plain; charset=UTF-8\r\n";
-                    @mail($userEmail, $subject, $body, $headers);
+                    // Send through the central mailer so the site-wide transport
+                    // (PHP mail() or SMTP/PHPMailer, see Settings → Email) is used.
+                    $fromEmail = 'no-reply@' . parse_url($host, PHP_URL_HOST);
+                    if (class_exists('\\Core\\Mailer')) {
+                        \Core\Mailer::send($userEmail, $subject, $body, ['from_email' => $fromEmail]);
+                    } else {
+                        $headers = "From: " . $fromEmail . "\r\n" .
+                                   "Content-Type: text/plain; charset=UTF-8\r\n";
+                        @mail($userEmail, $subject, $body, $headers);
+                    }
                 }
 
                 $message = __('If the account exists, password reset instructions have been sent.');

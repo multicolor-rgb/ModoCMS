@@ -214,6 +214,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Capture the previous version of an existing document before it is
+    // overwritten, so the edit can always be rolled back from the revisions panel.
+    if ($id > 0 && class_exists(\Core\Revisions::class)) {
+        \Core\Revisions::snapshot($id, 'save');
+    }
+
     if ($id > 0) {
         $stmt = $db->prepare("
             UPDATE pages 
@@ -413,6 +419,17 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://'
 
 $postsPageSlug = Router::getPostsPageSlug();
 
+// --- Revision history (backups) -------------------------------------------
+$revisionsEnabled = class_exists(\Core\Revisions::class) && \Core\Revisions::isEnabled();
+$revisionList  = [];
+$revisionCount = 0;
+$autosaveInterval = 60;
+if ($id > 0 && $revisionsEnabled) {
+    $revisionList     = \Core\Revisions::list($id, 30);
+    $revisionCount    = \Core\Revisions::count($id);
+    $autosaveInterval = \Core\Revisions::autosaveInterval();
+}
+
 require_once __DIR__ . '/views/header.php';
 ?>
 
@@ -611,6 +628,12 @@ require_once __DIR__ . '/views/header.php';
     </div>
 <?php endif; ?>
 
+<?php if (isset($_GET['restored'])): ?>
+    <div class="card" style="border-left: 4px solid var(--primary, #3b82f6); background: rgba(59, 130, 246, 0.08); padding: 14px 18px; margin-bottom: 24px; border-radius: var(--radius-sm); color: #60a5fa; font-weight: 500;">
+        <?= _e('A previous version has been restored. Review the content and save again if needed.') ?>
+    </div>
+<?php endif; ?>
+
 <form method="POST" action="">
     <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
 
@@ -720,10 +743,59 @@ require_once __DIR__ . '/views/header.php';
                     <textarea class="form-control" id="meta_description" name="meta_description" rows="3" placeholder="<?= _e('Write a compelling summary for search result snippets (150-160 characters)...') ?>"><?= htmlspecialchars($item['meta_description'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
             </div>
+
+            <?php if ($id > 0): ?>
+            <div class="card" id="revisions-card" style="padding: 0; overflow: hidden;">
+                <button type="button" id="revisions-toggle" aria-expanded="false" aria-controls="revisions-body"
+                        style="width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: transparent; border: 0; padding: 16px 20px; margin: 0; cursor: pointer; text-align: left;">
+                    <span style="font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <svg style="width: 18px; height: 18px; color: var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <?= _e('Revision History') ?>
+                        <span id="revisions-count" class="badge" style="font-size: 11px; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); color: var(--text-muted);"><?= (int) $revisionCount ?></span>
+                    </span>
+                    <svg id="revisions-chevron" style="width: 16px; height: 16px; color: var(--text-muted); transition: transform .2s;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="revisions-body" style="display: none; padding: 0 20px 20px;">
+                    <?php if (!$revisionsEnabled): ?>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 0;"><?= _e('Version history is disabled in System Settings.') ?></p>
+                    <?php else: ?>
+                        <button type="button" id="revision-snapshot-btn" class="btn btn-secondary" style="width: 100%; font-size: 12px; margin-bottom: 12px;">
+                            <?= _e('Save snapshot now') ?>
+                        </button>
+                        <p id="autosave-status" style="font-size: 11px; color: var(--text-muted); margin: 0 0 12px; display: flex; align-items: center; gap: 6px;">
+                            <span id="autosave-dot" style="width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); display: inline-block;"></span>
+                            <span id="autosave-status-text"><?= _e('Autosave active') ?></span>
+                        </p>
+                        <div id="revisions-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto;">
+                            <p class="revisions-empty" style="font-size: 12px; color: var(--text-muted); margin: 0;"><?= _e('No revisions yet.') ?></p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <script>
+            (function () {
+                var card = document.getElementById('revisions-card');
+                if (!card) return;
+                var toggle = document.getElementById('revisions-toggle');
+                var body = document.getElementById('revisions-body');
+                var chevron = document.getElementById('revisions-chevron');
+                if (!toggle || !body) return;
+                function setOpen(open) {
+                    body.style.display = open ? 'block' : 'none';
+                    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+                }
+                toggle.addEventListener('click', function () { setOpen(body.style.display === 'none'); });
+                if (window.location.hash === '#revisions-card') {
+                    setOpen(true);
+                    setTimeout(function () { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+                }
+            })();
+            </script>
+            <?php endif; ?>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 24px;">
-            
             <div class="card" style="padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h3 style="font-size: 14px; font-weight: 700; margin: 0; color: var(--text-main);"><?= _e('Document Settings') ?></h3>
@@ -1467,4 +1539,244 @@ mediaItems.forEach(item => {
 })();
 
 </script>
+<script type="application/json" id="revisions-config">
+<?= json_encode([
+    'pageId'   => (int) $id,
+    'csrf'     => Security::generateCsrfToken(),
+    'endpoint' => 'revisions.php',
+    'interval' => (int) $autosaveInterval,
+    'enabled'  => (bool) ($id > 0 && $revisionsEnabled),
+    'items'    => array_map(static function ($r) {
+        return [
+            'id'          => (int) $r['id'],
+            'title'       => (string) $r['title'],
+            'source'      => (string) $r['source'],
+            'note'        => (string) ($r['note'] ?? ''),
+            'content_len' => (int) $r['content_len'],
+            'created_at'  => (string) $r['created_at'],
+        ];
+    }, $revisionList),
+    'i18n'     => [
+        'sources'      => [
+            'save'     => __('Save'),
+            'autosave' => __('Auto'),
+            'manual'   => __('Manual'),
+            'restore'  => __('Restore'),
+        ],
+        'restore'        => __('Restore'),
+        'preview'        => __('Preview'),
+        'close'          => __('Close'),
+        'restoreTitle'   => __('Restore this version?'),
+        'restoreMsg'     => __('The current content will be snapshotted first, so this action can be undone.'),
+        'deleteTitle'    => __('Delete this revision?'),
+        'deleteMsg'      => __('This version will be permanently removed.'),
+        'noRevisions'    => __('No revisions yet.'),
+        'snapshotSaved'  => __('Snapshot saved.'),
+        'deleted'        => __('Revision deleted.'),
+        'autosavedAt'    => __('Autosaved at %s'),
+        'unsaved'        => __('You have unsaved changes.'),
+        'error'          => __('Error'),
+        'networkError'   => __('Network error. Please try again.'),
+    ],
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+</script>
+<script>
+(function () {
+    'use strict';
+    var cfgEl = document.getElementById('revisions-config');
+    if (!cfgEl) return;
+    var cfg;
+    try { cfg = JSON.parse(cfgEl.textContent); } catch (e) { return; }
+    if (!cfg.enabled || !cfg.pageId) return;
+
+    var i18n = cfg.i18n || {};
+    var listEl = document.getElementById('revisions-list');
+    var countEl = document.getElementById('revisions-count');
+    var dot = document.getElementById('autosave-dot');
+    var statusText = document.getElementById('autosave-status-text');
+    var snapBtn = document.getElementById('revision-snapshot-btn');
+    var form = document.querySelector('form');
+    var dirty = false;
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c];
+        });
+    }
+    function sourceLabel(src) {
+        return (i18n.sources && i18n.sources[src]) ? i18n.sources[src] : src;
+    }
+    function sourceColor(src) {
+        switch (src) {
+            case 'autosave': return '#f59e0b';
+            case 'manual':   return '#8b5cf6';
+            case 'restore':  return '#3b82f6';
+            default:         return '#10b981';
+        }
+    }
+    function renderItems(items) {
+        if (!listEl) return;
+        if (!items || !items.length) {
+            listEl.innerHTML = '<p class="revisions-empty" style="font-size:12px;color:var(--text-muted);margin:0;">'
+                + esc(i18n.noRevisions || 'No revisions yet.') + '</p>';
+            return;
+        }
+        var html = '';
+        items.forEach(function (it) {
+            var col = sourceColor(it.source);
+            html += '<div class="revision-row" data-id="' + it.id + '" style="border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:8px 10px;display:flex;flex-direction:column;gap:6px;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'
+                +   '<span style="font-size:11px;color:var(--text-main);font-weight:600;">' + esc(it.created_at) + '</span>'
+                +   '<span class="badge" style="font-size:10px;background:' + col + '22;border:1px solid ' + col + '55;color:' + col + ';">' + esc(sourceLabel(it.source)) + '</span>'
+                + '</div>'
+                + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+                +   '<button type="button" class="btn btn-secondary rev-restore" data-id="' + it.id + '" style="padding:3px 8px;font-size:11px;">' + esc(i18n.restore || 'Restore') + '</button>'
+                +   '<button type="button" class="btn btn-secondary rev-preview" data-id="' + it.id + '" style="padding:3px 8px;font-size:11px;">' + esc(i18n.preview || 'Preview') + '</button>'
+                +   '<button type="button" class="btn btn-danger-ghost rev-delete" data-id="' + it.id + '" style="padding:3px 8px;font-size:11px;" title="' + esc(i18n.deleteTitle || 'Delete') + '">&times;</button>'
+                + '</div>'
+                + '</div>';
+        });
+        listEl.innerHTML = html;
+    }
+    function updateCount(data) {
+        if (countEl && typeof data.count === 'number') countEl.textContent = data.count;
+    }
+    function post(action, extra) {
+        var fd = new FormData();
+        fd.append('action', action);
+        fd.append('csrf_token', cfg.csrf);
+        fd.append('page_id', cfg.pageId);
+        if (extra) { Object.keys(extra).forEach(function (k) { fd.append(k, extra[k]); }); }
+        return fetch(cfg.endpoint, { method: 'POST', body: fd, headers: { 'X-CSRF-Token': cfg.csrf }, credentials: 'same-origin' })
+            .then(function (r) { return r.json().catch(function () { return { status: 'error', message: 'Bad response' }; }); });
+    }
+    function uiAlert(message) {
+        if (window.UI) { UI.alert({ title: i18n.error || 'Error', message: message, danger: true }); }
+        else { window.alert(message); }
+    }
+
+    renderItems(cfg.items);
+
+
+    // --- Row actions --------------------------------------------------------
+    if (listEl) {
+        listEl.addEventListener('click', function (e) {
+            var btn = e.target.closest('button');
+            if (!btn) return;
+            var id = parseInt(btn.getAttribute('data-id'), 10);
+            if (btn.classList.contains('rev-restore')) doRestore(id);
+            else if (btn.classList.contains('rev-preview')) doPreview(id);
+            else if (btn.classList.contains('rev-delete')) doDelete(id);
+        });
+    }
+
+    function doSnapshot() {
+        if (snapBtn) snapBtn.disabled = true;
+        post('snapshot').then(function (data) {
+            if (snapBtn) snapBtn.disabled = false;
+            if (data.status === 'success') {
+                renderItems(data.items);
+                updateCount(data);
+                if (window.UI) UI.toast(i18n.snapshotSaved || 'Snapshot saved.');
+            } else { uiAlert(data.message || 'Failed.'); }
+        }).catch(function () { if (snapBtn) snapBtn.disabled = false; uiAlert(i18n.networkError || 'Network error.'); });
+    }
+    if (snapBtn) snapBtn.addEventListener('click', doSnapshot);
+
+    function doRestore(id) {
+        var go = function () {
+            post('restore', { revision_id: id }).then(function (data) {
+                if (data.status === 'success') {
+                    window.location.href = 'page-edit.php?id=' + cfg.pageId + '&restored=1';
+                } else { uiAlert(data.message || 'Failed.'); }
+            }).catch(function () { uiAlert(i18n.networkError || 'Network error.'); });
+        };
+        if (window.UI && UI.confirm) {
+            UI.confirm({ title: i18n.restoreTitle || 'Restore', message: i18n.restoreMsg || '', okText: i18n.restore || 'Restore', danger: true })
+                .then(function (ok) { if (ok) go(); });
+        } else if (window.confirm(i18n.restoreMsg || 'Restore this version?')) { go(); }
+    }
+
+    function doDelete(id) {
+        var go = function () {
+            post('delete', { revision_id: id }).then(function (data) {
+                if (data.status === 'success') {
+                    renderItems(data.items);
+                    updateCount(data);
+                    if (window.UI) UI.toast(i18n.deleted || 'Revision deleted.');
+                } else { uiAlert(data.message || 'Failed.'); }
+            }).catch(function () { uiAlert(i18n.networkError || 'Network error.'); });
+        };
+        if (window.UI && UI.confirm) {
+            UI.confirm({ title: i18n.deleteTitle || 'Delete', message: i18n.deleteMsg || '', okText: i18n.deleteTitle || 'Delete', danger: true })
+                .then(function (ok) { if (ok) go(); });
+        } else if (window.confirm(i18n.deleteMsg || 'Delete this revision?')) { go(); }
+    }
+
+
+    function doPreview(id) {
+        post('get', { revision_id: id }).then(function (data) {
+            if (data.status !== 'success' || !data.revision) { uiAlert(data.message || 'Not found.'); return; }
+            showPreview(data.revision);
+        }).catch(function () { uiAlert(i18n.networkError || 'Network error.'); });
+    }
+
+    function showPreview(rev) {
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(11,15,25,.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px);';
+        overlay.innerHTML = '<div style="width:100%;max-width:860px;height:80vh;background:var(--bg-card,#111827);border:1px solid var(--border-subtle);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border-subtle);">'
+            +   '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(rev.title) + '</div>'
+            +   '<div style="font-size:11px;color:var(--text-muted);">' + esc(rev.created_at) + ' &bull; ' + esc(sourceLabel(rev.source)) + '</div></div>'
+            +   '<button type="button" class="btn btn-secondary" data-close style="padding:5px 12px;font-size:12px;">' + esc(i18n.close || 'Close') + '</button>'
+            + '</div>'
+            + '<iframe data-preview style="flex:1;width:100%;border:0;background:#fff;"></iframe>'
+            + '</div>';
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay || e.target.hasAttribute('data-close')) { document.body.removeChild(overlay); }
+        });
+        document.body.appendChild(overlay);
+        var frame = overlay.querySelector('[data-preview]');
+        var doc = frame.contentDocument || frame.contentWindow.document;
+        doc.open();
+        doc.write('<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:system-ui,Arial,sans-serif;padding:20px;color:#111;line-height:1.6;}img{max-width:100%;height:auto;}</style></head><body>' + (rev.content || '') + '</body></html>');
+        doc.close();
+    }
+
+    // --- Autosave -----------------------------------------------------------
+    if (form) {
+        form.addEventListener('input', function () { dirty = true; });
+        form.addEventListener('change', function () { dirty = true; });
+        form.addEventListener('submit', function () { dirty = false; });
+    }
+    window.addEventListener('beforeunload', function (e) {
+        if (dirty) { e.preventDefault(); e.returnValue = i18n.unsaved || 'You have unsaved changes.'; return e.returnValue; }
+    });
+
+    function autosave() {
+        if (!form || !dirty) return;
+        if (window.tinymce && typeof window.tinymce.triggerSave === 'function') { try { window.tinymce.triggerSave(); } catch (e) {} }
+        var fd = new FormData(form);
+        fd.set('action', 'autosave');
+        fd.set('csrf_token', cfg.csrf);
+        fd.set('page_id', cfg.pageId);
+        fetch(cfg.endpoint, { method: 'POST', body: fd, headers: { 'X-CSRF-Token': cfg.csrf }, credentials: 'same-origin' })
+            .then(function (r) { return r.json().catch(function () { return { status: 'error' }; }); })
+            .then(function (data) {
+                if (data.status === 'success') {
+                    dirty = false;
+                    renderItems(data.items);
+                    updateCount(data);
+                    if (dot) { dot.style.background = '#10b981'; }
+                    if (statusText) {
+                        statusText.textContent = (i18n.autosavedAt || 'Autosaved at %s').replace('%s', data.autosaved_at || new Date().toLocaleTimeString());
+                    }
+                }
+            })
+            .catch(function () { /* silent — autosave is best-effort */ });
+    }
+    if (cfg.interval && cfg.interval > 0) { setInterval(autosave, cfg.interval * 1000); }
+})();
+</script>
+
 <?php require_once __DIR__ . '/views/footer.php'; ?>

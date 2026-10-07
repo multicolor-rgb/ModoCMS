@@ -1,0 +1,117 @@
+/**
+ * Modo Form - style frontu (lokalne, bez CDN).
+ */
+.modo-form {
+    --mf-accent: var(--primary, #2563eb);
+    --mf-border: var(--border-subtle, #d7dde7);
+    --mf-radius: 10px;
+    max-width: 720px;
+    margin: 0 auto;
+    font-size: 15px;
+    color: inherit;
+    box-sizing: border-box;
+}
+.modo-form *,
+.modo-form *::before,
+.modo-form *::after { box-sizing: border-box; }
+
+.modo-form__fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+.modo-form__row { display: flex; flex-direction: column; gap: 6px; }
+.modo-form__row--full { grid-column: 1 / -1; }
+.modo-form__row--half { grid-column: span 1; }
+@media (max-width: 560px) {
+    .modo-form__row--half { grid-column: 1 / -1; }
+}
+
+.modo-form__label {
+    font-weight: 600;
+    font-size: 13px;
+    color: inherit;
+}
+.modo-form__req { color: #dc2626; }
+
+.modo-form__input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--mf-border);
+    border-radius: var(--mf-radius);
+    background: var(--bg-surface, #fff);
+    color: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.modo-form__input:focus {
+    outline: none;
+    border-color: var(--mf-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mf-accent) 20%, transparent);
+}
+textarea.modo-form__input { min-height: 120px; resize: vertical; }
+select.modo-form__input { appearance: none; cursor: pointer; }
+
+.modo-form__heading {
+    margin: 6px 0 0;
+    font-size: 17px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--mf-border);
+    padding-bottom: 6px;
+}
+
+.modo-form__choices { display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+.modo-form__choice { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; cursor: pointer; }
+.modo-form__choice input { margin-top: 2px; }
+
+.modo-form__row.is-error .modo-form__input { border-color: #dc2626; }
+.modo-form__error { color: #dc2626; font-size: 12px; }
+
+.modo-form__captcha { grid-column: 1 / -1; margin-top: 4px; }
+.modo-form__captcha--own { display: flex; flex-direction: column; gap: 6px; }
+
+.modo-form__actions { grid-column: 1 / -1; margin-top: 8px; }
+.modo-form__submit {
+    display: inline-block;
+    padding: 11px 26px;
+    background: var(--mf-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--mf-radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .15s ease, transform .05s ease;
+}
+.modo-form__submit:hover { filter: brightness(1.08); }
+.modo-form__submit:active { transform: translateY(1px); }
+
+.modo-form__alert {
+    grid-column: 1 / -1;
+    padding: 12px 16px;
+    border-radius: var(--mf-radius);
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+.modo-form__alert--error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.modo-form__alert ul { margin: 6px 0 0; padding-left: 18px; }
+
+.modo-form--done {
+    padding: 22px 24px;
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+    border-radius: var(--mf-radius);
+}
+.modo-form__done-title { font-weight: 700; margin-bottom: 6px; }
+.modo-form__message { margin: 0; }
+
+/* Honeypot - pole pulapka nigdy nie widoczne. */
+.modo-form__hp {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+}

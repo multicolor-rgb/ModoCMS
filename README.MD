@@ -231,6 +231,30 @@ Skróty: **Dashboard**, **+ Nowy** *(manage_pages)*, **Edytuj** (bieżącą stro
 
 ---
 
+## 📧 Wysyłka e-mail (Mail / SMTP)
+
+Globalną metodę wysyłki wiadomości konfiguruje się w **Ustawienia systemu → E-mail**. Do wyboru są dwa transporty:
+
+- **PHP `mail()`** – korzysta z funkcji `mail()` (wymaga działającego MTA np. Postfix/sendmail po stronie serwera).
+- **SMTP (PHPMailer)** – wysyłka przez serwer SMTP z użyciem dołączonej biblioteki [PHPMailer](https://github.com/PHPMailer/PHPMailer) (`core/vendor/PHPMailer`). Zalecane dla niezawodnej dostarczalności. Obsługuje TLS/SSL, uwierzytelnianie i konfigurowalny port.
+
+Dostępne opcje: adres i nazwa nadawcy, host/port SMTP, szyfrowanie (brak / TLS / SSL), uwierzytelnianie (użytkownik + hasło) oraz limit czasu połączenia.
+
+Wszystkie wiadomości wychodzące przechodzą przez klasę `Core\Mailer` (`core/Mailer.php`), więc **wtyczki (np. Modo Form) automatycznie korzystają z tych ustawień**. Modo Form wywołuje `\Core\Mailer::send()` przy powiadomieniach o zgłoszeniach; własny „E-mail nadawcy” ustawiony we wtyczce nadpisuje globalnego nadawcę, a gdy jest pusty — użyty zostaje adres globalny.
+
+Użycie w kodzie:
+
+```php
+\Core\Mailer::send(
+    ['odbiorca@example.com' => 'Odbiorca'],
+    'Temat',
+    'Treść wiadomości',
+    ['from_email' => 'sklep@example.com', 'html' => false]
+);
+```
+
+---
+
 ## 📝 Licencja
 
 Projekt dystrybuowany na licencji zgodnej z repozytorium źródłowym.

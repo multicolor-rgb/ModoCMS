@@ -459,6 +459,9 @@ require_once __DIR__ . '/views/header.php';
                                 <a href="page-edit.php?id=<?= $item['id'] ?>" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;">
                                     <?= _e('Edit') ?>
                                 </a>
+                                <a href="page-edit.php?id=<?= $item['id'] ?>#revisions-card" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; line-height: 1;" title="<?= _e('Revision History') ?>" aria-label="<?= _e('Revision History') ?>">
+                                    <svg style="width: 14px; height: 14px; vertical-align: middle;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </a>
                                 <?php if (Auth::can('delete_pages')): ?>
                                     <button type="button" 
                                             class="btn btn-danger-ghost" 

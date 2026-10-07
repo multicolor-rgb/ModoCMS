@@ -35,6 +35,24 @@ spl_autoload_register(function ($class) {
     }
 });
 
+// PSR-4 autoloader for the bundled PHPMailer library (core/vendor/PHPMailer/src).
+spl_autoload_register(function ($class) {
+    $prefix = 'PHPMailer\\PHPMailer\\';
+    $baseDir = __DIR__ . '/vendor/PHPMailer/src/';
+
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+
+    $relativeClass = substr($class, $len);
+    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+
+    if (file_exists($file)) {
+        require_once $file;
+    }
+});
+
 require_once __DIR__ . '/GetSimpleCompat.php';
 require_once __DIR__ . '/I18n.php';
 require_once __DIR__ . '/frontend.php';

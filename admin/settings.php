@@ -102,7 +102,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'webp_enabled'                 => isset($_POST['webp_enabled']) ? '1' : '0',
             'webp_quality'                 => (string)max(1, min(100, (int)($_POST['webp_quality'] ?? 82))),
             'redirects_enabled'            => isset($_POST['redirects_enabled']) ? '1' : '0',
-            'hreflang_enabled'             => isset($_POST['hreflang_enabled']) ? '1' : '0'
+            'hreflang_enabled'             => isset($_POST['hreflang_enabled']) ? '1' : '0',
+            'title_separator'              => substr(trim($_POST['title_separator'] ?? '|'), 0, 10),
+            'homepage_title_format'        => in_array($_POST['homepage_title_format'] ?? '', ['site_only', 'page_site', 'site_page', 'page_only'], true) ? $_POST['homepage_title_format'] : 'page_site',
+            'subpage_title_format'         => in_array($_POST['subpage_title_format'] ?? '', ['site_only', 'page_site', 'site_page', 'page_only'], true) ? $_POST['subpage_title_format'] : 'page_site',
+            'mail_driver'                  => in_array($_POST['mail_driver'] ?? '', ['mail', 'smtp'], true) ? $_POST['mail_driver'] : 'mail',
+            'mail_from_email'              => trim($_POST['mail_from_email'] ?? ''),
+            'mail_from_name'               => trim($_POST['mail_from_name'] ?? ''),
+            'mail_smtp_host'               => trim($_POST['mail_smtp_host'] ?? ''),
+            'mail_smtp_port'               => (string)max(1, min(65535, (int)($_POST['mail_smtp_port'] ?? 587))),
+            'mail_smtp_user'               => trim($_POST['mail_smtp_user'] ?? ''),
+            'mail_smtp_pass'               => (string)($_POST['mail_smtp_pass'] ?? ''),
+            'mail_smtp_secure'             => in_array($_POST['mail_smtp_secure'] ?? '', ['none', 'tls', 'ssl'], true) ? $_POST['mail_smtp_secure'] : 'tls',
+            'mail_smtp_auth'               => isset($_POST['mail_smtp_auth']) ? '1' : '0',
+            'mail_smtp_timeout'            => (string)max(1, (int)($_POST['mail_smtp_timeout'] ?? 15)),
+            'revisions_enabled'            => isset($_POST['revisions_enabled']) ? '1' : '0',
+            'revisions_max'                => (string)max(1, min(500, (int)($_POST['revisions_max'] ?? 30))),
+            'autosave_interval'            => (string)max(15, min(3600, (int)($_POST['autosave_interval'] ?? 60)))
         ];
 
         $stmt = $db->prepare("
@@ -184,6 +200,7 @@ require_once __DIR__ . '/views/header.php';
     <button type="button" class="settings-tab" data-tab="seo"><?= _e('SEO & Social') ?></button>
     <button type="button" class="settings-tab" data-tab="security"><?= _e('Security') ?></button>
     <button type="button" class="settings-tab" data-tab="performance"><?= _e('Performance') ?></button>
+    <button type="button" class="settings-tab" data-tab="email"><?= _e('Email') ?></button>
     <button type="button" class="settings-tab" data-tab="tools"><?= _e('Tools') ?></button>
 </div>
 <script>document.getElementById('settings-wrap').classList.add('tabs-ready');</script>
@@ -471,6 +488,38 @@ require_once __DIR__ . '/views/header.php';
             </div>
         </div>
 
+        <!-- Content revisions / version history -->
+        <div class="card settings-panel" data-tab="content">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Content Revisions') ?>
+            </h3>
+
+            <div class="form-group" style="padding: 14px; background: var(--bg-surface, #1e293b); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: var(--text-main);">
+                    <input type="checkbox" name="revisions_enabled" value="1" <?= Router::getOption('revisions_enabled', '1') === '1' ? 'checked' : '' ?>>
+                    <?= _e('Enable version history for posts & pages') ?>
+                </label>
+                <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.5;">
+                    <?= _e('The previous version is saved automatically before each update, and a snapshot is stored periodically while editing (autosave). You can review and restore any version from the editor.') ?>
+                </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                <div class="form-group">
+                    <label class="form-label" for="revisions_max"><?= _e('Maximum revisions per document') ?></label>
+                    <input class="form-control" type="number" id="revisions_max" name="revisions_max" min="1" max="500" value="<?= (int) Router::getOption('revisions_max', '30') ?>">
+                    <small style="font-size: 11px; color: var(--text-muted);"><?= _e('Older versions beyond this limit are removed automatically.') ?></small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="autosave_interval"><?= _e('Autosave interval (seconds)') ?></label>
+                    <input class="form-control" type="number" id="autosave_interval" name="autosave_interval" min="15" max="3600" value="<?= (int) Router::getOption('autosave_interval', '60') ?>">
+                    <small style="font-size: 11px; color: var(--text-muted);"><?= _e('How often (in seconds) unsaved changes are stored as a draft revision while editing.') ?></small>
+                </div>
+            </div>
+        </div>
+
+
         <!-- 6. Custom Scripts & Tracking (Google Analytics, Search Console, Pixels) -->
         <div class="card settings-panel" data-tab="seo">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
@@ -585,6 +634,138 @@ require_once __DIR__ . '/views/header.php';
             <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px;">
                 <?= _e('hreflang tags require multilingual frontend mode (Languages tab) to be enabled.') ?>
             </small>
+        </div>
+
+        <!-- 11. Browser / Page Title Format -->
+        <?php
+            $titleSeparator  = Router::getOption('title_separator', '|');
+            $homeTitleFormat = Router::getOption('homepage_title_format', 'page_site');
+            $subTitleFormat  = Router::getOption('subpage_title_format', 'page_site');
+            $titleFormatOptions = [
+                'site_only' => __('Site name only'),
+                'page_site' => __('Page name + separator + Site name'),
+                'site_page' => __('Site name + separator + Page name'),
+                'page_only' => __('Page name only'),
+            ];
+        ?>
+        <div class="card settings-panel" data-tab="seo">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Page Title Format') ?>
+            </h3>
+
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 16px 0;">
+                <?= _e('Controls how the browser tab title (the <title> tag) is built for the homepage and for subpages.') ?>
+            </p>
+
+            <div class="form-group" style="max-width: 320px;">
+                <label class="form-label" for="title_separator"><?= _e('Title Separator') ?></label>
+                <input class="form-control" type="text" id="title_separator" name="title_separator" maxlength="10" value="<?= Security::sanitize($titleSeparator) ?>" placeholder="|">
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px; line-height: 1.4;">
+                    <?= _e('Character(s) placed between the page name and the site name, e.g. | • - – — ·') ?>
+                </small>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 6px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="homepage_title_format"><?= _e('Homepage Title Format') ?></label>
+                    <select class="form-control" name="homepage_title_format" id="homepage_title_format">
+                        <?php foreach ($titleFormatOptions as $val => $label): ?>
+                            <option value="<?= $val ?>" <?= $homeTitleFormat === $val ? 'selected' : '' ?>><?= Security::sanitize($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="subpage_title_format"><?= _e('Subpage Title Format') ?></label>
+                    <select class="form-control" name="subpage_title_format" id="subpage_title_format">
+                        <?php foreach ($titleFormatOptions as $val => $label): ?>
+                            <option value="<?= $val ?>" <?= $subTitleFormat === $val ? 'selected' : '' ?>><?= Security::sanitize($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 12. Email Delivery -->
+        <?php
+            $mailDriver     = Router::getOption('mail_driver', 'mail');
+            $mailSmtpSecure = Router::getOption('mail_smtp_secure', 'tls');
+        ?>
+        <div class="card settings-panel" data-tab="email">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Email Delivery') ?>
+            </h3>
+
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 16px 0;">
+                <?= _e('Choose how Modo CMS sends e-mail. All plugins (e.g. Modo Form notifications) use this configuration.') ?>
+            </p>
+
+            <div class="form-group">
+                <label class="form-label" for="mail_driver"><?= _e('Mail Transport') ?></label>
+                <select class="form-control" name="mail_driver" id="mail_driver">
+                    <option value="mail" <?= $mailDriver === 'mail' ? 'selected' : '' ?>><?= _e('PHP mail() function') ?></option>
+                    <option value="smtp" <?= $mailDriver === 'smtp' ? 'selected' : '' ?>><?= _e('SMTP (PHPMailer)') ?></option>
+                </select>
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px; line-height: 1.4;">
+                    <?= _e('SMTP (PHPMailer) is recommended for reliable delivery and is required by most mail providers.') ?>
+                </small>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 6px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="mail_from_email"><?= _e('Sender e-mail (From)') ?></label>
+                    <input class="form-control" type="email" id="mail_from_email" name="mail_from_email" value="<?= Security::sanitize(Router::getOption('mail_from_email', '')) ?>" placeholder="no-reply@example.com">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="mail_from_name"><?= _e('Sender name (From)') ?></label>
+                    <input class="form-control" type="text" id="mail_from_name" name="mail_from_name" value="<?= Security::sanitize(Router::getOption('mail_from_name', '')) ?>" placeholder="<?= Security::sanitize(Router::getOption('site_title', 'Modo CMS')) ?>">
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-subtle); margin: 18px 0 16px;"></div>
+
+            <h4 style="font-size: 13px; font-weight: 700; margin: 0 0 12px; color: var(--text-main);"><?= _e('SMTP Server') ?></h4>
+
+            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="mail_smtp_host"><?= _e('SMTP Host') ?></label>
+                    <input class="form-control" type="text" id="mail_smtp_host" name="mail_smtp_host" value="<?= Security::sanitize(Router::getOption('mail_smtp_host', '')) ?>" placeholder="smtp.example.com">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="mail_smtp_port"><?= _e('Port') ?></label>
+                    <input class="form-control" type="number" min="1" max="65535" id="mail_smtp_port" name="mail_smtp_port" value="<?= (int)Router::getOption('mail_smtp_port', '587') ?>">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin: 14px 0 0 0; max-width: 320px;">
+                <label class="form-label" for="mail_smtp_secure"><?= _e('Encryption') ?></label>
+                <select class="form-control" name="mail_smtp_secure" id="mail_smtp_secure">
+                    <option value="none" <?= $mailSmtpSecure === 'none' ? 'selected' : '' ?>><?= _e('None') ?></option>
+                    <option value="tls" <?= $mailSmtpSecure === 'tls' ? 'selected' : '' ?>><?= _e('TLS (STARTTLS, port 587)') ?></option>
+                    <option value="ssl" <?= $mailSmtpSecure === 'ssl' ? 'selected' : '' ?>><?= _e('SSL (port 465)') ?></option>
+                </select>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin: 16px 0 12px;">
+                <input type="checkbox" name="mail_smtp_auth" value="1" <?= Router::getOption('mail_smtp_auth', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('SMTP authentication (use username & password)') ?>
+            </label>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="mail_smtp_user"><?= _e('SMTP Username') ?></label>
+                    <input class="form-control" type="text" id="mail_smtp_user" name="mail_smtp_user" value="<?= Security::sanitize(Router::getOption('mail_smtp_user', '')) ?>" autocomplete="off">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="mail_smtp_pass"><?= _e('SMTP Password') ?></label>
+                    <input class="form-control" type="password" id="mail_smtp_pass" name="mail_smtp_pass" value="<?= Security::sanitize(Router::getOption('mail_smtp_pass', '')) ?>" autocomplete="new-password">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin: 14px 0 0 0; max-width: 260px;">
+                <label class="form-label" for="mail_smtp_timeout"><?= _e('Connection timeout (seconds)') ?></label>
+                <input class="form-control" type="number" min="1" id="mail_smtp_timeout" name="mail_smtp_timeout" value="<?= (int)Router::getOption('mail_smtp_timeout', '15') ?>">
+            </div>
         </div>
 
         <!-- Submit Button Card -->
