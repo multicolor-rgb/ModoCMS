@@ -1,0 +1,85 @@
+/* ==========================================================================
+   Modo CMS — native "Modo Grid" (bundled, no CDN)
+   A dependency-free 12-column responsive flex grid. Lives entirely under the
+   .modo-* namespace so it never clashes with an existing theme or framework.
+   ========================================================================== */
+
+.modo-container {
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+    padding-right: 16px;
+    padding-left: 16px;
+}
+
+@media (min-width: 576px)  { .modo-container { max-width: 540px; } }
+@media (min-width: 768px)  { .modo-container { max-width: 720px; } }
+@media (min-width: 992px)  { .modo-container { max-width: 960px; } }
+@media (min-width: 1200px) { .modo-container { max-width: 1140px; } }
+
+.modo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -12px;
+    margin-left: -12px;
+}
+
+.modo-grid > * {
+    flex: 0 0 100%;
+    max-width: 100%;
+    padding-right: 12px;
+    padding-left: 12px;
+    box-sizing: border-box;
+}
+
+.modo-grid--gap-none { margin-right: 0; margin-left: 0; }
+.modo-grid--gap-none > * { padding-right: 0; padding-left: 0; }
+
+/* Equal-width auto columns: add .modo-grid--auto and wrap children in .modo-col */
+.modo-grid--auto > * { flex: 1 1 0; max-width: 100%; }
+
+.modo-col-1  { flex: 0 0 8.33333333%;  max-width: 8.33333333%; }
+.modo-col-2  { flex: 0 0 16.66666667%; max-width: 16.66666667%; }
+.modo-col-3  { flex: 0 0 25%;          max-width: 25%; }
+.modo-col-4  { flex: 0 0 33.33333333%; max-width: 33.33333333%; }
+.modo-col-5  { flex: 0 0 41.66666667%; max-width: 41.66666667%; }
+.modo-col-6  { flex: 0 0 50%;          max-width: 50%; }
+.modo-col-7  { flex: 0 0 58.33333333%; max-width: 58.33333333%; }
+.modo-col-8  { flex: 0 0 66.66666667%; max-width: 66.66666667%; }
+.modo-col-9  { flex: 0 0 75%;          max-width: 75%; }
+.modo-col-10 { flex: 0 0 83.33333333%; max-width: 83.33333333%; }
+.modo-col-11 { flex: 0 0 91.66666667%; max-width: 91.66666667%; }
+.modo-col-12 { flex: 0 0 100%;         max-width: 100%; }
+
+@media (min-width: 576px) {
+    .modo-col-sm-1  { flex: 0 0 8.33333333%;  max-width: 8.33333333%; }
+    .modo-col-sm-2  { flex: 0 0 16.66666667%; max-width: 16.66666667%; }
+    .modo-col-sm-3  { flex: 0 0 25%;          max-width: 25%; }
+    .modo-col-sm-4  { flex: 0 0 33.33333333%; max-width: 33.33333333%; }
+    .modo-col-sm-6  { flex: 0 0 50%;          max-width: 50%; }
+    .modo-col-sm-8  { flex: 0 0 66.66666667%; max-width: 66.66666667%; }
+    .modo-col-sm-9  { flex: 0 0 75%;          max-width: 75%; }
+    .modo-col-sm-12 { flex: 0 0 100%;         max-width: 100%; }
+}
+
+@media (min-width: 768px) {
+    .modo-col-md-1  { flex: 0 0 8.33333333%;  max-width: 8.33333333%; }
+    .modo-col-md-2  { flex: 0 0 16.66666667%; max-width: 16.66666667%; }
+    .modo-col-md-3  { flex: 0 0 25%;          max-width: 25%; }
+    .modo-col-md-4  { flex: 0 0 33.33333333%; max-width: 33.33333333%; }
+    .modo-col-md-6  { flex: 0 0 50%;          max-width: 50%; }
+    .modo-col-md-8  { flex: 0 0 66.66666667%; max-width: 66.66666667%; }
+    .modo-col-md-9  { flex: 0 0 75%;          max-width: 75%; }
+    .modo-col-md-12 { flex: 0 0 100%;         max-width: 100%; }
+}
+
+@media (min-width: 992px) {
+    .modo-col-lg-1  { flex: 0 0 8.33333333%;  max-width: 8.33333333%; }
+    .modo-col-lg-2  { flex: 0 0 16.66666667%; max-width: 16.66666667%; }
+    .modo-col-lg-3  { flex: 0 0 25%;          max-width: 25%; }
+    .modo-col-lg-4  { flex: 0 0 33.33333333%; max-width: 33.33333333%; }
+    .modo-col-lg-6  { flex: 0 0 50%;          max-width: 50%; }
+    .modo-col-lg-8  { flex: 0 0 66.66666667%; max-width: 66.66666667%; }
+    .modo-col-lg-9  { flex: 0 0 75%;          max-width: 75%; }
+    .modo-col-lg-12 { flex: 0 0 100%;         max-width: 100%; }
+}

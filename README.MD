@@ -11,6 +11,7 @@
 * **Dynamiczny Theme Customizer:** Konfiguracja wyglądu z podglądem na żywo (`iframe`). Sekcje i pola (wiele typów) deklaruje się w `theme.json`, przez hooki wtyczek (`modo_customize_register`) lub tworzy bezpośrednio w panelu (builder GUI zapisywany w bazie).
 * **Wbudowane pola niestandardowe (Custom Fields):** Obsługa różnych typów pól (tekst, textarea, liczba, checkbox, kolor, obrazek).
 * **Architektura wtyczek (Hooks):** System akcji i filtrów pozwalający na łatwą rozbudowę panelu admina oraz frontendu.
+* **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
 
 ---
@@ -220,6 +221,48 @@ Hooks::addAction('modo_customize_register', function () {
 ```
 
 Pola z kluczem `css_var` są automatycznie wypisywane w `<head>` jako zmienne CSS `:root` (funkcja `customizer_css()`, wywoływana w `theme_head()`), co daje natychmiastowy podgląd zmian kolorów i rozmiarów bez przeładowania strony. Wartości publikowane są w tabeli `theme_mods`, a szkic podglądu trzymany jest w sesji zalogowanego administratora.
+
+---
+
+## 🧮 Siatki / frameworki CSS (bez CDN)
+
+Modo CMS potrafi wczytać popularny system siatek **lokalnie (bez CDN)** i użyć go zarówno na frontendzie, jak i w edytorze treści — dzięki temu siatka ułożona w TinyMCE wygląda dokładnie tak samo na opublikowanej stronie.
+
+### Wybór frameworka
+
+W panelu **Ustawienia → zakładka „Treści” → CSS Grid / Framework** wybierasz:
+
+* **Grid framework** — `None`, `Bootstrap 5`, `Bulma`, `Pico CSS`, `UIkit`, `Foundation`, `Tailwind CSS`, `Modo Grid` (własna, wbudowana siatka) lub `Custom`.
+* **Load the grid CSS on the frontend** — czy dołączyć arkusz siatki na stronie.
+* **Load the grid CSS in the content editor** — czy dołączyć ten sam arkusz do kanwy edytora.
+* **Custom grid CSS (optional)** — dodatkowy CSS doklejany po wybranym frameworku (przydatne przy `Custom`).
+
+Wszystkie arkusze są dołączone do repozytorium w katalogu `assets/grids/<framework>/grid.css` — **żadne zasoby nie są pobierane z CDN**.
+
+### Frontend
+
+Gdy framework jest wybrany i włączone jest wstrzykiwanie na frontend, `Core\CssFramework` (wpięty w hook `theme_head`) wypisuje `<link rel="stylesheet">` w `<head>`. Działa automatycznie w każdym motywie, który wywołuje `theme_head()`. Motyw może też odczytać aktywny framework przez `active_grid()` / `grid_css_urls()`.
+
+### Edytor treści
+
+Ten sam arkusz jest przekazywany do TinyMCE jako `content_css`, a dodatkowo przycisk **„Wstaw siatkę / kolumny”** (token `modo_grid`) na pasku narzędzi otwiera kreator, który generuje **poprawny dla wybranego frameworka** markup:
+
+| Framework  | Wiersz             | Kolumna                          |
+|------------|--------------------|----------------------------------|
+| Bootstrap  | `.row`             | `.col-md-6`                      |
+| Bulma      | `.columns`         | `.column.is-6`                   |
+| Pico       | `.grid`            | `<div>` (auto)                   |
+| UIkit      | `.uk-grid`         | `.uk-child-width-1-2@s`          |
+| Foundation | `.grid-x`          | `.cell.medium-6`                 |
+| Tailwind   | `.grid.grid-cols-2`| `<div>`                          |
+| Modo Grid  | `.modo-grid`       | `.modo-col-md-6`                 |
+| Custom     | `.grid-row`        | `.grid-col`                      |
+
+Kreator pozwala wybrać liczbę kolumn, responsywny punkt przerwania, opcjonalny kontener oraz treść kolumn (jedna linia = jedna kolumna). Skrypty obsługujące przycisk: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (konfiguracja z serwera).
+
+### Zmiana frameworka
+
+Zmiana ustawienia jest natychmiastowa — modyfikuje wyłącznie ładowany arkusz. Aby uniknąć podwójnego ładowania, gdy motyw sam dostarcza dany framework (np. Bootstrap z CDN), pozostaw `None`.
 
 ---
 

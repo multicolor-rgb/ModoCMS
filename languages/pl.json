@@ -930,5 +930,20 @@
   "How often (in seconds) unsaved changes are stored as a draft revision while editing.": "Jak często (w sekundach) niezapisane zmiany są zapisywane jako wersja robocza podczas edycji.",
   "Error": "Błąd",
   "Network error. Please try again.": "Błąd sieci. Spróbuj ponownie.",
-  "You have unsaved changes.": "Masz niezapisane zmiany."
+  "You have unsaved changes.": "Masz niezapisane zmiany.",
+  "CSS Grid / Framework": "Siatka / Framework CSS",
+  "Grid framework": "Framework siatki",
+  "All grid stylesheets are bundled locally — no CDN is used. The same CSS is loaded on the frontend and inside the content editor so grids match exactly.": "Wszystkie arkusze siatek są dołączone lokalnie — bez CDN. Ten sam CSS jest ładowany na frontendzie i w edytorze treści, więc siatki wyglądają identycznie.",
+  "Load the grid CSS on the frontend": "Ładuj CSS siatki na frontendzie",
+  "Load the grid CSS in the content editor": "Ładuj CSS siatki w edytorze treści",
+  "Custom grid CSS (optional)": "Własny CSS siatki (opcjonalnie)",
+  "Extra CSS appended after the selected framework (frontend and editor). Useful with the \"Custom\" framework.": "Dodatkowy CSS dołączany po wybranym frameworku (frontend i edytor). Przydatne przy frameworku \"Custom\".",
+  "Insert Grid / Columns": "Wstaw siatkę / kolumny",
+  "Columns": "Kolumny",
+  "Responsive breakpoint": "Punkt przerwania (responsywność)",
+  "Wrap in container": "Otocz kontenerem",
+  "Column content (one line per column)": "Treść kolumny (jedna linia na kolumnę)",
+  "Column content": "Treść kolumny",
+  "Insert": "Wstaw",
+  "No grid framework is selected in Settings.": "W ustawieniach nie wybrano żadnego frameworku siatki."
 }

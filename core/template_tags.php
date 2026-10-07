@@ -73,6 +73,29 @@ if (!function_exists('get_theme_url')) {
 }
 
 /**
+ * Returns the id of the CSS grid / framework selected in Settings
+ * (e.g. "bootstrap", "bulma", "uikit"… or "none").
+ */
+if (!function_exists('active_grid')) {
+    function active_grid(): string {
+        return class_exists('Core\\CssFramework') ? \Core\CssFramework::active() : 'none';
+    }
+}
+
+/**
+ * Returns the public URLs of the active grid framework's bundled stylesheets.
+ * The frontend <head> injection already emits them through theme_head(), so
+ * this helper is mainly meant for advanced theme customisation.
+ *
+ * @return array<int,string>
+ */
+if (!function_exists('grid_css_urls')) {
+    function grid_css_urls(): array {
+        return class_exists('Core\\CssFramework') ? \Core\CssFramework::cssUrls() : [];
+    }
+}
+
+/**
  * Renders an accessible Bootstrap navigation bar built from top-level pages.
  * Outputs <li class="nav-item"><a class="nav-link"> items, ready for .navbar-nav.
  */

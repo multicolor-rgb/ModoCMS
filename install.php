@@ -457,7 +457,11 @@ HTACCESS;
                 'mail_smtp_pass'               => '',
                 'mail_smtp_secure'             => 'tls',
                 'mail_smtp_auth'               => '1',
-                'mail_smtp_timeout'            => '15'
+                'mail_smtp_timeout'            => '15',
+                'css_grid'                     => 'none',
+                'css_grid_inject_frontend'     => '1',
+                'css_grid_inject_editor'       => '1',
+                'css_grid_custom_css'          => ''
             ];
             $setStmt = $pdo->prepare("INSERT INTO settings (key, value) VALUES (:k, :v)");
             foreach ($settings as $k => $v) {

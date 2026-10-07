@@ -930,5 +930,20 @@
   "How often (in seconds) unsaved changes are stored as a draft revision while editing.": "How often (in seconds) unsaved changes are stored as a draft revision while editing.",
   "Error": "Error",
   "Network error. Please try again.": "Network error. Please try again.",
-  "You have unsaved changes.": "You have unsaved changes."
+  "You have unsaved changes.": "You have unsaved changes.",
+  "CSS Grid / Framework": "CSS Grid / Framework",
+  "Grid framework": "Grid framework",
+  "All grid stylesheets are bundled locally — no CDN is used. The same CSS is loaded on the frontend and inside the content editor so grids match exactly.": "All grid stylesheets are bundled locally — no CDN is used. The same CSS is loaded on the frontend and inside the content editor so grids match exactly.",
+  "Load the grid CSS on the frontend": "Load the grid CSS on the frontend",
+  "Load the grid CSS in the content editor": "Load the grid CSS in the content editor",
+  "Custom grid CSS (optional)": "Custom grid CSS (optional)",
+  "Extra CSS appended after the selected framework (frontend and editor). Useful with the \"Custom\" framework.": "Extra CSS appended after the selected framework (frontend and editor). Useful with the \"Custom\" framework.",
+  "Insert Grid / Columns": "Insert Grid / Columns",
+  "Columns": "Columns",
+  "Responsive breakpoint": "Responsive breakpoint",
+  "Wrap in container": "Wrap in container",
+  "Column content (one line per column)": "Column content (one line per column)",
+  "Column content": "Column content",
+  "Insert": "Insert",
+  "No grid framework is selected in Settings.": "No grid framework is selected in Settings."
 }

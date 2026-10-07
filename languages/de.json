@@ -894,5 +894,20 @@
   "How often (in seconds) unsaved changes are stored as a draft revision while editing.": "Wie oft (in Sekunden) ungespeicherte Änderungen während der Bearbeitung als Entwurfsversion gespeichert werden.",
   "Error": "Fehler",
   "Network error. Please try again.": "Netzwerkfehler. Bitte erneut versuchen.",
-  "You have unsaved changes.": "Es gibt ungespeicherte Änderungen."
+  "You have unsaved changes.": "Es gibt ungespeicherte Änderungen.",
+  "CSS Grid / Framework": "CSS-Raster / Framework",
+  "Grid framework": "Raster-Framework",
+  "All grid stylesheets are bundled locally — no CDN is used. The same CSS is loaded on the frontend and inside the content editor so grids match exactly.": "Alle Raster-Stylesheets sind lokal gebündelt – kein CDN. Dasselbe CSS wird im Frontend und im Inhaltseditor geladen, damit die Raster exakt übereinstimmen.",
+  "Load the grid CSS on the frontend": "Raster-CSS im Frontend laden",
+  "Load the grid CSS in the content editor": "Raster-CSS im Inhaltseditor laden",
+  "Custom grid CSS (optional)": "Benutzerdefiniertes Raster-CSS (optional)",
+  "Extra CSS appended after the selected framework (frontend and editor). Useful with the \"Custom\" framework.": "Zusätzliches CSS, das nach dem gewählten Framework angehängt wird (Frontend und Editor). Nützlich beim \"Custom\"-Framework.",
+  "Insert Grid / Columns": "Raster / Spalten einfügen",
+  "Columns": "Spalten",
+  "Responsive breakpoint": "Responsiver Breakpoint",
+  "Wrap in container": "In Container einschließen",
+  "Column content (one line per column)": "Spalteninhalt (eine Zeile pro Spalte)",
+  "Column content": "Spalteninhalt",
+  "Insert": "Einfügen",
+  "No grid framework is selected in Settings.": "In den Einstellungen ist kein Raster-Framework ausgewählt."
 }

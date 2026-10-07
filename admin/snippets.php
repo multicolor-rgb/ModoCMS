@@ -240,6 +240,12 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
 </script>
 
 <script src="assets/vendor/tinymce/tinymce.min.js"></script>
+<script src="assets/js/grid-editor.js"></script>
+<script>
+    window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+</script>
 <script>
 (function () {
     if (typeof tinymce === 'undefined') return;
@@ -251,7 +257,8 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
         plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
         toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | code fullscreen',
         skin: isDark ? 'oxide-dark' : 'oxide',
-        content_css: isDark ? 'dark' : 'default',
+        content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || []),
+        content_style: window.MODO_GRID_STYLE || '',
         relative_urls: false,
         remove_script_host: false,
         images_upload_url: 'upload.php',

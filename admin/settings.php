@@ -90,6 +90,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'og_site_name'           => trim($_POST['og_site_name'] ?? ''),
             'tinymce_preset'         => trim($_POST['tinymce_preset'] ?? 'standard'),
             'tinymce_custom_toolbar' => trim($_POST['tinymce_custom_toolbar'] ?? ''),
+            'css_grid'               => (\Core\CssFramework::get(trim($_POST['css_grid'] ?? 'none')) !== null) ? trim($_POST['css_grid'] ?? 'none') : 'none',
+            'css_grid_inject_frontend' => isset($_POST['css_grid_inject_frontend']) ? '1' : '0',
+            'css_grid_inject_editor'   => isset($_POST['css_grid_inject_editor']) ? '1' : '0',
+            'css_grid_custom_css'    => trim($_POST['css_grid_custom_css'] ?? ''),
             'custom_head_scripts'    => trim($_POST['custom_head_scripts'] ?? ''),
             'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? ''),
             'security_brute_force_enabled' => isset($_POST['security_brute_force_enabled']) ? '1' : '0',
@@ -484,6 +488,51 @@ require_once __DIR__ . '/views/header.php';
                 <textarea class="form-control" id="tinymce_custom_toolbar" name="tinymce_custom_toolbar" rows="3" placeholder="undo redo | blocks | bold italic | alignleft aligncenter | bullist numlist | link mediamanager | code"><?= Security::sanitize($currentCustom) ?></textarea>
                 <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; line-height: 1.4;">
                     <?= _e('Use pipe (|) to group items. Available tokens: undo, redo, blocks, bold, italic, underline, strikethrough, alignleft, aligncenter, alignright, alignjustify, bullist, numlist, outdent, indent, link, image, mediamanager, table, forecolor, backcolor, removeformat, code, fullscreen.') ?>
+                </small>
+            </div>
+        </div>
+
+        <!-- 5b. CSS Grid / Framework (frontend + editor, no CDN) -->
+        <div class="card settings-panel" data-tab="content">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('CSS Grid / Framework') ?>
+            </h3>
+
+            <?php
+                $activeGrid = Router::getOption('css_grid', 'none');
+                $gridRegistry = \Core\CssFramework::all();
+            ?>
+
+            <div class="form-group">
+                <label class="form-label" for="css_grid"><?= _e('Grid framework') ?></label>
+                <select class="form-control" name="css_grid" id="css_grid">
+                    <?php foreach ($gridRegistry as $gridId => $gridDef): ?>
+                        <option value="<?= htmlspecialchars($gridId, ENT_QUOTES, 'UTF-8') ?>" <?= $activeGrid === $gridId ? 'selected' : '' ?>>
+                            <?= htmlspecialchars((string) $gridDef['label'], ENT_QUOTES, 'UTF-8') ?>
+                            <?= $gridDef['version'] !== '' ? ' (' . htmlspecialchars((string) $gridDef['version'], ENT_QUOTES, 'UTF-8') . ')' : '' ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; line-height: 1.4;">
+                    <?= _e('All grid stylesheets are bundled locally — no CDN is used. The same CSS is loaded on the frontend and inside the content editor so grids match exactly.') ?>
+                </small>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 6px;">
+                <input type="checkbox" name="css_grid_inject_frontend" value="1" <?= Router::getOption('css_grid_inject_frontend', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Load the grid CSS on the frontend') ?>
+            </label>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 10px;">
+                <input type="checkbox" name="css_grid_inject_editor" value="1" <?= Router::getOption('css_grid_inject_editor', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Load the grid CSS in the content editor') ?>
+            </label>
+
+            <div class="form-group" style="margin-top: 16px;">
+                <label class="form-label" for="css_grid_custom_css"><?= _e('Custom grid CSS (optional)') ?></label>
+                <textarea class="form-control" id="css_grid_custom_css" name="css_grid_custom_css" rows="4" placeholder=".my-grid { display: grid; gap: 1rem; }" style="font-family: monospace; font-size: 12px;"><?= Security::sanitize(Router::getOption('css_grid_custom_css', '')) ?></textarea>
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; line-height: 1.4;">
+                    <?= _e('Extra CSS appended after the selected framework (frontend and editor). Useful with the "Custom" framework.') ?>
                 </small>
             </div>
         </div>

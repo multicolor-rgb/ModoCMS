@@ -551,6 +551,12 @@ require_once __DIR__ . '/views/header.php';
 </style>
 
 <script src="assets/vendor/tinymce/tinymce.min.js"></script>
+<script src="assets/js/grid-editor.js"></script>
+<script>
+    window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+</script>
 
 <link rel="stylesheet" href="assets/vendor/codemirror/codemirror.min.css">
 <link rel="stylesheet" href="assets/vendor/codemirror/theme/dracula.min.css">
@@ -1048,7 +1054,10 @@ const isDarkActive = () => {
 function initCleanTinyMCE() {
     if (typeof tinymce === 'undefined') return;
     const isDark = isDarkActive();
-    
+    const gridCss = (window.MODO_GRID_CSS || []).slice();
+    const gridStyle = window.MODO_GRID_STYLE || '';
+    const contentCss = [(isDark ? 'dark' : 'default')].concat(gridCss);
+
     tinymce.init({
         selector: '#editor',
         height: 520,
@@ -1056,7 +1065,8 @@ function initCleanTinyMCE() {
         plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
         toolbar: <?= json_encode($resolvedToolbar) ?>,
         skin: isDark ? 'oxide-dark' : 'oxide',
-        content_css: isDark ? 'dark' : 'default',
+        content_css: contentCss,
+        content_style: gridStyle,
         images_upload_url: 'upload.php',
         automatic_uploads: true,
         relative_urls: false,
@@ -1307,7 +1317,8 @@ mediaItems.forEach(item => {
                 plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
                 toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
                 skin: isDark ? 'oxide-dark' : 'oxide',
-                content_css: isDark ? 'dark' : 'default',
+                content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || []),
+                content_style: window.MODO_GRID_STYLE || '',
                 relative_urls: false,
                 remove_script_host: false,
                 images_upload_url: 'upload.php',

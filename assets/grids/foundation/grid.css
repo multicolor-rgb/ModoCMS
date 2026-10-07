@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Modo CMS — Foundation XY grid (bundled subset, no CDN)
+   Reproduces Foundation's .grid-x / .cell / .{bp}-{n} grid so the same markup
+   renders identically on the frontend and inside the content editor.
+   ========================================================================== */
+
+.grid-container {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.grid-x {
+    display: flex;
+    flex-flow: row wrap;
+    margin-left: -20px;
+    margin-right: -20px;
+}
+
+.grid-x > .cell,
+.grid-x > .auto,
+.grid-x > .shrink {
+    box-sizing: border-box;
+}
+
+.cell {
+    flex: 0 0 auto;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+}
+
+.grid-x.grid-padding-x > .cell { padding-left: 20px; padding-right: 20px; }
+.grid-x.grid-margin-x > .cell { padding-left: 0.625rem; padding-right: 0.625rem; }
+
+.cell.auto { flex: 1 1 0; }
+.cell.shrink { flex: 0 0 auto; }
+
+.small-1  { flex: 0 0 8.33333333%; width: 8.33333333%; }
+.small-2  { flex: 0 0 16.66666667%; width: 16.66666667%; }
+.small-3  { flex: 0 0 25%; width: 25%; }
+.small-4  { flex: 0 0 33.33333333%; width: 33.33333333%; }
+.small-5  { flex: 0 0 41.66666667%; width: 41.66666667%; }
+.small-6  { flex: 0 0 50%; width: 50%; }
+.small-7  { flex: 0 0 58.33333333%; width: 58.33333333%; }
+.small-8  { flex: 0 0 66.66666667%; width: 66.66666667%; }
+.small-9  { flex: 0 0 75%; width: 75%; }
+.small-10 { flex: 0 0 83.33333333%; width: 83.33333333%; }
+.small-11 { flex: 0 0 91.66666667%; width: 91.66666667%; }
+.small-12 { flex: 0 0 100%; width: 100%; }
+
+@media print, screen and (min-width: 40em) {
+    .medium-1  { flex: 0 0 8.33333333%; width: 8.33333333%; }
+    .medium-2  { flex: 0 0 16.66666667%; width: 16.66666667%; }
+    .medium-3  { flex: 0 0 25%; width: 25%; }
+    .medium-4  { flex: 0 0 33.33333333%; width: 33.33333333%; }
+    .medium-5  { flex: 0 0 41.66666667%; width: 41.66666667%; }
+    .medium-6  { flex: 0 0 50%; width: 50%; }
+    .medium-7  { flex: 0 0 58.33333333%; width: 58.33333333%; }
+    .medium-8  { flex: 0 0 66.66666667%; width: 66.66666667%; }
+    .medium-9  { flex: 0 0 75%; width: 75%; }
+    .medium-10 { flex: 0 0 83.33333333%; width: 83.33333333%; }
+    .medium-11 { flex: 0 0 91.66666667%; width: 91.66666667%; }
+    .medium-12 { flex: 0 0 100%; width: 100%; }
+}
+
+@media print, screen and (min-width: 64em) {
+    .large-1  { flex: 0 0 8.33333333%; width: 8.33333333%; }
+    .large-2  { flex: 0 0 16.66666667%; width: 16.66666667%; }
+    .large-3  { flex: 0 0 25%; width: 25%; }
+    .large-4  { flex: 0 0 33.33333333%; width: 33.33333333%; }
+    .large-5  { flex: 0 0 41.66666667%; width: 41.66666667%; }
+    .large-6  { flex: 0 0 50%; width: 50%; }
+    .large-7  { flex: 0 0 58.33333333%; width: 58.33333333%; }
+    .large-8  { flex: 0 0 66.66666667%; width: 66.66666667%; }
+    .large-9  { flex: 0 0 75%; width: 75%; }
+    .large-10 { flex: 0 0 83.33333333%; width: 83.33333333%; }
+    .large-11 { flex: 0 0 91.66666667%; width: 91.66666667%; }
+    .large-12 { flex: 0 0 100%; width: 100%; }
+}

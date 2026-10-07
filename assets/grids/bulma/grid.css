@@ -1,0 +1,94 @@
+/* ==========================================================================
+   Modo CMS — Bulma columns grid (bundled subset, no CDN)
+   Reproduces Bulma's .columns / .column grid so the same markup renders
+   identically on the frontend and inside the content editor.
+   ========================================================================== */
+
+.container {
+    flex-grow: 1;
+    margin: 0 auto;
+    position: relative;
+    width: auto;
+    max-width: 960px;
+    padding: 0 16px;
+}
+
+@media screen and (min-width: 1024px) { .container { max-width: 960px; } }
+@media screen and (min-width: 1216px) { .container { max-width: 1152px; } }
+@media screen and (min-width: 1408px) { .container { max-width: 1344px; } }
+
+.columns {
+    display: flex;
+    flex-basis: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    margin-top: -0.75rem;
+}
+
+.columns:last-child { margin-bottom: -0.75rem; }
+.columns:not(:last-child) { margin-bottom: calc(1.5rem - 0.75rem); }
+
+.columns.is-centered { justify-content: center; }
+.columns.is-vcentered { align-items: center; }
+.columns.is-multiline { flex-wrap: wrap; }
+.columns.is-gapless { margin-left: 0; margin-right: 0; margin-top: 0; }
+.columns.is-gapless > .column { margin: 0; padding: 0 !important; }
+
+.column {
+    display: block;
+    flex-basis: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding: 0.75rem;
+}
+
+.column.is-narrow { flex: none; }
+.column.is-full { flex: none; width: 100%; }
+
+.column.is-1  { flex: none; width: 8.33333333%; }
+.column.is-2  { flex: none; width: 16.66666667%; }
+.column.is-3  { flex: none; width: 25%; }
+.column.is-4  { flex: none; width: 33.33333333%; }
+.column.is-5  { flex: none; width: 41.66666667%; }
+.column.is-6  { flex: none; width: 50%; }
+.column.is-7  { flex: none; width: 58.33333333%; }
+.column.is-8  { flex: none; width: 66.66666667%; }
+.column.is-9  { flex: none; width: 75%; }
+.column.is-10 { flex: none; width: 83.33333333%; }
+.column.is-11 { flex: none; width: 91.66666667%; }
+.column.is-12 { flex: none; width: 100%; }
+
+@media screen and (min-width: 769px) {
+    .column.is-1-tablet  { flex: none; width: 8.33333333%; }
+    .column.is-2-tablet  { flex: none; width: 16.66666667%; }
+    .column.is-3-tablet  { flex: none; width: 25%; }
+    .column.is-4-tablet  { flex: none; width: 33.33333333%; }
+    .column.is-6-tablet  { flex: none; width: 50%; }
+    .column.is-8-tablet  { flex: none; width: 66.66666667%; }
+    .column.is-9-tablet  { flex: none; width: 75%; }
+    .column.is-12-tablet { flex: none; width: 100%; }
+}
+
+@media screen and (min-width: 1024px) {
+    .column.is-1-desktop  { flex: none; width: 8.33333333%; }
+    .column.is-2-desktop  { flex: none; width: 16.66666667%; }
+    .column.is-3-desktop  { flex: none; width: 25%; }
+    .column.is-4-desktop  { flex: none; width: 33.33333333%; }
+    .column.is-6-desktop  { flex: none; width: 50%; }
+    .column.is-8-desktop  { flex: none; width: 66.66666667%; }
+    .column.is-9-desktop  { flex: none; width: 75%; }
+    .column.is-12-desktop { flex: none; width: 100%; }
+}
+
+@media screen and (min-width: 1216px) {
+    .column.is-1-widescreen  { flex: none; width: 8.33333333%; }
+    .column.is-2-widescreen  { flex: none; width: 16.66666667%; }
+    .column.is-3-widescreen  { flex: none; width: 25%; }
+    .column.is-4-widescreen  { flex: none; width: 33.33333333%; }
+    .column.is-6-widescreen  { flex: none; width: 50%; }
+    .column.is-8-widescreen  { flex: none; width: 66.66666667%; }
+    .column.is-9-widescreen  { flex: none; width: 75%; }
+    .column.is-12-widescreen { flex: none; width: 100%; }
+}

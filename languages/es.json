@@ -894,5 +894,20 @@
   "How often (in seconds) unsaved changes are stored as a draft revision while editing.": "Con qué frecuencia (en segundos) se guardan los cambios sin guardar como versión borrador mientras editas.",
   "Error": "Error",
   "Network error. Please try again.": "Error de red. Inténtalo de nuevo.",
-  "You have unsaved changes.": "Tienes cambios sin guardar."
+  "You have unsaved changes.": "Tienes cambios sin guardar.",
+  "CSS Grid / Framework": "Rejilla / Framework CSS",
+  "Grid framework": "Framework de rejilla",
+  "All grid stylesheets are bundled locally — no CDN is used. The same CSS is loaded on the frontend and inside the content editor so grids match exactly.": "Todas las hojas de estilo de rejilla están incluidas localmente — sin CDN. El mismo CSS se carga en el frontend y en el editor de contenido para que las rejillas coincidan exactamente.",
+  "Load the grid CSS on the frontend": "Cargar el CSS de rejilla en el frontend",
+  "Load the grid CSS in the content editor": "Cargar el CSS de rejilla en el editor de contenido",
+  "Custom grid CSS (optional)": "CSS de rejilla personalizado (opcional)",
+  "Extra CSS appended after the selected framework (frontend and editor). Useful with the \"Custom\" framework.": "CSS adicional anexado después del framework seleccionado (frontend y editor). Útil con el framework \"Custom\".",
+  "Insert Grid / Columns": "Insertar rejilla / columnas",
+  "Columns": "Columnas",
+  "Responsive breakpoint": "Punto de ruptura responsivo",
+  "Wrap in container": "Envolver en contenedor",
+  "Column content (one line per column)": "Contenido de la columna (una línea por columna)",
+  "Column content": "Contenido de la columna",
+  "Insert": "Insertar",
+  "No grid framework is selected in Settings.": "No se ha seleccionado ningún framework de rejilla en los ajustes."
 }

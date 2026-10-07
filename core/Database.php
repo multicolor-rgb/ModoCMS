@@ -271,6 +271,10 @@ final class Database {
             'mail_smtp_secure' => 'tls',
             'mail_smtp_auth' => '1',
             'mail_smtp_timeout' => '15',
+            'css_grid' => 'none',
+            'css_grid_inject_frontend' => '1',
+            'css_grid_inject_editor' => '1',
+            'css_grid_custom_css' => '',
         ];
 
         $setStmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
@@ -422,6 +426,10 @@ final class Database {
                 'revisions_enabled' => '1',
                 'revisions_max' => '30',
                 'autosave_interval' => '60',
+                'css_grid' => 'none',
+                'css_grid_inject_frontend' => '1',
+                'css_grid_inject_editor' => '1',
+                'css_grid_custom_css' => '',
             ];
             $stmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
             foreach ($seed as $k => $v) {

@@ -79,6 +79,9 @@ if (defined('IN_ADMIN') && IN_ADMIN === true
 // Boot the live customizer (detects an active preview token & draft overlay).
 \Core\Customizer::init();
 
+// CSS grid / framework support (frontend + editor, bundled locally, no CDN).
+\Core\CssFramework::init();
+
 // Frontend admin toolbar for logged-in users.
 \Core\AdminBar::init();
 
