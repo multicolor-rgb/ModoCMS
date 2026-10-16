@@ -1,0 +1,46 @@
+# ModoCMS .htaccess v3 - do not remove this line
+#
+# Everything inside /uploads is served as a static file: uploaded content must
+# never be executed, whatever extension an attacker manages to write.
+Options -Indexes -ExecCGI +FollowSymLinks
+
+# Turn the PHP engine off for this directory. Guarded by IfModule because
+# php_flag triggers a 500 error on FastCGI/FPM setups (which are already covered
+# by the FilesMatch rule below).
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php5.c>
+    php_flag engine off
+</IfModule>
+
+# Strip any handler/type mapping that could execute an uploaded file.
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .pht .phar .cgi .pl .py .sh .shtml
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .pht .phar .cgi .pl .py .sh .shtml
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .pht .phar .cgi .pl .py .sh .shtml
+
+# Deny executable scripts, hidden files and server configuration files.
+<FilesMatch "(^\..*|\.(php|phtml|php[0-9]|phps|pht|phar|cgi|pl|py|sh|shtml)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Uploaded SVG/HTML may carry a script payload: neutralise it if such a file is
+# opened directly in a browser tab.
+<FilesMatch "\.(svg|svgz|xhtml|htm|html)$">
+    <IfModule mod_headers.c>
+        Header set Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+        Header set X-Content-Type-Options "nosniff"
+    </IfModule>
+</FilesMatch>

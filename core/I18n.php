@@ -17,6 +17,12 @@ namespace Core {
 
         public static function init(): void {
             self::$defaultLang = class_exists('\Core\Router') ? Router::getOption('default_language', 'en') : 'en';
+            // modoconfig.php may pin the frontend language ("language" option).
+            $configuredLanguage = class_exists('\Core\Config') ? \Core\Config::getString('language', '') : '';
+            if ($configuredLanguage !== '' && preg_match('/^[a-z0-9_-]+$/i', $configuredLanguage) === 1) {
+                self::$defaultLang = strtolower($configuredLanguage);
+            }
+
             $rawLangs = class_exists('\Core\Router') ? Router::getOption('available_languages', 'en:English,pl:Polski') : 'en:English,pl:Polski';
 
             self::$availableLanguages = [];

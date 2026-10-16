@@ -9,6 +9,8 @@ use Core\Router;
 use Core\I18n;
 use Core\Sitemap;
 use Core\DomainMigration;
+use Core\Setup;
+use Core\Config;
 
 Auth::requireCapability('manage_settings');
 
@@ -46,6 +48,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (\Throwable $e) {
             $migrationError = $e->getMessage();
         }
+    } elseif (($_POST['action'] ?? '') === 'setup_htaccess_deploy') {
+        // Settings -> System: repair the managed .htaccess files. The report is
+        // handed over through the session so a page reload does not repeat it.
+        $_SESSION['setup_deploy'] = [
+            'force'   => isset($_POST['force_custom']),
+            'results' => Setup::deployHtaccess(isset($_POST['force_custom'])),
+        ];
+        header('Location: settings.php?tab=system&htaccess_deployed=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'config_save') {
+        // Settings -> System: persist the hardening options in modoconfig.php.
+        // Empty text/number/select fields remove the override again, switches are
+        // always stored with their current position (an unchecked box means "off").
+        $posted = is_array($_POST['config'] ?? null) ? $_POST['config'] : [];
+        $configValues = [];
+
+        foreach (Config::definitions() as $configKey => $configDefinition) {
+            $configType = (string)($configDefinition['type'] ?? 'text');
+
+            if ($configType === 'bool') {
+                $configValues[$configKey] = !empty($posted[$configKey]);
+                continue;
+            }
+
+            $raw = isset($posted[$configKey]) && is_string($posted[$configKey]) ? trim($posted[$configKey]) : '';
+            if ($raw === '') {
+                $configValues[$configKey] = null;
+                continue;
+            }
+
+            if ($configType === 'int') {
+                $intValue = (int)$raw;
+                if (isset($configDefinition['min'])) {
+                    $intValue = max((int)$configDefinition['min'], $intValue);
+                }
+                if (isset($configDefinition['max'])) {
+                    $intValue = min((int)$configDefinition['max'], $intValue);
+                }
+                $configValues[$configKey] = $intValue;
+                continue;
+            }
+
+            if ($configType === 'select') {
+                $allowed = array_map('strval', array_keys((array)($configDefinition['options'] ?? [])));
+                $configValues[$configKey] = in_array($raw, $allowed, true) ? $raw : null;
+                continue;
+            }
+
+            $configValues[$configKey] = $raw;
+        }
+
+        $configResult = Config::save($configValues);
+
+        // The custom robots.txt is stored in the physical file, so it has to be
+        // rewritten as soon as the override changes.
+        if (class_exists('Core\Sitemap')) {
+            try {
+                Sitemap::generateRobotsTxt();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        // HTTPS redirect, maintenance mode and the debug flags change the output.
+        if (class_exists(\Core\PageCache::class)) {
+            \Core\PageCache::purge();
+        }
+
+        $_SESSION['config_report'] = [
+            'ok'      => (bool)$configResult['ok'],
+            'message' => $configResult['ok'] ? __('Hardening options saved to modoconfig.php.') : (string)$configResult['message'],
+        ];
+        header('Location: settings.php?tab=system&config_saved=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'config_sample') {
+        $sampleWritten = Config::writeSample();
+        $_SESSION['config_report'] = [
+            'ok'      => $sampleWritten,
+            'message' => $sampleWritten
+                ? sprintf(__('Sample file written to %s.'), Config::SAMPLE_FILENAME)
+                : __('The sample file could not be written - the project root is not writable.'),
+        ];
+        header('Location: settings.php?tab=system&config_sample=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'config_delete') {
+        $configResult = Config::delete();
+
+        // Removing modoconfig.php also removes the custom robots.txt override.
+        if (class_exists('Core\Sitemap')) {
+            try {
+                Sitemap::generateRobotsTxt();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if (class_exists(\Core\PageCache::class)) {
+            \Core\PageCache::purge();
+        }
+
+        $_SESSION['config_report'] = [
+            'ok'      => (bool)$configResult['ok'],
+            'message' => $configResult['ok']
+                ? __('Configuration file removed - every option follows the Settings screen and the built-in defaults again.')
+                : (string)$configResult['message'],
+        ];
+        header('Location: settings.php?tab=system&config_deleted=1');
+        exit;
     } elseif (($_POST['action'] ?? '') === 'purge_cache') {
         if (class_exists(\Core\PageCache::class)) {
             \Core\PageCache::purge();
@@ -151,6 +259,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// System tab: server requirements, filesystem permissions and the .htaccess report.
+$setupDeploy = $_SESSION['setup_deploy'] ?? null;
+unset($_SESSION['setup_deploy']);
+$setupAudit = Setup::audit();
+$setupSummary = Setup::auditSummary($setupAudit);
+$setupRequirements = Setup::requirements();
+$setupRequirementErrors = Setup::requirementErrors($setupRequirements);
+$setupPermissions = Setup::permissions();
+$setupPermissionErrors = Setup::permissionErrors($setupPermissions);
+$setupOwner = Setup::processOwner();
+
+// Hardening options (Core\Config::definitions()) rendered as a form in the System tab.
+$advancedDefinitions = Config::definitions();
+$advancedFileValues  = Config::all();
+$advancedValues      = [];
+$advancedSettings    = [];
+$advancedGroups      = [];
+
+foreach ($advancedDefinitions as $advancedKey => $advancedDefinition) {
+    $advancedGroups[(string)($advancedDefinition['group'] ?? 'misc')][$advancedKey] = $advancedDefinition;
+
+    $advancedValue = $advancedFileValues[$advancedKey] ?? null;
+
+    if ($advancedValue === null) {
+        $overridesKey = $advancedDefinition['overrides'] ?? null;
+        if (is_string($overridesKey) && $overridesKey !== '' && class_exists('Core\\Router')) {
+            $settingValue = Router::getOption($overridesKey, "\0");
+            if ($settingValue !== "\0" && $settingValue !== '' && $settingValue !== null) {
+                $advancedValue = $settingValue;
+                $advancedSettings[$advancedKey] = true;
+            }
+        }
+    }
+
+    if ($advancedValue === null) {
+        $advancedValue = $advancedDefinition['default'] ?? '';
+    }
+
+    $advancedValues[$advancedKey] = $advancedValue;
+}
+
+$advancedFile = [
+    'path'     => Config::path(),
+    'exists'   => Config::exists(),
+    'writable' => Config::isWritable(),
+    'count'    => count($advancedFileValues),
+    'sample'   => is_file(Config::samplePath()),
+    'source'   => Config::exists() ? (string)@file_get_contents(Config::path()) : Config::exportSource($advancedFileValues),
+];
+
+$configReport = $_SESSION['config_report'] ?? null;
+unset($_SESSION['config_report']);
+
+// Tab the admin asked for through the URL (e.g. after the repair redirect).
+$settingsTabs = ['general', 'content', 'seo', 'security', 'performance', 'email', 'tools', 'system'];
+$requestedTab = in_array($_GET['tab'] ?? '', $settingsTabs, true) ? (string)$_GET['tab'] : '';
+
 $themes = array_filter(glob(__DIR__ . '/../themes/*'), 'is_dir');
 $basePrefix = class_exists('Core\Router') ? Router::getBaseSubdirectory() : '';
 
@@ -206,6 +371,7 @@ require_once __DIR__ . '/views/header.php';
     <button type="button" class="settings-tab" data-tab="performance"><?= _e('Performance') ?></button>
     <button type="button" class="settings-tab" data-tab="email"><?= _e('Email') ?></button>
     <button type="button" class="settings-tab" data-tab="tools"><?= _e('Tools') ?></button>
+    <button type="button" class="settings-tab" data-tab="system"><?= _e('System') ?></button>
 </div>
 <script>document.getElementById('settings-wrap').classList.add('tabs-ready');</script>
 <style>
@@ -981,6 +1147,9 @@ require_once __DIR__ . '/views/header.php';
 
 
 
+<?php require __DIR__ . '/views/system-panel.php'; ?>
+<?php require __DIR__ . '/views/hardening-panel.php'; ?>
+
 <script>
 function toggleHomepageDropdowns() {
     const isPage = document.querySelector('input[name="homepage_type"]:checked')?.value === 'page';
@@ -1060,14 +1229,19 @@ filePicker.addEventListener('change', () => {
         tabs.forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
         panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-tab') === name); });
         var submitCard = document.getElementById('settings-submit-card');
-        if (submitCard) submitCard.style.display = (name === 'tools') ? 'none' : 'flex';
+        if (submitCard) submitCard.style.display = (name === 'tools' || name === 'system') ? 'none' : 'flex';
         try { localStorage.setItem('modo_settings_tab', name); } catch (e) {}
     }
     tabs.forEach(function (t) {
         t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
     });
     var initial = 'general';
-    try { var saved = localStorage.getItem('modo_settings_tab'); if (saved) initial = saved; } catch (e) {}
+    var requested = <?= json_encode($requestedTab) ?>;
+    if (requested) {
+        initial = requested;
+    } else {
+        try { var saved = localStorage.getItem('modo_settings_tab'); if (saved) initial = saved; } catch (e) {}
+    }
     if (!document.querySelector('.settings-tab[data-tab="' + initial + '"]')) initial = 'general';
     activate(initial);
 })();

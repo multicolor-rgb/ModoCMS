@@ -14,6 +14,17 @@ final class Sitemap {
  * Creates or updates robots.txt file in the root directory.
  */
 public static function generateRobotsTxt(): bool {
+    $robotsPath = dirname(__DIR__) . '/robots.txt';
+
+    // Settings -> System: a custom robots.txt (modoconfig.php) replaces the
+    // generated rules. The physical file stays authoritative - Apache, nginx
+    // and the PHP built-in server serve it directly, while Router::dispatch()
+    // only falls back to the same override when the file cannot be written.
+    $override = Config::getString('robots_txt', '');
+    if ($override !== '') {
+        return @file_put_contents($robotsPath, str_replace(["\r\n", "\r"], "\n", $override) . "\n") !== false;
+    }
+
     $siteUrl = Router::getSiteUrl();
 
     $robotsContent = "User-agent: *\n" .
@@ -23,7 +34,6 @@ public static function generateRobotsTxt(): bool {
                      "Disallow: /uploads/cache/\n\n" .
                      "Sitemap: " . $siteUrl . "/sitemap.xml\n";
 
-    $robotsPath = dirname(__DIR__) . '/robots.txt';
     return @file_put_contents($robotsPath, $robotsContent) !== false;
 }
 

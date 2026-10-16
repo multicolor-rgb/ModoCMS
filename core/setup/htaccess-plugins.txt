@@ -1,0 +1,19 @@
+# ModoCMS .htaccess v3 - do not remove this line
+#
+# Plugin entry points are included by the CMS (Core\PluginLoader), they are
+# never requested directly. Static assets (js/css/images/fonts) stay fully
+# accessible; only script execution and direct script access are blocked.
+#
+# Toggle this file from Settings -> System ("Block direct PHP access to
+# plugins/") if a third-party GetSimple plugin ships its own web endpoint.
+Options -Indexes
+
+<FilesMatch "(^\..*|\.(php|phtml|php[0-9]|phps|pht|phar|cgi|pl|py|sh|shtml)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

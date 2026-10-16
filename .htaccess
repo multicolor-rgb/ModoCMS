@@ -1,25 +1,77 @@
-# Disable directory listing and enable symbolic links
-Options -Indexes +FollowSymLinks
+# ModoCMS .htaccess v3 - do not remove this line
+#
+# Apache / LiteSpeed rules for ModoCMS.
+# The same file works in the document root (https://domain/) and inside a
+# subfolder (https://domain/subfolder/): RewriteBase is intentionally NOT set,
+# Apache derives the base path from the directory holding this file.
+#
+# nginx ignores .htaccess - open Settings -> System and copy the equivalent
+# server block from the "Security Rules (.htaccess)" card.
+
+# ---------------------------------------------------------------------------
+# 1. Basic hardening
+# ---------------------------------------------------------------------------
+Options -Indexes +FollowSymLinks -ExecCGI -MultiViews
 ServerSignature Off
 
-# Security headers
+# Directory requests always reach the front controller: a stray index.html (or
+# index.htm / default.html) must never shadow the CMS.
+DirectoryIndex index.php
+
+<IfModule mod_autoindex.c>
+    IndexIgnore *
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 2. Security headers (Core\Security::sendHeaders() mirrors these in PHP so
+#    the protection also applies on servers without mod_headers)
+# ---------------------------------------------------------------------------
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    # HSTS is only advertised over an already established HTTPS connection.
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
 </IfModule>
 
-# Block direct access to database files, logs, hidden files, and SQLite caches
-<FilesMatch "(^\..*|\.sqlite.*|\.db|\.sql|\.log|\.ini|\.json)$">
-    Require all denied
+# ---------------------------------------------------------------------------
+# 3. Block sensitive files: databases, logs, backups, configuration and
+#    version-control / editor leftovers
+# ---------------------------------------------------------------------------
+<FilesMatch "(^\..*|\.sqlite.*|\.(sqlite3|db|sql|log|ini|json|lock|bak|orig|old|dist)$|^(modoconfig\.php|modoconfig\.sample\.php|composer\.json|composer\.lock|phpunit\.xml|php\.ini)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
-# Block direct access to data and languages directories
+# ---------------------------------------------------------------------------
+# 4. Block sensitive directories (data/, languages/) and VCS metadata.
+#    NOTE: keep in sync with the per-directory .htaccess files that ship with
+#    data/, core/, languages/ and uploads/cache/.
+# ---------------------------------------------------------------------------
 RedirectMatch 403 ^.*/data/.*$
 RedirectMatch 403 ^.*/languages/.*$
+RedirectMatch 403 ^.*/\.git(/.*)?$
+RedirectMatch 403 ^.*/\.svn(/.*)?$
+RedirectMatch 403 ^.*/\.hg(/.*)?$
+RedirectMatch 403 ^.*/node_modules/.*$
 
-# Rewrite Engine Configuration
+# ---------------------------------------------------------------------------
+# 5. Compression (silently skipped when mod_deflate is unavailable)
+# ---------------------------------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml image/svg+xml
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 6. Rewrite rules
+# ---------------------------------------------------------------------------
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

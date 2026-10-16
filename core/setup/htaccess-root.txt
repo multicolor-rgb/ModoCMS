@@ -1,0 +1,107 @@
+# ModoCMS .htaccess v3 - do not remove this line
+#
+# Apache / LiteSpeed rules for ModoCMS.
+# The same file works in the document root (https://domain/) and inside a
+# subfolder (https://domain/subfolder/): RewriteBase is intentionally NOT set,
+# Apache derives the base path from the directory holding this file.
+#
+# nginx ignores .htaccess - open Settings -> System and copy the equivalent
+# server block from the "Security Rules (.htaccess)" card.
+
+# ---------------------------------------------------------------------------
+# 1. Basic hardening
+# ---------------------------------------------------------------------------
+Options -Indexes +FollowSymLinks -ExecCGI -MultiViews
+ServerSignature Off
+
+# Directory requests always reach the front controller: a stray index.html (or
+# index.htm / default.html) must never shadow the CMS.
+DirectoryIndex index.php
+
+<IfModule mod_autoindex.c>
+    IndexIgnore *
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 2. Security headers (Core\Security::sendHeaders() mirrors these in PHP so
+#    the protection also applies on servers without mod_headers)
+# ---------------------------------------------------------------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    # HSTS is only advertised over an already established HTTPS connection.
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 3. Block sensitive files: databases, logs, backups, configuration and
+#    version-control / editor leftovers
+# ---------------------------------------------------------------------------
+<FilesMatch "(^\..*|\.sqlite.*|\.(sqlite3|db|sql|log|ini|json|lock|bak|orig|old|dist)$|^(modoconfig\.php|modoconfig\.sample\.php|composer\.json|composer\.lock|phpunit\.xml|php\.ini)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ---------------------------------------------------------------------------
+# 4. Block sensitive directories (data/, languages/) and VCS metadata.
+#    NOTE: keep in sync with the per-directory .htaccess files that ship with
+#    data/, core/, languages/ and uploads/cache/.
+# ---------------------------------------------------------------------------
+RedirectMatch 403 ^.*/data/.*$
+RedirectMatch 403 ^.*/languages/.*$
+RedirectMatch 403 ^.*/\.git(/.*)?$
+RedirectMatch 403 ^.*/\.svn(/.*)?$
+RedirectMatch 403 ^.*/\.hg(/.*)?$
+RedirectMatch 403 ^.*/node_modules/.*$
+
+# ---------------------------------------------------------------------------
+# 5. Compression (silently skipped when mod_deflate is unavailable)
+# ---------------------------------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml image/svg+xml
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 6. Rewrite rules
+# ---------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # NOTE: RewriteBase is intentionally NOT set. Apache derives the base path
+    # from the directory that contains this .htaccess file, so the CMS works
+    # both when installed in the document root (https://domain/) and inside a
+    # subfolder (https://domain/subfolder/). Do not hardcode RewriteBase here.
+
+    # Enforce trailing slash on /admin directory requests
+    RewriteRule ^admin$ admin/ [R=301,L]
+
+    # Rule A: Single-folder request -> nested-folder physical file
+    # Example: plugins/autoLightbox/glightbox/g.js -> plugins/autoLightbox/autoLightbox/glightbox/g.js
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} ^(.*)/plugins/([^/]+)/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}%1/plugins/%2/%2/%3 -f
+    RewriteRule ^plugins/([^/]+)/(.*)$ plugins/$1/$1/$2 [L]
+
+    # Rule B: Nested-folder request -> flat-folder physical file
+    # Example: plugins/autoLightbox/autoLightbox/glightbox/g.js -> plugins/autoLightbox/glightbox/g.js
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} ^(.*)/plugins/([^/]+)/([^/]+)/(.*)$
+    RewriteCond %{DOCUMENT_ROOT}%1/plugins/%2/%4 -f
+    RewriteRule ^plugins/([^/]+)/\1/(.*)$ plugins/$1/$2 [L]
+
+    # Serve existing physical files and directories directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route all frontend traffic through the front controller
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>

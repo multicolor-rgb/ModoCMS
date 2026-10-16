@@ -142,6 +142,127 @@ final class Router {
         ]);
     }
 
+    /**
+     * Whether the current frontend request has to be answered with the 503
+     * maintenance page. Administrators, the admin area and the addresses listed
+     * in "maintenance_allowed_ips" are never affected.
+     */
+    public static function maintenanceActive(): bool {
+        if (!Config::getBool('maintenance_mode', false)) {
+            return false;
+        }
+
+        if (defined('IN_ADMIN') && IN_ADMIN === true) {
+            return false;
+        }
+
+        $remoteAddress = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+        if ($remoteAddress !== '') {
+            foreach (Config::getList('maintenance_allowed_ips') as $allowedEntry) {
+                if (self::addressMatches($remoteAddress, $allowedEntry)) {
+                    return false;
+                }
+            }
+        }
+
+        // Signed in editors may preview the site while it is closed.
+        if (class_exists(Auth::class) && Auth::check() && Auth::can('manage_settings')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether a client address is covered by one allow-list entry. Three forms
+     * are accepted so an entry copied from a firewall or provider works as-is:
+     * a single address (203.0.113.7), an address prefix (203.0.113.) or a CIDR
+     * range (203.0.113.0/24, 2001:db8::/32).
+     */
+    public static function addressMatches(string $address, string $entry): bool {
+        $entry = trim($entry);
+        $address = trim($address);
+        if ($entry === '' || $address === '') {
+            return false;
+        }
+
+        if (preg_match('#^([^/]+)/([0-9]{1,3})$#', $entry, $matches) === 1) {
+            $subnet = @inet_pton($matches[1]);
+            $client = @inet_pton($address);
+            $bits = (int)$matches[2];
+
+            if ($subnet === false || $client === false || strlen($subnet) !== strlen($client)) {
+                return false;
+            }
+            if ($bits > strlen($subnet) * 8) {
+                return false;
+            }
+
+            $wholeBytes = intdiv($bits, 8);
+            if ($wholeBytes > 0 && substr($client, 0, $wholeBytes) !== substr($subnet, 0, $wholeBytes)) {
+                return false;
+            }
+
+            $remainingBits = $bits % 8;
+            if ($remainingBits === 0) {
+                return true;
+            }
+
+            $mask = (0xFF << (8 - $remainingBits)) & 0xFF;
+
+            return (ord($client[$wholeBytes]) & $mask) === (ord($subnet[$wholeBytes]) & $mask);
+        }
+
+        // Single address or literal prefix - IPv6 entries are compared as text.
+        return str_starts_with($address, $entry);
+    }
+
+    /**
+     * Sends the maintenance notice: the theme's maintenance.php when present,
+     * otherwise a self-contained page. Always answers 503 + Retry-After so
+     * crawlers treat the outage as temporary.
+     */
+    public static function renderMaintenance(): void {
+        $retryAfter = max(60, Config::getInt('maintenance_retry_after', 3600));
+        $message = Config::getString('maintenance_message', '');
+
+        http_response_code(503);
+        header('Retry-After: ' . $retryAfter);
+        header('X-Robots-Tag: noindex');
+        header('Content-Type: text/html; charset=utf-8');
+
+        $activeTheme = basename(self::getOption('active_theme', 'default'));
+        $themeDirectory = __DIR__ . '/../themes/' . $activeTheme . '/';
+
+        if (is_file($themeDirectory . 'maintenance.php')) {
+            ThemeState::$seoPayload = [
+                'title' => self::formatDocumentTitle(__('Maintenance'), false),
+                'description' => $message !== '' ? $message : __('The site is temporarily unavailable.'),
+                'og_image' => '',
+            ];
+            View::render($themeDirectory . 'maintenance.php', ['maintenanceMessage' => $message]);
+            return;
+        }
+
+        $siteName = self::getOption('site_name', 'ModoCMS');
+        $headline = __('Maintenance');
+        $notice = $message !== '' ? $message : __('The site is temporarily unavailable. Please come back soon.');
+        $minutes = (int)ceil($retryAfter / 60);
+        $hint = sprintf(__('Expected back in about %d minutes.'), $minutes);
+
+        echo '<!DOCTYPE html><html lang="' . htmlspecialchars(I18n::getLocale(), ENT_QUOTES, 'UTF-8') . '"><head>'
+            . '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<meta name="robots" content="noindex, nofollow">'
+            . '<title>' . htmlspecialchars($headline . ' - ' . $siteName, ENT_QUOTES, 'UTF-8') . '</title>'
+            . '<style>body{margin:0;font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}'
+            . 'main{max-width:560px;margin:24px;padding:32px;background:#1e293b;border:1px solid #334155;border-radius:16px;text-align:center}'
+            . 'h1{margin:0 0 12px;font-size:22px}p{margin:0 0 8px;color:#cbd5e1}small{color:#94a3b8}</style></head><body><main>'
+            . '<h1>' . htmlspecialchars($headline, ENT_QUOTES, 'UTF-8') . '</h1>'
+            . '<p>' . nl2br(htmlspecialchars($notice, ENT_QUOTES, 'UTF-8')) . '</p>'
+            . '<small>' . htmlspecialchars($hint, ENT_QUOTES, 'UTF-8') . '</small>'
+            . '</main></body></html>';
+    }
+
     public function dispatch(): void {
         $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -153,6 +274,16 @@ final class Router {
             $normalizedPath = substr($normalizedPath, strlen($baseDir));
         }
         $normalizedPath = '/' . trim((string)$normalizedPath, '/');
+
+        // Plain HTTP requests are redirected to HTTPS when modoconfig.php asks for it.
+        if (Config::getBool('require_https', false) && !Config::requestIsHttps()) {
+            $host = Config::requestHost();
+            if ($host !== '') {
+                $target = 'https://' . $host . str_replace(["\r", "\n", ' '], '', (string)($_SERVER['REQUEST_URI'] ?? '/'));
+                header('Location: ' . $target, true, 301);
+                return;
+            }
+        }
 
         // Dynamic Sitemap.xml
         if ($normalizedPath === '/sitemap.xml') {
@@ -167,6 +298,15 @@ final class Router {
         // Dynamic Robots.txt
         if ($normalizedPath === '/robots.txt') {
             header('Content-Type: text/plain; charset=utf-8');
+
+            // modoconfig.php may replace the generated rules (e.g. to hide the
+            // sitemap of a staging copy from search engines).
+            $robotsOverride = Config::getString('robots_txt', '');
+            if ($robotsOverride !== '') {
+                echo str_replace(["\r\n", "\r"], "\n", $robotsOverride) . "\n";
+                return;
+            }
+
             $siteUrl = self::getSiteUrl();
 
             echo "User-agent: *\n";
@@ -175,6 +315,13 @@ final class Router {
             echo "Disallow: /core/\n";
             echo "Disallow: /uploads/cache/\n\n";
             echo "Sitemap: " . $siteUrl . "/sitemap.xml\n";
+            return;
+        }
+
+        // Maintenance mode: visitors get a 503 page, the admin area and the
+        // allow-listed addresses keep working while the site is being updated.
+        if (self::maintenanceActive()) {
+            self::renderMaintenance();
             return;
         }
 
