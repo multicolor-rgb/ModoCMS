@@ -8,18 +8,26 @@ $uploadsCacheDir = $uploadsDir . '/cache';
 $dbFile = $dataDir . '/cms.sqlite';
 $langDir = __DIR__ . '/languages';
 
-// Prevent re-installation only when a real schema is present. PDO creates an
-// empty SQLite file as soon as any request reaches the app, so the mere
-// existence of the file does not mean the CMS is installed.
+// The app creates the database schema (and a default admin) automatically on
+// the first request, so a database file alone does not mean the CMS is set up.
+// Run the wizard unless install.php has actually completed, or the database
+// already holds real content (extra users beyond the default admin, or more
+// pages than the bundled demo seed) — then the existing site is preserved.
 $alreadyInstalled = false;
 if (file_exists($dbFile)) {
     try {
         $probe = new PDO('sqlite:' . $dbFile);
         $probe->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $tableCount = (int) $probe->query(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'settings')"
-        )->fetchColumn();
-        $alreadyInstalled = ($tableCount === 2);
+        $hasSchema = (int) $probe->query(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'settings', 'pages')"
+        )->fetchColumn() === 3;
+
+        if ($hasSchema) {
+            $completed  = $probe->query("SELECT value FROM settings WHERE key = 'install_completed' LIMIT 1")->fetchColumn();
+            $extraUsers = (int) $probe->query("SELECT COUNT(*) FROM users WHERE username <> 'admin'")->fetchColumn();
+            $pageCount  = (int) $probe->query("SELECT COUNT(*) FROM pages")->fetchColumn();
+            $alreadyInstalled = ($completed === '1') || ($extraUsers > 0) || ($pageCount > 4);
+        }
     } catch (\Throwable $e) {
         $alreadyInstalled = false;
     }
@@ -464,6 +472,7 @@ HTACCESS;
 
             // Seed core settings
             $settings = [
+                'install_completed'            => '1',
                 'site_title'                   => $siteTitle,
                 'site_description'             => 'A fast and minimal SQLite-powered website',
                 'site_url'                     => '',
