@@ -1,0 +1,66 @@
+# Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
+# The archive comes from `git archive`, so .gitattributes export-ignore rules
+# keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v3.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: v
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build clean archive
+        run: |
+          TAG="${{ steps.v.outputs.tag }}"
+          git archive --format=zip --prefix="ModoCMS-${TAG}/" -o "ModoCMS-${TAG}.zip" "${TAG}"
+          echo "Built ModoCMS-${TAG}.zip"
+          unzip -l "ModoCMS-${TAG}.zip" | tail -5
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: Modo CMS ${{ steps.v.outputs.tag }}
+          generate_release_notes: true
+          make_latest: true
+          files: ModoCMS-*.zip
+          body: |
+            **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
+
+            ### Install
+            1. Extract the archive into your web root (or a subdirectory).
+            2. Make `data/` and `uploads/` writable by the web server user.
+            3. Open `/install.php` and follow the wizard, then delete it.
+
+            Requires PHP 8.0+ with `pdo_sqlite`, `sqlite3` and `mbstring`.
+            No database server and no CDN needed. Licensed under MIT.
+
+            **Instalacja (PL)**
+            1. Rozpakuj archiwum w katalogu głównym (lub podkatalogu).
+            2. Nadaj prawa zapisu katalogom `data/` i `uploads/`.
+            3. Otwórz `/install.php`, przejdź kreator i usuń plik.
