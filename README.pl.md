@@ -2,6 +2,13 @@
 
 [English](README.md) | **Polski**
 
+[![Strona](assets/badges/website.svg)](https://multicolor-rgb.github.io/ModoCMS/)
+![PHP 8](assets/badges/php.svg)
+![SQLite3](assets/badges/sqlite.svg)
+![Licencja MIT](assets/badges/license.svg)
+
+**🌐 Strona na żywo:** <https://multicolor-rgb.github.io/ModoCMS/>
+
 **Modo CMS** to lekki, szybki i modułowy system zarządzania treścią (CMS) oparty na **PHP 8.x** oraz bazie danych **SQLite3**. Zaprojektowany z myślą o programistach ceniących czytelną architekturę opartą na prostych funkcjach proceduralnych, brak zbędnego narzutu obiektowego oraz pełną kontrolę nad kodem szablonów i wtyczek.
 
 ---
