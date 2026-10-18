@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://multicolor-rgb.github.io/ModoCMS/sitemap.xml

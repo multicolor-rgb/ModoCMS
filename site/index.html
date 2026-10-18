@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modo CMS — lekki, modułowy CMS na PHP 8 i SQLite3</title>
+  <meta name="description" content="Modo CMS to lekki, szybki i modułowy system zarządzania treścią na PHP 8 i SQLite3. Zero konfiguracji bazy, zero CDN, pełna kontrola nad motywem i wtyczkami. Licencja MIT.">
+  <meta name="theme-color" content="#0b1120">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="canonical" href="https://multicolor-rgb.github.io/ModoCMS/">
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Modo CMS — lekki, modułowy CMS na PHP 8 i SQLite3">
+  <meta property="og:description" content="Lekki, szybki i modułowy CMS na PHP 8 i SQLite3. Zero konfiguracji bazy, zero CDN, pełna kontrola nad kodem.">
+  <meta property="og:url" content="https://multicolor-rgb.github.io/ModoCMS/">
+  <meta property="og:image" content="https://multicolor-rgb.github.io/ModoCMS/assets/img/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Modo CMS — lekki, modułowy CMS na PHP 8 i SQLite3">
+  <meta name="twitter:description" content="Lekki, szybki i modułowy CMS na PHP 8 i SQLite3. Zero CDN, pełna kontrola nad kodem.">
+  <meta name="twitter:image" content="https://multicolor-rgb.github.io/ModoCMS/assets/img/og-image.jpg">
+
+  <link rel="stylesheet" href="assets/css/style.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Modo CMS",
+    "applicationCategory": "WebApplication",
+    "operatingSystem": "PHP 8, SQLite3",
+    "description": "Lightweight, fast and modular content management system built on PHP 8 and SQLite3.",
+    "license": "https://opensource.org/licenses/MIT",
+    "codeRepository": "https://github.com/multicolor-rgb/ModoCMS",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="a11y.skip">Przejdź do treści</a>
+
+  <!-- ================= NAV ================= -->
+  <header class="nav" id="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="#top">
+        <img src="assets/img/logo.svg" alt="Modo CMS" width="36" height="36">
+        <span>Modo CMS<small data-i18n="brand.sub">PHP 8 · SQLite3</small></span>
+      </a>
+
+      <nav class="nav__links" id="navLinks" aria-label="Nawigacja">
+        <a class="nav__link" href="#features" data-i18n="nav.features">Funkcje</a>
+        <a class="nav__link" href="#how" data-i18n="nav.how">Jak działa</a>
+        <a class="nav__link" href="#start" data-i18n="nav.start">Szybki start</a>
+        <a class="nav__link" href="#docs" data-i18n="nav.docs">Dokumentacja</a>
+      </nav>
+
+      <div class="nav__actions">
+        <div class="lang-switch" role="group" aria-label="Język / Language">
+          <button type="button" data-lang="pl" aria-pressed="true">PL</button>
+          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <a class="btn btn--ghost" href="https://github.com/multicolor-rgb/ModoCMS" target="_blank" rel="noopener">
+          <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.4-5.25 5.69.41.35.78 1.05.78 2.12v3.14c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+          <span data-i18n="nav.github">GitHub</span>
+        </a>
+        <button class="nav__burger" id="burger" type="button" aria-expanded="false" aria-controls="navLinks" data-i18n-attr="aria-label:nav.menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ================= HERO ================= -->
+    <section class="hero" id="top">
+      <div class="container hero__grid">
+        <div>
+          <span class="pill-badge"><span class="dot"></span> <span data-i18n="hero.badge">100% open source · licencja MIT</span></span>
+          <h1 data-i18n-html="hero.title">Modularny CMS.<br>W <span class="grad-text">całości</span> na Twoich zasadach.</h1>
+          <p class="hero__lead" data-i18n="hero.lead">Lekki, szybki i modułowy CMS na PHP 8 i SQLite3. Zero konfiguracji bazy, zero CDN i pełna kontrola nad motywem oraz wtyczkami.</p>
+          <div class="hero__cta">
+            <a class="btn" href="#start">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <span data-i18n="hero.cta1">Pobierz i zainstaluj</span>
+            </a>
+            <a class="btn btn--ghost" href="https://github.com/multicolor-rgb/ModoCMS" target="_blank" rel="noopener">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.4-5.25 5.69.41.35.78 1.05.78 2.12v3.14c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+              <span data-i18n="hero.cta2">Zobacz na GitHub</span>
+            </a>
+          </div>
+          <div class="hero__meta">
+            <span class="tag">PHP 8</span>
+            <span class="tag">SQLite3</span>
+            <span class="tag" data-i18n="hero.tag3">Bez CDN</span>
+            <span class="tag" data-i18n="hero.tag4">Licencja MIT</span>
+          </div>
+        </div>
+
+        <div class="hero__visual">
+          <div class="hero__orb" aria-hidden="true"></div>
+          <div class="window">
+            <div class="window__bar">
+              <div class="window__dots"><i></i><i></i><i></i></div>
+              <span class="window__title">plugins/hello-world.php</span>
+            </div>
+<pre class="code"><code><span class="c-com">&lt;?php</span>
+<span class="c-com" data-i18n="hero.codecomment">// Wtyczka w 8 liniach — bez zmiany rdzenia.</span>
+<span class="c-key">use</span> Core\Hooks;
+
+Hooks::<span class="c-fn">addFilter</span>(<span class="c-str">'the_content'</span>, <span class="c-key">function</span> (<span class="c-key">string</span> <span class="c-var">$content</span>) {
+    <span class="c-key">return</span> <span class="c-var">$content</span> . <span class="c-str">'&lt;p&gt;Powered by Modo CMS&lt;/p&gt;'</span>;
+});</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MARQUEE ================= -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Plugins</span><span>Hooks</span><span>Editor.js</span><span>TinyMCE</span><span>SQLite3</span><span>Customizer</span><span>PDO</span><span>SMTP</span><span>Zero-CDN</span>
+        <span>Plugins</span><span>Hooks</span><span>Editor.js</span><span>TinyMCE</span><span>SQLite3</span><span>Customizer</span><span>PDO</span><span>SMTP</span><span>Zero-CDN</span>
+      </div>
+    </div>
+
+    <!-- ================= PANEL PREVIEW ================= -->
+    <section class="section" aria-labelledby="panelTitle">
+      <div class="container">
+        <div class="section__head" data-reveal>
+          <span class="eyebrow" data-i18n="panel.eyebrow">Panel administratora</span>
+          <h2 id="panelTitle" data-i18n="panel.title">Zaprojektowany, by pracowało się szybko</h2>
+          <p data-i18n="panel.sub">Czysty, ciemny interfejs z pełną obsługą treści, mediów, motywów i wtyczek — działający tak samo dobrze na telefonie.</p>
+        </div>
+
+        <div class="window panel" data-reveal>
+          <div class="window__bar">
+            <div class="window__dots"><i></i><i></i><i></i></div>
+            <span class="window__title">admin/index.php</span>
+          </div>
+          <div class="panel__win">
+            <aside class="panel__side">
+              <div class="side-brand"><img src="assets/img/logo.svg" alt="" width="26" height="26"> Modo CMS</div>
+              <div class="side-item is-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg><span data-i18n="panel.menu.dashboard">Pulpit</span></div>
+              <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg><span data-i18n="panel.menu.pages">Strony</span></div>
+              <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/></svg><span data-i18n="panel.menu.posts">Wpisy</span></div>
+              <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-4-6 6"/></svg><span data-i18n="panel.menu.media">Media</span></div>
+              <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg><span data-i18n="panel.menu.plugins">Wtyczki</span></div>
+              <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10l2 2M19 5l-2 2M7 17l-2 2"/></svg><span data-i18n="panel.menu.settings">Ustawienia</span></div>
+            </aside>
+            <div class="panel__main">
+              <h3 data-i18n="panel.h">Pulpit</h3>
+              <div class="sub" data-i18n="panel.sub2">Witaj ponownie — oto jak radzi sobie Twoja witryna.</div>
+              <div class="panel__cards">
+                <div class="panel__card"><b data-count="24">0</b><small data-i18n="panel.stat1">Opublikowane strony</small></div>
+                <div class="panel__card"><b data-count="86">0</b><small data-i18n="panel.stat2">Wpisy na blogu</small></div>
+                <div class="panel__card"><b data-count="4">0</b><small data-i18n="panel.stat3">Aktywne wtyczki</small></div>
+              </div>
+              <div class="panel__bars">
+                <div class="bar"><i style="width: 82%"></i></div>
+                <div class="bar"><i style="width: 64%"></i></div>
+                <div class="bar"><i style="width: 91%"></i></div>
+                <div class="bar"><i style="width: 47%"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FEATURES ================= -->
+    <section class="section" id="features" aria-labelledby="featuresTitle">
+      <div class="container">
+        <div class="section__head" data-reveal>
+          <span class="eyebrow" data-i18n="features.eyebrow">Możliwości</span>
+          <h2 id="featuresTitle" data-i18n="features.title">Wszystko, czego potrzebujesz — bez balastu</h2>
+          <p data-i18n="features.sub">Nowoczesne funkcje CMS w lekkim, czytelnym kodzie. Każdą część rozbudujesz wtyczką, nie forkiem.</p>
+        </div>
+
+        <div class="cards">
+          <article class="card" data-reveal>
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9l6 3"/><circle cx="12" cy="12" r="1"/></svg></div>
+            <h3 data-i18n="f1.title">Theme Customizer</h3>
+            <p data-i18n="f1.desc">Ustawienia motywu z podglądem na żywo — pola deklarujesz w theme.json lub z wtyczki, a kolory aktualizują się natychmiast przez zmienne CSS.</p>
+          </article>
+          <article class="card" data-reveal data-delay="1">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></div>
+            <h3 data-i18n="f2.title">Dwa edytory treści</h3>
+            <p data-i18n="f2.desc">Klasyczny WYSIWYG (TinyMCE) albo edytor blokowy (Editor.js). Zmiana edytora nie niszczy istniejących treści — oba formaty współistnieją.</p>
+          </article>
+          <article class="card" data-reveal data-delay="2">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+            <h3 data-i18n="f3.title">Siatki CSS bez CDN</h3>
+            <p data-i18n="f3.desc">Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind lub własna siatka — dołączone lokalnie i spójne między frontendem a edytorem.</p>
+          </article>
+          <article class="card" data-reveal>
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h2M15 7h2a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-2"/></svg></div>
+            <h3 data-i18n="f4.title">Hooki i filtry</h3>
+            <p data-i18n="f4.desc">System akcji i filtrów w stylu WordPressa (Core\Hooks) pozwala rozbudować panel i frontend bez dotykania plików rdzenia.</p>
+          </article>
+          <article class="card" data-reveal data-delay="1">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a2 2 0 0 1 2-2h2M20 7V5a2 2 0 0 0-2-2h-2M4 17v2a2 2 0 0 0 2 2h2M20 17v2a2 2 0 0 1-2 2h-2"/><rect x="8" y="9" width="8" height="6" rx="1"/></svg></div>
+            <h3 data-i18n="f5.title">Pola niestandardowe</h3>
+            <p data-i18n="f5.desc">Tekst, liczba, checkbox, kolor, obrazek i JSON — przypisz dowolne metadane do strony i wypisz je w motywie jedną funkcją.</p>
+          </article>
+          <article class="card" data-reveal data-delay="2">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h7l2 3h7v13H4z"/><path d="M4 12h16"/></svg></div>
+            <h3 data-i18n="f6.title">Kategorie i tagi</h3>
+            <p data-i18n="f6.desc">Płaskie kategorie i tagi dla wpisów, z archiwami, paginacją, opisami SEO i wpisami do sitemap.xml — gotowe do użycia z motywu.</p>
+          </article>
+          <article class="card" data-reveal>
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg></div>
+            <h3 data-i18n="f7.title">E-mail przez SMTP</h3>
+            <p data-i18n="f7.desc">Wysyłka przez PHP mail() lub SMTP z PHPMailerem (TLS/SSL). Wszystkie wtyczki korzystają z jednej, globalnej konfiguracji.</p>
+          </article>
+          <article class="card" data-reveal data-delay="1">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M4 12h16"/><circle cx="12" cy="12" r="9" opacity=".4"/></svg></div>
+            <h3 data-i18n="f8.title">Pasek administratora</h3>
+            <p data-i18n="f8.desc">Zalogowani widzą na froncie pasek z szybkimi akcjami: edycja bieżącej strony, dodanie nowej treści i edycja ustawień motywu.</p>
+          </article>
+          <article class="card" data-reveal data-delay="2">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+            <h3 data-i18n="f9.title">Bezpieczeństwo</h3>
+            <p data-i18n="f9.desc">PDO Prepared Statements, tokeny CSRF, weryfikacja uprawnień i sanityzacja wyjścia — bezpieczne wzorce od pierwszej linii kodu.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= HOW IT WORKS ================= -->
+    <section class="section" id="how" aria-labelledby="howTitle">
+      <div class="container">
+        <div class="section__head" data-reveal>
+          <span class="eyebrow" data-i18n="how.eyebrow">Jak to działa</span>
+          <h2 id="howTitle" data-i18n="how.title">Rdzeń zostaje czysty — resztę dopinasz hookami</h2>
+          <p data-i18n="how.sub">Trzy kroki wystarczą, by rozbudować CMS. Twoja wtyczka wpina się w nazwane punkty i nie modyfikuje ani jednego pliku rdzenia.</p>
+        </div>
+
+        <div class="steps">
+          <div class="step" data-reveal>
+            <span class="step__n">01</span>
+            <h3 data-i18n="how.s1.title">Wrzuć plik do plugins/</h3>
+            <p data-i18n="how.s1.desc">Pojedynczy plik PHP albo folder z własnymi zasobami. Identyfikatorem jest nazwa pliku lub katalogu.</p>
+          </div>
+          <div class="step" data-reveal data-delay="1">
+            <span class="step__n">02</span>
+            <h3 data-i18n="how.s2.title">Włącz w panelu</h3>
+            <p data-i18n="how.s2.desc">Jedno kliknięcie w ekranie Wtyczki ustawia flagę aktywności. Kod ładuje się przy każdym żądaniu.</p>
+          </div>
+          <div class="step" data-reveal data-delay="2">
+            <span class="step__n">03</span>
+            <h3 data-i18n="how.s3.title">Wpnij się w hooki</h3>
+            <p data-i18n="how.s3.desc">Akcje robią coś w danym momencie, filtry zmieniają wartość. Priorytet decyduje o kolejności.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= STATS ================= -->
+    <section class="section" aria-label="Statystyki">
+      <div class="container">
+        <div class="stats">
+          <div class="stat" data-reveal><b data-count="0">0</b><span data-i18n="stat1">Konfiguracji bazy danych</span></div>
+          <div class="stat" data-reveal data-delay="1"><b data-count="2">0</b><span data-i18n="stat2">Edytory treści</span></div>
+          <div class="stat" data-reveal data-delay="2"><b data-count="57" data-prefix="~">0</b><span data-i18n="stat3">Funkcje motywu</span></div>
+          <div class="stat" data-reveal><b data-count="60" data-suffix="+">0</b><span data-i18n="stat4">Hooki</span></div>
+          <div class="stat" data-reveal data-delay="1"><b data-count="4">0</b><span data-i18n="stat5">Dołączone wtyczki</span></div>
+          <div class="stat" data-reveal data-delay="2"><b>MIT</b><span data-i18n="stat6">Licencja</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= QUICK START ================= -->
+    <section class="section" id="start" aria-labelledby="startTitle">
+      <div class="container start">
+        <div data-reveal>
+          <span class="eyebrow" data-i18n="start.eyebrow">Szybki start</span>
+          <h2 id="startTitle" data-i18n="start.title">Od zera do działającej strony w minutę</h2>
+          <ul class="term-list">
+            <li><span class="k">1</span><p data-i18n-html="start.l1"><b>Sklonuj repozytorium</b> do katalogu głównego lub podkatalogu.</p></li>
+            <li><span class="k">2</span><p data-i18n-html="start.l2"><b>Nadaj prawa zapisu</b> katalogom <code>data/</code> i <code>uploads/</code>.</p></li>
+            <li><span class="k">3</span><p data-i18n-html="start.l3"><b>Uruchom kreatora</b> pod <code>/install.php</code> i gotowe.</p></li>
+          </ul>
+        </div>
+
+        <div class="window window--term" data-reveal data-delay="1">
+          <div class="window__bar">
+            <div class="window__dots"><i></i><i></i><i></i></div>
+            <span class="window__title">bash</span>
+            <button class="copy-btn" id="copyStart" type="button" data-i18n="start.copy">Kopiuj</button>
+          </div>
+          <div class="term" id="termCode"><span class="comment"># 1. pobierz projekt</span>
+<span class="prompt">$</span> git clone https://github.com/multicolor-rgb/ModoCMS.git
+<span class="comment"># 2. prawa zapisu (Apache/nginx: www-data)</span>
+<span class="prompt">$</span> chmod -R 775 ModoCMS/data ModoCMS/uploads
+<span class="comment"># 3. otwórz kreatora instalacji</span>
+<span class="prompt">$</span> open http://localhost/ModoCMS/install.php</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DOCS ================= -->
+    <section class="section" id="docs" aria-labelledby="docsTitle">
+      <div class="container">
+        <div class="section__head" data-reveal>
+          <span class="eyebrow" data-i18n="docs.eyebrow">Dokumentacja</span>
+          <h2 id="docsTitle" data-i18n="docs.title">Przewodniki dla laika i dla programisty</h2>
+          <p data-i18n="docs.sub">Wszystko po polsku i angielsku: od instalacji, przez tworzenie pluginów, po pełną referencję funkcji i hooków — z przykładami.</p>
+        </div>
+
+        <div class="docs-grid">
+          <a class="doc-tile" href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/instalacja.md" target="_blank" rel="noopener" data-doc="installation" data-reveal>
+            <b data-i18n="doc1.title">Instalacja</b>
+            <span data-i18n="doc1.desc">Root, podkatalog, Apache/Nginx i rozwiązywanie problemów.</span>
+          </a>
+          <a class="doc-tile" href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/pluginy.md" target="_blank" rel="noopener" data-doc="plugins" data-reveal data-delay="1">
+            <b data-i18n="doc2.title">Tworzenie pluginów</b>
+            <span data-i18n="doc2.desc">Natywne pluginy Modo krok po kroku, z akcjami i filtrami.</span>
+          </a>
+          <a class="doc-tile" href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/wtyczki.md" target="_blank" rel="noopener" data-doc="getsimple" data-reveal data-delay="2">
+            <b data-i18n="doc3.title">Wtyczki GetSimple</b>
+            <span data-i18n="doc3.desc">Warstwa zgodności: register_plugin, sidebar, i18n.</span>
+          </a>
+          <a class="doc-tile" href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/funkcje-motywu.md" target="_blank" rel="noopener" data-doc="functions" data-reveal>
+            <b data-i18n="doc4.title">Funkcje motywu</b>
+            <span data-i18n="doc4.desc">Pełna referencja wszystkich funkcji — opis dla laika.</span>
+          </a>
+          <a class="doc-tile" href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/hooki.md" target="_blank" rel="noopener" data-doc="hooks" data-reveal data-delay="1">
+            <b data-i18n="doc5.title">Hooki</b>
+            <span data-i18n="doc5.desc">Wszystkie akcje i filtry: gdzie działają i do czego służą.</span>
+          </a>
+          <a class="doc-tile" href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/przyklady.md" target="_blank" rel="noopener" data-doc="examples" data-reveal data-delay="2">
+            <b data-i18n="doc6.title">Przykłady</b>
+            <span data-i18n="doc6.desc">Gotowe wtyczki i fragmenty motywu do skopiowania.</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FINAL CTA ================= -->
+    <section class="section">
+      <div class="container">
+        <div class="cta" data-reveal>
+          <h2 data-i18n="cta.title">Gotowy zbudować coś lekkiego?</h2>
+          <p data-i18n="cta.sub">Pobierz Modo CMS, przeczytaj dokumentację i postaw własną witrynę na PHP 8 i SQLite3 — bez bazy do konfiguracji i bez zewnętrznych zależności.</p>
+          <div class="hero__cta">
+            <a class="btn" href="https://github.com/multicolor-rgb/ModoCMS" target="_blank" rel="noopener">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.4-5.25 5.69.41.35.78 1.05.78 2.12v3.14c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+              <span data-i18n="cta.btn1">Pobierz Modo CMS</span>
+            </a>
+            <a class="btn btn--ghost" href="#docs">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+              <span data-i18n="cta.btn2">Przeczytaj dokumentację</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div>
+          <a class="brand" href="#top" style="margin-bottom:16px">
+            <img src="assets/img/logo.svg" alt="Modo CMS" width="36" height="36">
+            <span>Modo CMS<small data-i18n="brand.sub">PHP 8 · SQLite3</small></span>
+          </a>
+          <p data-i18n="footer.about">Lekki, szybki i modułowy system zarządzania treścią na PHP 8 i SQLite3. Zbudowany dla ludzi, którzy chcą pełnej kontroli nad kodem.</p>
+        </div>
+        <div>
+          <h4 data-i18n="footer.col1">Projekt</h4>
+          <ul>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/CONTRIBUTING.md" target="_blank" rel="noopener" data-i18n="footer.contributing">Współpraca</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/issues" target="_blank" rel="noopener" data-i18n="footer.issues">Zgłoś błąd</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/LICENSE" target="_blank" rel="noopener" data-i18n="footer.license">Licencja MIT</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 data-i18n="footer.col2">Dokumentacja</h4>
+          <ul>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/instalacja.md" target="_blank" rel="noopener" data-doc="installation" data-i18n="doc1.title">Instalacja</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/pluginy.md" target="_blank" rel="noopener" data-doc="plugins" data-i18n="doc2.title">Tworzenie pluginów</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/funkcje-motywu.md" target="_blank" rel="noopener" data-doc="functions" data-i18n="doc4.title">Funkcje motywu</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/3.0/docs/pl/hooki.md" target="_blank" rel="noopener" data-doc="hooks" data-i18n="doc5.title">Hooki</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© 2026 Modo CMS · <span data-i18n="footer.license">Licencja MIT</span></span>
+        <span data-i18n="footer.made">Zbudowano na PHP 8 + SQLite3 · bez CDN</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>
