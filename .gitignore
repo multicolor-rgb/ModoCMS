@@ -1,0 +1,39 @@
+# =============================================================
+# Modo CMS — do NOT commit runtime data or local configuration.
+# Keep the .htaccess guards and the directory structure.
+# =============================================================
+
+# --- Database (created by install.php) ---
+data/cms.sqlite
+data/*.sqlite
+data/*.sqlite3
+data/*.db
+
+# --- Runtime directories (keep only the .htaccess guards) ---
+data/backups/*
+!data/backups/.htaccess
+data/cache/*
+!data/cache/.htaccess
+data/logs/*
+!data/logs/.htaccess
+data/other/*
+!data/other/.htaccess
+data/pages/*
+!data/pages/.htaccess
+data/sessions/*
+!data/sessions/.htaccess
+
+# --- Uploaded media (user content) ---
+uploads/*
+!uploads/.htaccess
+!uploads/cache/
+uploads/cache/*
+!uploads/cache/.htaccess
+
+# --- Local configuration (copy of modoconfig.sample.php) ---
+modoconfig.php
+
+# --- Editor / OS / logs ---
+.DS_Store
+Thumbs.db
+*.log
