@@ -266,6 +266,158 @@ final class CssFramework
         return self::enabledFor('editor') ? self::customCss() : '';
     }
 
+    /**
+     * Returns the active grid CSS (bundled stylesheet + custom additions)
+     * scoped under a selector, so the grid classes only affect the given
+     * element instead of leaking into the surrounding admin UI.
+     *
+     * Editor.js renders inline (no iframe like TinyMCE), hence the need for
+     * this scoped variant. Only "@media" at-rules occur in the bundled
+     * stylesheets, which the selector prefixing below handles correctly.
+     *
+     * @param string $scope CSS selector, e.g. "#editorjs".
+     */
+    public static function editorScopedCss(string $scope = '#editorjs'): string
+    {
+        if (!self::enabledFor('editor')) {
+            return '';
+        }
+
+        $scope = trim($scope);
+        if ($scope === '') {
+            return '';
+        }
+
+        $css = '';
+        $root = dirname(__DIR__);
+        $framework = self::get(self::active());
+
+        if ($framework !== null && (string) $framework['css'] !== '') {
+            $file = $root . '/' . ltrim((string) $framework['css'], '/');
+            if (is_file($file)) {
+                $contents = file_get_contents($file);
+                if ($contents !== false) {
+                    $css .= $contents . "\n";
+                }
+            }
+        }
+
+        $css .= self::customCss();
+        if (trim($css) === '') {
+            return '';
+        }
+
+        // Prefixes every innermost rule with the scope. At-rule headers
+        // ("@media …{") contain braces and therefore never match.
+        $scoped = preg_replace_callback(
+            '#([^{}]+)\{([^{}]*)\}#s',
+            static function (array $match) use ($scope): string {
+                $selectors = [];
+                foreach (explode(',', (string) $match[1]) as $selector) {
+                    $selector = trim($selector);
+                    if ($selector === '' || str_starts_with($selector, '@')) {
+                        return $match[0];
+                    }
+                    $selectors[] = $scope . ' ' . $selector;
+                }
+                return implode(',', $selectors) . '{' . $match[2] . '}';
+            },
+            $css
+        );
+
+        return $scoped ?? '';
+    }
+
+    // ---------------------------------------------------------------------
+    // Grid markup
+    // ---------------------------------------------------------------------
+
+    /**
+     * Builds framework correct grid markup. Mirrors the client side builder in
+     * admin/assets/js/grid-editor.js so grids authored in TinyMCE and in
+     * Editor.js render identically.
+     *
+     * @param array<string,mixed> $spec {
+     *     framework  : framework id (defaults to the active one)
+     *     columns    : number of columns
+     *     breakpoint : responsive breakpoint key ('' = all sizes)
+     *     container  : wrap in the framework container
+     *     contents   : one HTML / plain text fragment per column
+     * }
+     */
+    public static function gridMarkup(array $spec): string
+    {
+        $id = (string) ($spec['framework'] ?? '');
+        $fw = $id !== '' ? self::get($id) : self::get(self::active());
+        if ($fw === null) {
+            return '';
+        }
+
+        $mode = (string) $fw['mode'];
+        if ($mode === 'none' || $mode === 'custom') {
+            return '';
+        }
+
+        $columns = max(1, (int) ($spec['columns'] ?? 2));
+        $bp = (string) ($spec['breakpoint'] ?? '');
+        $contents = array_values((array) ($spec['contents'] ?? []));
+        $width = max(1, (int) round(12 / $columns));
+
+        switch ($mode) {
+            case 'bootstrap':
+                $colOpen = '<div class="' . ($bp !== '' ? 'col-' . $bp . '-' . $width : 'col-' . $width) . '">';
+                $rowOpen = '<div class="row">';
+                break;
+            case 'bulma':
+                $colOpen = '<div class="' . ($columns > 1
+                    ? 'column is-' . $width . ($bp !== '' ? '-' . $bp : '')
+                    : 'column') . '">';
+                $rowOpen = '<div class="columns' . ($bp !== '' ? ' is-multiline' : '') . '">';
+                break;
+            case 'foundation':
+                $colOpen = '<div class="cell '
+                    . (($bp !== '' && $bp !== 'small') ? $bp . '-' . $width : 'small-' . $width) . '">';
+                $rowOpen = '<div class="grid-x grid-padding-x">';
+                break;
+            case 'modo':
+                $colOpen = '<div class="' . ($bp !== '' ? 'modo-col-' . $bp . '-' . $width : 'modo-col-' . $width) . '">';
+                $rowOpen = '<div class="modo-grid">';
+                break;
+            case 'pico':
+                $colOpen = '<div>';
+                $rowOpen = '<div class="grid" data-cols="' . $columns . '">';
+                break;
+            case 'uikit':
+                $colOpen = '<div>';
+                $rowOpen = '<div class="uk-grid uk-child-width-1-' . $columns . ($bp !== '' ? '@' . $bp : '') . '">';
+                break;
+            case 'tailwind':
+                $colOpen = '<div>';
+                $rowOpen = $bp !== ''
+                    ? '<div class="grid grid-cols-1 gap-4 ' . $bp . ':grid-cols-' . $columns . '">'
+                    : '<div class="grid grid-cols-' . $columns . ' gap-4">';
+                break;
+            default:
+                $colOpen = '<div class="grid-col">';
+                $rowOpen = '<div class="grid-row">';
+        }
+
+        $cells = [];
+        for ($i = 0; $i < $columns; $i++) {
+            $inner = trim((string) ($contents[$i] ?? ''));
+            $cells[] = $colOpen . ($inner === '' ? '&nbsp;' : $inner) . '</div>';
+        }
+
+        $containerOpen = '';
+        $containerClose = '';
+        if ((string) $fw['container'] !== '' && !empty($spec['container'])) {
+            $containerOpen = '<div class="' . $fw['container'] . '">' . "\n";
+            $containerClose = "\n</div>";
+        }
+
+        return $containerOpen . $rowOpen . "\n" . implode("\n", $cells) . "\n</div>" . $containerClose;
+    }
+
     // ---------------------------------------------------------------------
     // Editor integration
     // ---------------------------------------------------------------------
@@ -300,6 +452,7 @@ final class CssFramework
                 'insert'     => __('Insert'),
                 'cancel'     => __('Cancel'),
                 'none'       => __('No grid framework is selected in Settings.'),
+                'error'      => __('Could not open the grid dialog. Check the browser console for details.'),
             ],
         ];
     }

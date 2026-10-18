@@ -766,6 +766,8 @@ if (!class_exists('ModoGallery')) {
                     'button' => __('mg_gallery'),
                     'none'   => __('mg_no_galleries'),
                     'label'  => __('mg_gallery'),
+                    'insert' => __('Insert'),
+                    'cancel' => __('Cancel'),
                 ],
             ];
             ?>
@@ -795,8 +797,9 @@ if (!class_exists('ModoGallery')) {
                                     if(!list.length){ editor.notificationManager.open({text:cfg.labels.none,type:"info"}); return; }
                                     editor.windowManager.open({
                                         title:cfg.labels.title,
-                                        body:{type:"panel",items:[{type:"select",name:"gid",label:cfg.labels.label,
+                                        body:{type:"panel",items:[{type:"selectbox",name:"gid",label:cfg.labels.label,
                                             items:list.map(function(g){return {text:g.name+" (#"+g.id+")",value:String(g.id)};})}]},
+                                        buttons:[{type:"cancel",text:cfg.labels.cancel},{type:"submit",text:cfg.labels.insert,primary:true}],
                                         onSubmit:function(api){
                                             var d=api.getData();
                                             editor.insertContent('[modo_gallery id="'+d.gid+'"]');
@@ -814,6 +817,31 @@ if (!class_exists('ModoGallery')) {
                     var tries=0;
                     var iv=setInterval(function(){ tries++; if(patch()||tries>60){ clearInterval(iv); } },100);
                 }
+            })();
+            </script>
+            <script>
+            // Editor.js (Settings → Content): same picker through the editor bridge.
+            (function(){
+                if(!window.ModoEditor||typeof window.ModoEditor.registerButton!=="function") return;
+                window.ModoEditor.registerButton({
+                    id:"modo_gallery",
+                    label:cfg.labels.button||cfg.labels.title,
+                    icon:"<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"m21 15-5-5L5 21\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/></svg>",
+                    insert:function(api){
+                        var list=cfg.items||[];
+                        api.pickFromList({
+                            title:cfg.labels.title,
+                            label:cfg.labels.label,
+                            items:list.map(function(g){return {text:g.name+" (#"+g.id+")",value:String(g.id)};}),
+                            submitText:cfg.labels.insert,
+                            cancelText:cfg.labels.cancel,
+                            emptyText:cfg.labels.none
+                        },function(gid){
+                            if(!gid){ return; }
+                            api.insertShortcode('[modo_gallery id="'+gid+'"]');
+                        });
+                    }
+                });
             })();
             </script>
             <?php

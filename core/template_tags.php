@@ -489,7 +489,9 @@ if (!function_exists('snippet_content')) {
         }
 
         $rendering[$name] = true;
-        $out = render_snippets((string) $cache[$name]);
+        // A snippet may also be authored with the Editor.js block editor.
+        $out = \Core\EditorJs::render((string) $cache[$name]);
+        $out = render_snippets($out);
         unset($rendering[$name]);
 
         return $out;
@@ -522,6 +524,28 @@ if (!function_exists('the_snippet')) {
 }
 
 // Expand snippet shortcodes inside every rendered content stream.
+
+/**
+ * Renders a content value and returns it as plain text, truncated to $limit
+ * characters. Safe for content authored with TinyMCE or Editor.js.
+ */
+if (!function_exists('content_to_text')) {
+    function content_to_text(?string $content, int $limit = 0): string {
+        return class_exists('Core\\EditorJs')
+            ? \Core\EditorJs::toPlainText($content, $limit)
+            : trim(strip_tags((string) $content));
+    }
+}
+
+/**
+ * Short excerpt built from any content value (see content_to_text()).
+ */
+if (!function_exists('content_excerpt')) {
+    function content_excerpt(?string $content, int $limit = 140): string {
+        return content_to_text($content, $limit);
+    }
+}
+
 if (class_exists('Core\\Hooks')) {
     Hooks::addFilter('the_content', 'render_snippets', 5);
 }

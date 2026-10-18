@@ -24,6 +24,7 @@ $item = [
 ];
 
 $existingTags = '';
+$assignedCategoryIds = [];
 
 // Load existing record if editing
 if ($id > 0) {
@@ -47,6 +48,11 @@ if ($id > 0) {
         ");
         $tagStmt->execute([':pid' => $id]);
         $existingTags = implode(', ', $tagStmt->fetchAll(\PDO::FETCH_COLUMN));
+
+        // Fetch associated categories for posts
+        $catStmt = $db->prepare("SELECT category_id FROM page_categories WHERE page_id = :pid");
+        $catStmt->execute([':pid' => $id]);
+        $assignedCategoryIds = array_map('intval', $catStmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 }
 
@@ -277,6 +283,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $attachStmt->execute([':pid' => $id, ':tid' => (int)$tagId]);
             }
         }
+
+        // Sync assigned categories (multi-select checkboxes in the sidebar).
+        $selectedCategoryIds = [];
+        $postedCategories = $_POST['categories'] ?? [];
+        if (is_array($postedCategories)) {
+            $validCategoryIds = array_map('intval', $db->query("SELECT id FROM categories")->fetchAll(\PDO::FETCH_COLUMN));
+            foreach ($postedCategories as $rawCategoryId) {
+                $candidateCategoryId = (int) $rawCategoryId;
+                if ($candidateCategoryId > 0 && in_array($candidateCategoryId, $validCategoryIds, true)) {
+                    $selectedCategoryIds[$candidateCategoryId] = $candidateCategoryId;
+                }
+            }
+        }
+
+        $clearCategories = $db->prepare("DELETE FROM page_categories WHERE page_id = :pid");
+        $clearCategories->execute([':pid' => $id]);
+
+        if (!empty($selectedCategoryIds)) {
+            $attachCategory = $db->prepare("INSERT OR IGNORE INTO page_categories (page_id, category_id) VALUES (:pid, :cid)");
+            foreach ($selectedCategoryIds as $categoryId) {
+                $attachCategory->execute([':pid' => $id, ':cid' => $categoryId]);
+            }
+        }
     }
 
     // Persist custom fields (page_meta): upsert posted keys, drop removed ones.
@@ -362,6 +391,9 @@ foreach ($allLangPages->fetchAll() as $p) {
     $lookupPages[(int)$p['id']] = $p;
 }
 
+// Categories available for assignment (flat list, shown for blog posts only).
+$allCategories = $db->query("SELECT id, name, slug FROM categories ORDER BY name ASC")->fetchAll();
+
 function resolveParentPath(int $parentId, array $lookup): string {
     $slugs = [];
     $curr = $parentId;
@@ -418,6 +450,11 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://'
            . ($basePrefix !== '' ? rtrim($basePrefix, '/') : '');
 
 $postsPageSlug = Router::getPostsPageSlug();
+
+// --- Content editor (TinyMCE or Editor.js, Settings → Content) -------------
+$useEditorJs = class_exists(\Core\EditorJs::class) && \Core\EditorJs::isActive();
+$editorJsConfig = $useEditorJs ? \Core\EditorJs::clientConfig() : [];
+$editorJsToolAssets = $useEditorJs ? \Core\EditorJs::toolAssets() : [];
 
 // --- Revision history (backups) -------------------------------------------
 $revisionsEnabled = class_exists(\Core\Revisions::class) && \Core\Revisions::isEnabled();
@@ -552,11 +589,39 @@ require_once __DIR__ . '/views/header.php';
 
 <script src="assets/vendor/tinymce/tinymce.min.js"></script>
 <script src="assets/js/grid-editor.js"></script>
+<script src="assets/js/editor-bridge.js"></script>
+<?php if ($useEditorJs): ?>
+<!-- Editor.js block editor (bundled locally, MIT - see admin/assets/vendor/editorjs/licenses) -->
+<script src="<?= htmlspecialchars(\Core\EditorJs::coreAsset(), ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php foreach ($editorJsToolAssets as $editorJsAsset): ?>
+<script src="<?= htmlspecialchars($editorJsAsset, ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php endforeach; ?>
+<script src="assets/js/editorjs-grid-tool.js"></script>
+<?php endif; ?>
 <script>
     window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    <?php if ($useEditorJs): ?>
+    window.MODO_EDITORJS = <?= json_encode($editorJsConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    <?php endif; ?>
 </script>
+<?php if ($useEditorJs): ?>
+<style>
+    /* The Editor.js canvas is inline, so the grid CSS is scoped to it instead
+       of leaking into the admin UI. Customised block skins follow below. */
+    <?= \Core\CssFramework::editorScopedCss('#editorjs') ?>
+    #editorjs {
+        padding: 6px 2px 40px;
+        min-height: 420px;
+        background: var(--bg-card, #111827);
+        border-radius: var(--radius-sm, 8px);
+    }
+    #editorjs .ce-block__content, #editorjs .ce-toolbar__content { max-width: 100%; }
+    #editorjs .cdx-block { font-size: 15px; line-height: 1.65; color: var(--text-main); }
+    #editorjs .modo-image img { max-width: 100%; height: auto; }
+</style>
+<?php endif; ?>
 
 <link rel="stylesheet" href="assets/vendor/codemirror/codemirror.min.css">
 <link rel="stylesheet" href="assets/vendor/codemirror/theme/dracula.min.css">
@@ -668,7 +733,13 @@ require_once __DIR__ . '/views/header.php';
                 </div>
 
                 <div class="form-group" style="margin-bottom: 0;">
-                    <textarea id="editor" name="content"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <?php if ($useEditorJs): ?>
+                        <div id="editorjs-toolbar"></div>
+                        <div id="editorjs"></div>
+                        <textarea id="editor" name="content" style="display: none;"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <?php else: ?>
+                        <textarea id="editor" name="content"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -848,6 +919,28 @@ require_once __DIR__ . '/views/header.php';
                     <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;"><?= _e('Separate tags with commas.') ?></small>
                 </div>
 
+                <div class="form-group" id="categories-group" style="<?= $item['type'] === 'post' ? '' : 'display: none;' ?>; margin-bottom: 14px;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;"><?= _e('Categories') ?></label>
+                    <?php if (empty($allCategories)): ?>
+                        <small style="font-size: 11px; color: var(--text-muted); display: block;"><?= _e('No categories defined yet.') ?></small>
+                        <a href="categories.php" class="btn btn-secondary" style="margin-top: 6px; padding: 4px 10px; font-size: 11px;"><?= _e('Manage Categories') ?></a>
+                    <?php else: ?>
+                        <input class="form-control" type="text" id="category-filter" placeholder="<?= _e('Filter categories...') ?>" style="margin-bottom: 8px; font-size: 12px;">
+                        <div id="category-checkbox-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface, #1e293b);">
+                            <?php foreach ($allCategories as $category): ?>
+                                <label class="category-option" style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" name="categories[]" value="<?= (int) $category['id'] ?>" <?= in_array((int) $category['id'], $assignedCategoryIds, true) ? 'checked' : '' ?>>
+                                    <span><?= Security::sanitize((string) $category['name']) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+                            <?= _e('Select one or more categories.') ?>
+                            <a href="categories.php" style="margin-left: 4px;"><?= _e('Manage Categories') ?></a>
+                        </small>
+                    <?php endif; ?>
+                </div>
+
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label class="form-label" for="lang" style="font-size: 12px; font-weight: 600;"><?= _e('Language') ?></label>
                     <select class="form-control" name="lang" id="lang">
@@ -960,6 +1053,7 @@ const successLiveLink = document.getElementById('success-live-link');
 const typeSelect = document.getElementById('type');
 const parentGroup = document.getElementById('parent-page-group');
 const tagsGroup = document.getElementById('tags-group');
+const categoriesGroup = document.getElementById('categories-group');
 
 function updateHierarchicalSlugPreview() {
     let parentPath = '';
@@ -1031,11 +1125,25 @@ if (typeSelect) {
         if (typeSelect.value === 'page') {
             if (parentGroup) parentGroup.style.display = 'block';
             if (tagsGroup) tagsGroup.style.display = 'none';
+            if (categoriesGroup) categoriesGroup.style.display = 'none';
         } else {
             if (parentGroup) parentGroup.style.display = 'none';
             if (tagsGroup) tagsGroup.style.display = 'block';
+            if (categoriesGroup) categoriesGroup.style.display = 'block';
         }
         updateHierarchicalSlugPreview();
+    });
+}
+
+// Live filter for the category checkbox list.
+const categoryFilter = document.getElementById('category-filter');
+if (categoryFilter) {
+    categoryFilter.addEventListener('input', () => {
+        const term = categoryFilter.value.trim().toLowerCase();
+        document.querySelectorAll('#category-checkbox-list .category-option').forEach((option) => {
+            const label = (option.textContent || '').toLowerCase();
+            option.style.display = (term === '' || label.indexOf(term) !== -1) ? 'flex' : 'none';
+        });
     });
 }
 
@@ -1053,6 +1161,8 @@ const isDarkActive = () => {
 
 function initCleanTinyMCE() {
     if (typeof tinymce === 'undefined') return;
+    // The Editor.js block editor owns the content field on this screen.
+    if (window.MODO_EDITORJS && document.getElementById('editorjs')) return;
     const isDark = isDarkActive();
     const gridCss = (window.MODO_GRID_CSS || []).slice();
     const gridStyle = window.MODO_GRID_STYLE || '';
@@ -1139,6 +1249,7 @@ const openModal = () => { if (modal) modal.style.display = 'flex'; };
 const hideModal = () => {
     if (modal) modal.style.display = 'none';
     tinymceFilePickerCallback = null;
+    window.__modoMediaCallback = null;
     currentMediaTarget = 'featured';
 };
 
@@ -1232,6 +1343,10 @@ mediaItems.forEach(item => {
         } else if (currentMediaTarget === 'tinymce_direct') {
             if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
                 tinymce.activeEditor.insertContent(`<img src="${selectedUrl}" alt="${altText}" />`);
+            }
+        } else if (currentMediaTarget === 'editorjs') {
+            if (typeof window.__modoMediaCallback === 'function') {
+                window.__modoMediaCallback(selectedUrl, altText);
             }
         }
 
@@ -1767,6 +1882,16 @@ mediaItems.forEach(item => {
     function autosave() {
         if (!form || !dirty) return;
         if (window.tinymce && typeof window.tinymce.triggerSave === 'function') { try { window.tinymce.triggerSave(); } catch (e) {} }
+        // Editor.js writes the document back asynchronously, so the form is only
+        // snapshotted after the current state has reached the textarea.
+        if (window.ModoEditorJs && typeof window.ModoEditorJs.serialize === 'function') {
+            window.ModoEditorJs.serialize().then(sendAutosave).catch(function () {});
+            return;
+        }
+        sendAutosave();
+    }
+
+    function sendAutosave() {
         var fd = new FormData(form);
         fd.set('action', 'autosave');
         fd.set('csrf_token', cfg.csrf);
@@ -1789,5 +1914,16 @@ mediaItems.forEach(item => {
     if (cfg.interval && cfg.interval > 0) { setInterval(autosave, cfg.interval * 1000); }
 })();
 </script>
+
+<script>
+    window.ModoOpenMediaPicker = function (callback) {
+        window.__modoMediaCallback = callback;
+        currentMediaTarget = 'editorjs';
+        openModal();
+    };
+</script>
+<?php if ($useEditorJs): ?>
+<script src="assets/js/editorjs-init.js"></script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>

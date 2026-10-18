@@ -5,6 +5,7 @@ use Core\Hooks;
 use Core\Router;
 use Core\Database;
 use Core\I18n;
+use Core\EditorJs;
 
 /**
  * Global state registry for active document, loop cursor, and SEO payload.
@@ -268,7 +269,9 @@ function post_excerpt(int $limit = 140, bool $echo = true): string {
     if (!empty($post['meta_description'])) {
         $excerpt = $post['meta_description'];
     } else {
-        $clean = strip_tags($post['content'] ?? '');
+        // The content may be an Editor.js document (JSON), so render it first.
+        $clean = strip_tags(EditorJs::render($post['content'] ?? ''));
+        $clean = trim((string) preg_replace('/\s+/', ' ', html_entity_decode($clean, ENT_QUOTES, 'UTF-8')));
         $excerpt = mb_strlen($clean) > $limit ? mb_substr($clean, 0, $limit) . '...' : $clean;
     }
     $excerpt = Hooks::applyFilters('the_excerpt', $excerpt);
@@ -306,6 +309,43 @@ function post_tags(?int $pageId = null, string $cssClass = 'post-tags', bool $ec
     foreach ($tags as $tag) {
         $url = site_url(Router::getPostsPageSlug() . '/tag/' . $tag['slug'], false);
         $html .= '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="tag-badge">#' . htmlspecialchars($tag['name'], ENT_QUOTES, 'UTF-8') . '</a> ';
+    }
+    $html .= '</div>';
+
+    if ($echo) echo $html;
+    return $html;
+}
+
+// Category Management Functions
+function get_post_categories(?int $pageId = null): array {
+    $id = $pageId ?? (ThemeState::$currentPage['id'] ?? null);
+    if (!$id) return [];
+
+    $db = Database::getConnection();
+    $stmt = $db->prepare("
+        SELECT c.id, c.name, c.slug, c.description
+        FROM categories c
+        JOIN page_categories pc ON pc.category_id = c.id
+        WHERE pc.page_id = :pid
+        ORDER BY c.name ASC
+    ");
+    $stmt->execute([':pid' => $id]);
+    return $stmt->fetchAll();
+}
+
+function has_categories(?int $pageId = null): bool {
+    $categories = get_post_categories($pageId);
+    return !empty($categories);
+}
+
+function post_categories(?int $pageId = null, string $cssClass = 'post-categories', bool $echo = true): string {
+    $categories = get_post_categories($pageId);
+    if (empty($categories)) return '';
+
+    $html = '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES, 'UTF-8') . '">';
+    foreach ($categories as $category) {
+        $url = site_url(Router::getPostsPageSlug() . '/category/' . $category['slug'], false);
+        $html .= '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="category-badge">' . htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8') . '</a> ';
     }
     $html .= '</div>';
 

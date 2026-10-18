@@ -1788,6 +1788,8 @@ if (!class_exists('ModoForm')) {
                     'title' => __('mf_insert_form'),
                     'none'  => __('mf_no_forms'),
                     'label' => __('mf_form'),
+                    'insert' => __('Insert'),
+                    'cancel' => __('Cancel'),
                 ],
             ];
             ?>
@@ -1817,8 +1819,9 @@ if (!class_exists('ModoForm')) {
                                     if(!list.length){ editor.notificationManager.open({text:cfg.labels.none,type:"info"}); return; }
                                     editor.windowManager.open({
                                         title:cfg.labels.title,
-                                        body:{type:"panel",items:[{type:"select",name:"fid",label:cfg.labels.label,
+                                        body:{type:"panel",items:[{type:"selectbox",name:"fid",label:cfg.labels.label,
                                             items:list.map(function(g){return {text:g.name+" (#"+g.id+")",value:String(g.id)};})}]},
+                                        buttons:[{type:"cancel",text:cfg.labels.cancel},{type:"submit",text:cfg.labels.insert,primary:true}],
                                         onSubmit:function(api){
                                             var d=api.getData();
                                             editor.insertContent('[form id="'+d.fid+'"]');
@@ -1836,6 +1839,31 @@ if (!class_exists('ModoForm')) {
                     var tries=0;
                     var iv=setInterval(function(){ tries++; if(patch()||tries>60){ clearInterval(iv); } },100);
                 }
+            })();
+            </script>
+            <script>
+            // Editor.js (Settings → Content): same picker through the editor bridge.
+            (function(){
+                if(!window.ModoEditor||typeof window.ModoEditor.registerButton!=="function") return;
+                window.ModoEditor.registerButton({
+                    id:"modo_form",
+                    label:cfg.labels.label||cfg.labels.title,
+                    icon:"<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M7 9h10M7 13h6\"/></svg>",
+                    insert:function(api){
+                        var list=cfg.items||[];
+                        api.pickFromList({
+                            title:cfg.labels.title,
+                            label:cfg.labels.label,
+                            items:list.map(function(f){return {text:f.name+" (#"+f.id+")",value:String(f.id)};}),
+                            submitText:cfg.labels.insert,
+                            cancelText:cfg.labels.cancel,
+                            emptyText:cfg.labels.none
+                        },function(fid){
+                            if(!fid){ return; }
+                            api.insertShortcode('[form id="'+fid+'"]');
+                        });
+                    }
+                });
             })();
             </script>
             <?php

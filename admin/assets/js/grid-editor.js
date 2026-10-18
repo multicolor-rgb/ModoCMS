@@ -118,12 +118,14 @@
      * Registers the modo_grid button and opens the builder dialog.
      */
     function openBuilder(editor) {
-        var fw = getConfig();
-        if (!fw) {
+        var cfg = getConfig();
+        if (!cfg) {
             // Fallback: try to use a default 'bootstrap' mode if MODO_GRID is missing
             editor.notificationManager.open({ text: label('none', 'No grid framework selected.'), type: 'warning' });
             return;
         }
+        // Work on a copy so the shared window.MODO_GRID object is never mutated.
+        var fw = Object.assign({}, cfg);
         // Ensure mode has a valid value; default to 'none' if missing or invalid
         if (!fw.mode || typeof fw.mode !== 'string') {
             fw.mode = 'none';
@@ -142,8 +144,11 @@
         }));
 
         var items = [
-            { type: 'select', name: 'count', label: label('columns', 'Columns'), items: colItems },
-            { type: 'select', name: 'bp', label: label('breakpoint', 'Responsive breakpoint'), items: bpItems }
+            // TinyMCE 6 names the dropdown component "selectbox" – there is no
+            // "select" type, and an unknown type makes the whole dialog body fail
+            // ("Unknown factory type \"select\", defaulting to container").
+            { type: 'selectbox', name: 'count', label: label('columns', 'Columns'), items: colItems },
+            { type: 'selectbox', name: 'bp', label: label('breakpoint', 'Responsive breakpoint'), items: bpItems }
         ];
 
         if (fw.container) {
@@ -151,10 +156,14 @@
         }
         items.push({ type: 'textarea', name: 'contents', label: label('content', 'Column content (one line per column)') });
 
-        editor.windowManager.open({
+        var dialog = {
             title: label('title', 'Insert Grid / Columns'),
             size: 'medium',
             body: { type: 'panel', items: items },
+            // Without initialData a listbox falls back to its first item, which
+            // would silently insert a single column grid. 2 columns matches the
+            // `|| 2` fallback used in onSubmit().
+            initialData: { count: '2' },
             buttons: [
                 { type: 'cancel', text: label('cancel', 'Cancel') },
                 { type: 'submit', text: label('insert', 'Insert'), primary: true }
@@ -175,7 +184,21 @@
                 editor.insertContent(buildGrid(localFw, count, bp, lines));
                 api.close();
             }
-        });
+        };
+
+        // Guard against an unsupported dialog spec: TinyMCE would otherwise fail
+        // silently and the button would look "dead".
+        try {
+            editor.windowManager.open(dialog);
+        } catch (err) {
+            if (window.console && console.error) {
+                console.error('[modo_grid] Could not open the grid dialog:', err);
+            }
+            editor.notificationManager.open({
+                text: label('error', 'Could not open the grid dialog. Check the browser console for details.'),
+                type: 'error'
+            });
+        }
     }
 
     function registerButton(editor) {
@@ -187,6 +210,20 @@
             }
         });
     }
+
+    /**
+     * Exposes the framework aware builder so other editors (Editor.js grid
+     * tool, admin/assets/js/editorjs-grid-tool.js) produce identical markup.
+     */
+    window.ModoGrid = {
+        config: getConfig,
+        label: label,
+        esc: esc,
+        width12: width12,
+        buildColumn: buildColumn,
+        buildGrid: buildGrid,
+        openBuilder: openBuilder
+    };
 
     /**
      * Patches tinymce.init so every editor on the page gets the button,
@@ -204,6 +241,18 @@
 
             if (typeof c.toolbar === 'string' && c.toolbar.indexOf('modo_grid') === -1) {
                 c.toolbar = c.toolbar + ' | modo_grid';
+            } else if (Array.isArray(c.toolbar)) {
+                // TinyMCE 6 also accepts a grouped toolbar definition:
+                // [{ name: 'group', items: ['bold', ...] }, ...]
+                var hasGrid = c.toolbar.some(function (group) {
+                    if (typeof group === 'string') {
+                        return group.indexOf('modo_grid') !== -1;
+                    }
+                    return !!group && Array.isArray(group.items) && group.items.indexOf('modo_grid') !== -1;
+                });
+                if (!hasGrid) {
+                    c.toolbar = c.toolbar.concat([{ name: 'modo_grid', items: ['modo_grid'] }]);
+                }
             }
 
             var origSetup = c.setup;

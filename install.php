@@ -347,6 +347,23 @@ HTACCESS;
                 CREATE INDEX idx_page_tags_page ON page_tags(page_id);
                 CREATE INDEX idx_page_tags_tag ON page_tags(tag_id);
 
+                CREATE TABLE categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    slug TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX idx_categories_slug ON categories(slug);
+
+                CREATE TABLE page_categories (
+                    page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+                    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+                    PRIMARY KEY (page_id, category_id)
+                );
+                CREATE INDEX idx_page_categories_page ON page_categories(page_id);
+                CREATE INDEX idx_page_categories_cat ON page_categories(category_id);
+
                 CREATE TABLE menus (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,

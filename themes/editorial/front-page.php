@@ -37,7 +37,7 @@
                                 </a>
                             </h3>
                             <p class="text-body-secondary small mb-0">
-                                <?= htmlspecialchars(mb_strimwidth(strip_tags($rp['content'] ?? ''), 0, 110, '...'), ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(content_to_text($rp['content'] ?? '', 110), ENT_QUOTES, 'UTF-8') ?>
                             </p>
                         </div>
                     </article>

@@ -144,6 +144,23 @@ final class Database {
             CREATE INDEX IF NOT EXISTS idx_page_tags_page ON page_tags(page_id);
             CREATE INDEX IF NOT EXISTS idx_page_tags_tag ON page_tags(tag_id);
 
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                slug TEXT NOT NULL UNIQUE,
+                description TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+
+            CREATE TABLE IF NOT EXISTS page_categories (
+                page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+                category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+                PRIMARY KEY (page_id, category_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_page_categories_page ON page_categories(page_id);
+            CREATE INDEX IF NOT EXISTS idx_page_categories_cat ON page_categories(category_id);
+
             -- Tabela wersji (backupów) wpisów i stron z możliwością przywracania
             CREATE TABLE IF NOT EXISTS page_revisions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -364,6 +381,23 @@ final class Database {
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX IF NOT EXISTS idx_snippets_name ON snippets(name);
+
+                CREATE TABLE IF NOT EXISTS categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    slug TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+
+                CREATE TABLE IF NOT EXISTS page_categories (
+                    page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+                    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+                    PRIMARY KEY (page_id, category_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_page_categories_page ON page_categories(page_id);
+                CREATE INDEX IF NOT EXISTS idx_page_categories_cat ON page_categories(category_id);
 
                 CREATE TABLE IF NOT EXISTS page_revisions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

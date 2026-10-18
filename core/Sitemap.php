@@ -120,6 +120,21 @@ public static function generateRobotsTxt(): bool {
             $xml[] = self::buildUrlNode($tagUrl, $tagDate, 'weekly', '0.5');
         }
 
+        // 4. Blog Category Archives
+        $categoryStmt = $db->query("
+            SELECT DISTINCT c.slug, MAX(p.updated_at) as last_mod
+            FROM categories c
+            JOIN page_categories pc ON pc.category_id = c.id
+            JOIN pages p ON p.id = pc.page_id
+            WHERE p.status = 'published'
+            GROUP BY c.id
+        ");
+        while ($category = $categoryStmt->fetch(\PDO::FETCH_ASSOC)) {
+            $categoryDate = !empty($category['last_mod']) ? date('Y-m-d', strtotime($category['last_mod'])) : date('Y-m-d');
+            $categoryUrl = $siteUrl . ($isMultilingual ? '/' . $defaultLang : '') . '/' . rawurlencode($postsSlug) . '/category/' . rawurlencode($category['slug']);
+            $xml[] = self::buildUrlNode($categoryUrl, $categoryDate, 'weekly', '0.5');
+        }
+
         $xml[] = '</urlset>';
         $content = implode("\n", $xml);
 

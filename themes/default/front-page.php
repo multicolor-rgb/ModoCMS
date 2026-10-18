@@ -36,7 +36,7 @@
                                 </a>
                             </h3>
                             <p class="card-text text-body-secondary small mb-0">
-                                <?= htmlspecialchars(mb_strimwidth(strip_tags($rp['content'] ?? ''), 0, 120, '...'), ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(content_to_text($rp['content'] ?? '', 120), ENT_QUOTES, 'UTF-8') ?>
                             </p>
                         </div>
                     </article>

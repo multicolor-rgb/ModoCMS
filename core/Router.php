@@ -422,6 +422,72 @@ final class Router {
             return;
         }
 
+        // 1b. Category Archive (/blog/category/{slug} lub /{postsSlug}/category/{slug})
+        if (isset($pathSegments[0]) && ($pathSegments[0] === 'blog' || $pathSegments[0] === $postsSlug)
+            && isset($pathSegments[1]) && $pathSegments[1] === 'category' && !empty($pathSegments[2])) {
+
+            $categorySlug = $pathSegments[2];
+            $categoryStmt = $database->prepare("SELECT * FROM categories WHERE slug = :s LIMIT 1");
+            $categoryStmt->execute([':s' => $categorySlug]);
+            $category = $categoryStmt->fetch();
+
+            if (!$category) {
+                http_response_code(404);
+                if (file_exists($themeDirectory . '404.php')) View::render($themeDirectory . '404.php');
+                return;
+            }
+
+            $currentPageNumber = max(1, (int)($_GET['page'] ?? 1));
+            $postsPerPageLimit = (int)self::getOption('posts_per_page', '6');
+            $queryOffset = ($currentPageNumber - 1) * $postsPerPageLimit;
+
+            $countStmt = $database->prepare("
+                SELECT COUNT(p.id) 
+                FROM pages p
+                JOIN page_categories pc ON pc.page_id = p.id
+                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+            ");
+            $countStmt->execute([':cid' => $category['id'], ':lang' => $activeLocale]);
+            $totalPostsCount = (int)$countStmt->fetchColumn();
+
+            $postsStmt = $database->prepare("
+                SELECT p.*, u.username as author_name 
+                FROM pages p
+                JOIN page_categories pc ON pc.page_id = p.id
+                LEFT JOIN users u ON p.author_id = u.id
+                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+                ORDER BY p.created_at DESC 
+                LIMIT :lim OFFSET :off
+            ");
+            $postsStmt->bindValue(':cid', $category['id'], \PDO::PARAM_INT);
+            $postsStmt->bindValue(':lang', $activeLocale);
+            $postsStmt->bindValue(':lim', $postsPerPageLimit, \PDO::PARAM_INT);
+            $postsStmt->bindValue(':off', $queryOffset, \PDO::PARAM_INT);
+            $postsStmt->execute();
+
+            global $clean_posts_iterator;
+            $clean_posts_iterator = new \ArrayIterator($postsStmt->fetchAll());
+
+            $categoryDescription = trim((string)($category['description'] ?? ''));
+            if ($categoryDescription === '') {
+                $categoryDescription = sprintf(__('Articles in the %s category'), $category['name']);
+            }
+
+            \ThemeState::$seoPayload = [
+                'title' => self::formatDocumentTitle(__('Category') . ': ' . $category['name'], false),
+                'description' => $categoryDescription,
+                'og_image' => ''
+            ];
+
+            View::render($themeDirectory . 'archive.php', [
+                'currentPage' => $currentPageNumber,
+                'totalPages' => (int)ceil($totalPostsCount / $postsPerPageLimit),
+                'archiveTitle' => __('Category') . ': ' . $category['name']
+            ]);
+            return;
+        }
+
+
         // 2. Archiwum bloga (/blog lub /{postsSlug})
         if (!empty($pathSegments[0]) && ($pathSegments[0] === 'blog' || $pathSegments[0] === $postsSlug) && count($pathSegments) === 1) {
             $this->renderBlogArchive($database, $themeDirectory, $activeLocale);

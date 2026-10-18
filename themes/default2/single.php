@@ -23,10 +23,20 @@
                 <?php page_content(); ?>
             </article>
 
-            <?php if (has_tags()): ?>
-                <div class="mt-5 pt-4 border-top border-secondary-subtle">
-                    <span class="text-secondary small fw-semibold d-block mb-2"><?= _e('Tags') ?>:</span>
-                    <?php post_tags(null, 'post-tags d-flex flex-wrap gap-2'); ?>
+            <?php if (has_categories() || has_tags()): ?>
+                <div class="mt-5 pt-4 border-top border-secondary-subtle d-flex flex-column gap-3">
+                    <?php if (has_categories()): ?>
+                        <div>
+                            <span class="text-secondary small fw-semibold d-block mb-2"><?= _e('Categories') ?>:</span>
+                            <?php post_categories(null, 'post-categories d-flex flex-wrap gap-2'); ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (has_tags()): ?>
+                        <div>
+                            <span class="text-secondary small fw-semibold d-block mb-2"><?= _e('Tags') ?>:</span>
+                            <?php post_tags(null, 'post-tags d-flex flex-wrap gap-2'); ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>

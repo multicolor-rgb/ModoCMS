@@ -46,7 +46,7 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
 <body>
     <aside id="admin-sidebar">
         <div class="sidebar-header">
-            <div class="brand-badge">C</div>
+            <div class="brand-badge">M</div>
             <span class="brand-name">Modo CMS</span>
         </div>
         <nav class="sidebar-nav">
@@ -61,6 +61,13 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
                 <a href="pages.php" class="nav-link <?= in_array($currentPage, ['pages.php', 'page-edit.php']) ? 'active' : '' ?>">
                     <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     <span class="nav-text"><?= _e('Content') ?></span>
+                </a>
+            <?php endif; ?>
+
+            <?php if (Auth::can('manage_pages')): ?>
+                <a href="categories.php" class="nav-link <?= $currentPage === 'categories.php' ? 'active' : '' ?>">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+                    <span class="nav-text"><?= _e('Categories') ?></span>
                 </a>
             <?php endif; ?>
 

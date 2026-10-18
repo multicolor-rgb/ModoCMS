@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="login-card">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-            <div class="brand-badge" style="width: 38px; height: 38px; font-size: 18px;">C</div>
+            <div class="brand-badge" style="width: 38px; height: 38px; font-size: 18px;">M</div>
             <div>
                 <h1 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Modo CMS</h1>
                 <p style="font-size: 13px; color: var(--text-muted); margin: 0;"><?= _e('Sign in to Modo CMS') ?></p>

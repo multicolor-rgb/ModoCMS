@@ -35,6 +35,10 @@
     --radius-sm: 6px;
     --radius-md: 10px;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+
+    /* Sidebar Scrollbar (sidebar stays dark in both themes) */
+    --sidebar-scrollbar-thumb: rgba(148, 163, 184, 0.35);
+    --sidebar-scrollbar-thumb-hover: rgba(148, 163, 184, 0.6);
 }
 
 /* ==========================================================================
@@ -168,6 +172,30 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    scrollbar-width: thin;                          /* Firefox */
+    scrollbar-color: var(--sidebar-scrollbar-thumb) transparent;
+    scrollbar-gutter: stable;                       /* Prevents layout shift when the bar appears */
+}
+
+/* Custom scrollbar for the sidebar nav (matches the dark sidebar palette) */
+.sidebar-nav::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-scrollbar-thumb);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background-color: var(--sidebar-scrollbar-thumb-hover);
+    background-clip: content-box;
 }
 
 .nav-section-title {

@@ -202,6 +202,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'css_grid_inject_frontend' => isset($_POST['css_grid_inject_frontend']) ? '1' : '0',
             'css_grid_inject_editor'   => isset($_POST['css_grid_inject_editor']) ? '1' : '0',
             'css_grid_custom_css'    => trim($_POST['css_grid_custom_css'] ?? ''),
+            'content_editor'         => in_array($_POST['content_editor'] ?? '', ['tinymce', \Core\EditorJs::VALUE], true) ? (string) $_POST['content_editor'] : 'tinymce',
+            'editorjs_tools'         => \Core\EditorJs::sanitizeTools($_POST['editorjs_tools'] ?? []),
+            'editorjs_grid'          => isset($_POST['editorjs_grid']) ? '1' : '0',
             'custom_head_scripts'    => trim($_POST['custom_head_scripts'] ?? ''),
             'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? ''),
             'security_brute_force_enabled' => isset($_POST['security_brute_force_enabled']) ? '1' : '0',
@@ -620,12 +623,35 @@ require_once __DIR__ . '/views/header.php';
             </div>
         </div>
 
-        <!-- 5. Content Editor (TinyMCE) Toolbar Configuration -->
+        <!-- 5. Content Editor (TinyMCE or Editor.js block editor) -->
         <div class="card settings-panel" data-tab="content">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
-                <?= _e('WYSIWYG Editor Configuration') ?>
+                <?= _e('Content Editor') ?>
             </h3>
 
+            <?php
+                $currentEditor = Router::getOption(\Core\EditorJs::OPTION, 'tinymce');
+                if ($currentEditor !== \Core\EditorJs::VALUE) {
+                    $currentEditor = 'tinymce';
+                }
+            ?>
+
+            <div class="form-group">
+                <label class="form-label" for="content_editor"><?= _e('Editor') ?></label>
+                <select class="form-control" name="content_editor" id="content_editor">
+                    <option value="tinymce" <?= $currentEditor === 'tinymce' ? 'selected' : '' ?>>
+                        <?= _e('Classic (TinyMCE, WYSIWYG)') ?>
+                    </option>
+                    <option value="editorjs" <?= $currentEditor === \Core\EditorJs::VALUE ? 'selected' : '' ?>>
+                        <?= _e('Blocks (Editor.js)') ?>
+                    </option>
+                </select>
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; line-height: 1.4;">
+                    <?= _e('Both editors are bundled locally. Content keeps the format it was written in, so switching never destroys existing pages — blocks are rendered to HTML on output.') ?>
+                </small>
+            </div>
+
+            <div id="tinymce-fields">
             <?php 
                 $currentPreset = Router::getOption('tinymce_preset', 'standard'); 
                 $currentCustom = Router::getOption('tinymce_custom_toolbar', '');
@@ -656,6 +682,42 @@ require_once __DIR__ . '/views/header.php';
                     <?= _e('Use pipe (|) to group items. Available tokens: undo, redo, blocks, bold, italic, underline, strikethrough, alignleft, aligncenter, alignright, alignjustify, bullist, numlist, outdent, indent, link, image, mediamanager, table, forecolor, backcolor, removeformat, code, fullscreen.') ?>
                 </small>
             </div>
+
+            </div><!-- /#tinymce-fields -->
+
+            <div id="editorjs-fields">
+                <?php
+                    $editorjsTools = \Core\EditorJs::availableTools();
+                    $enabledTools  = \Core\EditorJs::enabledTools();
+                ?>
+
+                <div class="form-group">
+                    <label class="form-label"><?= _e('Available blocks') ?></label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px;">
+                        <?php foreach ($editorjsTools as $toolId => $tool): ?>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+                                <input type="checkbox" name="editorjs_tools[]" value="<?= htmlspecialchars($toolId, ENT_QUOTES, 'UTF-8') ?>" <?= in_array($toolId, $enabledTools, true) ? 'checked' : '' ?>>
+                                <?= htmlspecialchars((string) $tool['label'], ENT_QUOTES, 'UTF-8') ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 6px; line-height: 1.4;">
+                        <?= _e('Leave every box unchecked to use the recommended default set. Unchecking a block only hides it in the editor — already stored blocks keep rendering on the frontend.') ?>
+                    </small>
+                </div>
+
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 6px;">
+                    <input type="checkbox" name="editorjs_grid" value="1" <?= \Core\EditorJs::gridEnabled() ? 'checked' : '' ?>>
+                    <?= _e('Enable the "Insert Grid / Columns" tool') ?>
+                </label>
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 6px; line-height: 1.4;">
+                    <?= _e('The tool needs a grid framework selected below (CSS Grid / Framework card). It produces the same markup as the TinyMCE button.') ?>
+                </small>
+
+                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 12px; line-height: 1.4;">
+                    <?= _e('Editor.js is licensed under the MIT license and is shipped inside this installation (admin/assets/vendor/editorjs) — no requests are made to a CDN.') ?>
+                </small>
+            </div><!-- /#editorjs-fields -->
         </div>
 
         <!-- 5b. CSS Grid / Framework (frontend + editor, no CDN) -->
@@ -1175,6 +1237,23 @@ if (presetSelect && customToolbarGroup) {
             customToolbarGroup.style.display = 'none';
         }
     });
+}
+
+// Switch between the TinyMCE and the Editor.js settings block.
+const editorSelect = document.getElementById('content_editor');
+const tinymceFields = document.getElementById('tinymce-fields');
+const editorjsFields = document.getElementById('editorjs-fields');
+
+function toggleEditorFields() {
+    if (!editorSelect || !tinymceFields || !editorjsFields) return;
+    const useEditorJs = editorSelect.value === 'editorjs';
+    tinymceFields.style.display = useEditorJs ? 'none' : 'block';
+    editorjsFields.style.display = useEditorJs ? 'block' : 'none';
+}
+
+if (editorSelect) {
+    editorSelect.addEventListener('change', toggleEditorFields);
+    toggleEditorFields();
 }
 
 function triggerUpload(fieldId, previewImgId, placeholderId) {

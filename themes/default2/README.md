@@ -10,11 +10,11 @@ z gradientowymi hero i szklanymi kartami.
 ## Struktura i API
 - `header.php` — head + hook `theme_head()`, ciemny navbar (`get_theme_menu()`, `lang_switch()`).
 - `footer.php` — stopka (brand / `menu('main-menu')` / `get_recent_posts()`), `theme_footer()`, back-to-top.
-- `page.php`, `single.php`, `archive.php`, `front-page.php`, `404.php` — szablony stron/wpisu/listy/strony głównej/błędu.
+- `page.php`, `single.php`, `archive.php`, `front-page.php`, `404.php` — szablony stron/wpisu/listy/strony głównej/błędu (`single.php` pokazuje kategorie i tagi wpisu).
 - `assets/css/style.css`, `assets/js/theme.js`, `theme.json`, `README.md`.
 
 Wykorzystuje całe API motywów: `theme_head/theme_footer`, `get_theme_menu`, `menu`, `lang_switch`,
-`site_logo/title/desc/url`, `page_*`, `post_*`, `has_tags/post_tags`, `get_recent_posts`,
+`site_logo/title/desc/url`, `page_*`, `post_*`, `has_categories/post_categories`, `has_tags/post_tags`, `get_recent_posts`,
 `get_theme_url`, `resolve_media_url`, `_e()` oraz hooki `Hooks::*`.
 
 Bootstrap / ikony ładowane z CDN.

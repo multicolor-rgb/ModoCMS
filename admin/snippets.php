@@ -83,6 +83,19 @@ if ($editId > 0) {
 
 $allSnippets = $db->query("SELECT * FROM snippets ORDER BY name ASC")->fetchAll();
 
+// --- Content editor (TinyMCE or Editor.js, Settings → Content) -------------
+$useEditorJs = class_exists(\Core\EditorJs::class) && \Core\EditorJs::isActive();
+$editorJsConfig = [];
+$editorJsToolAssets = [];
+if ($useEditorJs) {
+    // Snippets use their own field/holder ids (the canvas lives next to the form).
+    $editorJsConfig = \Core\EditorJs::clientConfig();
+    $editorJsConfig['fieldId'] = 'snippet-editor';
+    $editorJsConfig['holderId'] = 'snippet-editorjs';
+    $editorJsConfig['toolbarId'] = 'snippet-editorjs-toolbar';
+    $editorJsToolAssets = \Core\EditorJs::toolAssets();
+}
+
 require_once __DIR__ . '/views/header.php';
 ?>
 
@@ -133,7 +146,13 @@ require_once __DIR__ . '/views/header.php';
 
             <div class="form-group">
                 <label class="form-label" for="content"><?= _e('Content') ?></label>
-                <textarea class="form-control" id="snippet-editor" name="content" rows="12" placeholder="<p>...</p>"><?= htmlspecialchars((string) $form['content'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                <?php if ($useEditorJs): ?>
+                    <div id="snippet-editorjs-toolbar"></div>
+                    <div id="snippet-editorjs"></div>
+                    <textarea class="form-control" id="snippet-editor" name="content" rows="12" style="display: none;" placeholder="<p>...</p>"><?= htmlspecialchars((string) $form['content'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                <?php else: ?>
+                    <textarea class="form-control" id="snippet-editor" name="content" rows="12" placeholder="<p>...</p>"><?= htmlspecialchars((string) $form['content'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                <?php endif; ?>
                 <small style="color: var(--text-muted);"><?= _e('Accepts HTML or plain text. Nested [snippet:...] tags are supported.') ?></small>
             </div>
 
@@ -150,6 +169,8 @@ require_once __DIR__ . '/views/header.php';
                     <a href="snippets.php" class="btn btn-secondary"><?= _e('New Snippet') ?></a>
                 <?php endif; ?>
             </div>
+
+            <?php if (class_exists('Hooks')) { \Hooks::doAction('admin-edit-form', (int) $form['id']); } ?>
         </form>
     </div>
     <div class="card">
@@ -241,11 +262,40 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
 
 <script src="assets/vendor/tinymce/tinymce.min.js"></script>
 <script src="assets/js/grid-editor.js"></script>
+<script src="assets/js/editor-bridge.js"></script>
+<?php if ($useEditorJs): ?>
+<!-- Editor.js block editor (bundled locally, MIT - see admin/assets/vendor/editorjs/licenses) -->
+<script src="<?= htmlspecialchars(\Core\EditorJs::coreAsset(), ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php foreach ($editorJsToolAssets as $editorJsAsset): ?>
+<script src="<?= htmlspecialchars($editorJsAsset, ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php endforeach; ?>
+<script src="assets/js/editorjs-grid-tool.js"></script>
+<?php endif; ?>
 <script>
     window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    <?php if ($useEditorJs): ?>
+    window.MODO_EDITORJS = <?= json_encode($editorJsConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    <?php endif; ?>
 </script>
+<?php if ($useEditorJs): ?>
+<style>
+    /* Scoped grid CSS + block skin for the inline Editor.js canvas. */
+    <?= \Core\CssFramework::editorScopedCss('#snippet-editorjs') ?>
+    #snippet-editorjs {
+        padding: 6px 2px 20px;
+        min-height: 300px;
+        background: var(--bg-card, #111827);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm, 8px);
+    }
+    #snippet-editorjs .ce-block__content, #snippet-editorjs .ce-toolbar__content { max-width: 100%; }
+    #snippet-editorjs .cdx-block { font-size: 14px; line-height: 1.6; color: var(--text-main); }
+    #snippet-editorjs .modo-image img { max-width: 100%; height: auto; }
+</style>
+<script src="assets/js/editorjs-init.js"></script>
+<?php else: ?>
 <script>
 (function () {
     if (typeof tinymce === 'undefined') return;
@@ -267,6 +317,7 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
     });
 })();
 </script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>
 
