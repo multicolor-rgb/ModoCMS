@@ -8,6 +8,8 @@
 (function () {
   'use strict';
 
+  var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   /* ---------------- i18n dictionary ---------------- */
   var I18N = {
     pl: {
@@ -21,13 +23,17 @@
       'nav.menu': 'Otwórz menu',
 
       'hero.badge': '100% open source · licencja MIT',
-      'hero.title': 'Modularny CMS.<br>W <span class="grad-text">całości</span> na Twoich zasadach.',
+      'hero.title': 'Postaw stronę',
+      'hero.rot0': 'bez bazy.',
       'hero.lead': 'Lekki, szybki i modułowy CMS na PHP 8 i SQLite3. Zero konfiguracji bazy, zero CDN i pełna kontrola nad motywem oraz wtyczkami.',
       'hero.cta1': 'Pobierz i zainstaluj',
       'hero.cta2': 'Zobacz na GitHub',
       'hero.tag3': 'Bez CDN',
       'hero.tag4': 'Licencja MIT',
-      'hero.codecomment': '// Wtyczka w 8 liniach — bez zmiany rdzenia.',
+      'hero.autosave': 'Zapisano',
+      'hero.crumb': 'Strony / Strona główna',
+      'hero.titletxt': 'Witamy w Modo CMS',
+      'hero.plugin': 'Wtyczka aktywna',
 
       'panel.eyebrow': 'Panel administratora',
       'panel.title': 'Zaprojektowany, by pracowało się szybko',
@@ -132,13 +138,17 @@
       'nav.menu': 'Open menu',
 
       'hero.badge': '100% open source · MIT licensed',
-      'hero.title': 'A modular CMS.<br>Entirely <span class="grad-text">on your terms</span>.',
+      'hero.title': 'Ship your site',
+      'hero.rot0': 'without a database.',
       'hero.lead': 'A lightweight, fast and modular CMS built on PHP 8 and SQLite3. No database setup, no CDN, and full control over your theme and plugins.',
       'hero.cta1': 'Download & install',
       'hero.cta2': 'View on GitHub',
       'hero.tag3': 'No CDN',
       'hero.tag4': 'MIT licensed',
-      'hero.codecomment': '// A plugin in 8 lines — no core changes.',
+      'hero.autosave': 'Saved',
+      'hero.crumb': 'Pages / Home',
+      'hero.titletxt': 'Welcome to Modo CMS',
+      'hero.plugin': 'Plugin active',
 
       'panel.eyebrow': 'Admin panel',
       'panel.title': 'Designed to be fast to work with',
@@ -322,7 +332,38 @@
 
     try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
     currentLang = lang;
+    startRotator(lang);
     return dict;
+  }
+
+  /* ---------------- Hero rotating word ---------------- */
+  var ROTATOR = {
+    pl: ['bez bazy.', 'bez CDN.', 'po swojemu.', 'w minutę.'],
+    en: ['without a database.', 'without a CDN.', 'your way.', 'in a minute.']
+  };
+  var rotatorTimer = null;
+
+  function startRotator(lang) {
+    var wrap = document.getElementById('rotator');
+    if (!wrap) return;
+    var wordEl = wrap.querySelector('.rotator__word');
+    if (!wordEl) return;
+
+    var words = ROTATOR[lang] || ROTATOR.pl;
+    var idx = 0;
+    wordEl.textContent = words[0];
+
+    if (rotatorTimer) { clearInterval(rotatorTimer); rotatorTimer = null; }
+    if (prefersReduced || words.length < 2) return;
+
+    rotatorTimer = setInterval(function () {
+      idx = (idx + 1) % words.length;
+      wordEl.classList.add('is-out');
+      setTimeout(function () {
+        wordEl.textContent = words[idx];
+        wordEl.classList.remove('is-out');
+      }, 320);
+    }, 2600);
   }
 
   /* ---------------- Language switch ---------------- */
@@ -403,7 +444,6 @@
   }
 
   /* ---------------- Animated counters ---------------- */
-  var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function animateCounter(el) {
     var target = parseInt(el.getAttribute('data-count'), 10) || 0;

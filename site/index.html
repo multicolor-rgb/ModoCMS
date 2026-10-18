@@ -76,9 +76,12 @@
     <!-- ================= HERO ================= -->
     <section class="hero" id="top">
       <div class="container hero__grid">
-        <div>
+        <div class="hero__copy">
           <span class="pill-badge"><span class="dot"></span> <span data-i18n="hero.badge">100% open source · licencja MIT</span></span>
-          <h1 data-i18n-html="hero.title">Modularny CMS.<br>W <span class="grad-text">całości</span> na Twoich zasadach.</h1>
+          <h1 class="hero__title">
+            <span data-i18n-html="hero.title">Postaw stronę</span>
+            <span class="rotator" id="rotator"><span class="rotator__word grad-text" data-i18n="hero.rot0">bez bazy.</span></span>
+          </h1>
           <p class="hero__lead" data-i18n="hero.lead">Lekki, szybki i modułowy CMS na PHP 8 i SQLite3. Zero konfiguracji bazy, zero CDN i pełna kontrola nad motywem oraz wtyczkami.</p>
           <div class="hero__cta">
             <a class="btn" href="#start">
@@ -100,19 +103,58 @@
 
         <div class="hero__visual">
           <div class="hero__orb" aria-hidden="true"></div>
-          <div class="window">
+
+          <div class="window hero-win">
             <div class="window__bar">
               <div class="window__dots"><i></i><i></i><i></i></div>
-              <span class="window__title">plugins/hello-world.php</span>
+              <span class="url-bar">modocms.local<b>/admin/page-edit.php</b></span>
+              <span class="save-pill"><i></i><span data-i18n="hero.autosave">Zapisano</span></span>
             </div>
-<pre class="code"><code><span class="c-com">&lt;?php</span>
-<span class="c-com" data-i18n="hero.codecomment">// Wtyczka w 8 liniach — bez zmiany rdzenia.</span>
-<span class="c-key">use</span> Core\Hooks;
 
-Hooks::<span class="c-fn">addFilter</span>(<span class="c-str">'the_content'</span>, <span class="c-key">function</span> (<span class="c-key">string</span> <span class="c-var">$content</span>) {
-    <span class="c-key">return</span> <span class="c-var">$content</span> . <span class="c-str">'&lt;p&gt;Powered by Modo CMS&lt;/p&gt;'</span>;
-});</code></pre>
+            <div class="cms">
+              <aside class="cms__rail" aria-hidden="true">
+                <span class="cms__ico is-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg></span>
+                <span class="cms__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-4-6 6"/></svg></span>
+                <span class="cms__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg></span>
+                <span class="cms__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg></span>
+              </aside>
+
+              <div class="cms__canvas">
+                <div class="cms__crumb" data-i18n="hero.crumb">Strony / Strona główna</div>
+                <div class="cms__title" data-i18n="hero.titletxt">Witamy w Modo CMS</div>
+
+                <div class="cms__toolbar" aria-hidden="true">
+                  <span class="tb tb--b">B</span>
+                  <span class="tb tb--i">I</span>
+                  <span class="tb tb--u">U</span>
+                  <span class="tb tb--sep"></span>
+                  <span class="tb">H2</span>
+                  <span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg></span>
+                  <span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M21 15l-5-4-6 6"/></svg></span>
+                  <span class="tb tb--active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg></span>
+                </div>
+
+                <div class="cms__lines" aria-hidden="true">
+                  <span style="width:97%"></span>
+                  <span style="width:88%"></span>
+                  <span style="width:63%"></span>
+                </div>
+
+                <div class="cms__grid" aria-hidden="true">
+                  <div class="cms__col"></div>
+                  <div class="cms__col"></div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <div class="toast">
+            <span class="toast__dot"></span>
+            <span class="toast__name">hello-world.php</span>
+            <span class="toast__pill" data-i18n="hero.plugin">Wtyczka aktywna</span>
+          </div>
+
+          <div class="chip-code" aria-hidden="true"><span class="c-p">$</span> Hooks::addFilter(<span class="c-s">'the_content'</span>)</div>
         </div>
       </div>
     </section>
