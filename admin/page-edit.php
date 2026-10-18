@@ -612,13 +612,16 @@ require_once __DIR__ . '/views/header.php';
        of leaking into the admin UI. Customised block skins follow below. */
     <?= \Core\CssFramework::editorScopedCss('#editorjs') ?>
     #editorjs {
-        padding: 6px 2px 40px;
+        padding: 24px 20px 40px;
         min-height: 420px;
-        background: var(--bg-card, #111827);
+        background: #ffffff;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
         border-radius: var(--radius-sm, 8px);
     }
     #editorjs .ce-block__content, #editorjs .ce-toolbar__content { max-width: 100%; }
-    #editorjs .cdx-block { font-size: 15px; line-height: 1.65; color: var(--text-main); }
+    #editorjs .cdx-block { font-size: 15px; line-height: 1.65; color: #0f172a; }
+    #editorjs [data-placeholder]:empty::before { color: #94a3b8; }
     #editorjs .modo-image img { max-width: 100%; height: auto; }
 </style>
 <?php endif; ?>

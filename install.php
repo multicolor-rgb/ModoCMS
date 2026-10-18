@@ -8,8 +8,25 @@ $uploadsCacheDir = $uploadsDir . '/cache';
 $dbFile = $dataDir . '/cms.sqlite';
 $langDir = __DIR__ . '/languages';
 
-// Prevent re-installation if database exists
+// Prevent re-installation only when a real schema is present. PDO creates an
+// empty SQLite file as soon as any request reaches the app, so the mere
+// existence of the file does not mean the CMS is installed.
+$alreadyInstalled = false;
 if (file_exists($dbFile)) {
+    try {
+        $probe = new PDO('sqlite:' . $dbFile);
+        $probe->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $tableCount = (int) $probe->query(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'settings')"
+        )->fetchColumn();
+        $alreadyInstalled = ($tableCount === 2);
+    } catch (\Throwable $e) {
+        $alreadyInstalled = false;
+    }
+    $probe = null;
+}
+
+if ($alreadyInstalled) {
     die('<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -253,6 +270,14 @@ HTACCESS;
 
         if ($existingRootHtaccess === null || $hasHardcodedRewriteBase) {
             @file_put_contents($rootHtaccessPath, $portableHtaccess . "\n");
+        }
+
+        // Always start from a clean slate: remove any empty or partial database
+        // left behind (e.g. an auto-created file) so the schema is fresh.
+        foreach ([$dbFile, $dbFile . '-wal', $dbFile . '-shm'] as $stale) {
+            if (file_exists($stale)) {
+                @unlink($stale);
+            }
         }
 
         try {

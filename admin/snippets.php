@@ -284,14 +284,16 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
     /* Scoped grid CSS + block skin for the inline Editor.js canvas. */
     <?= \Core\CssFramework::editorScopedCss('#snippet-editorjs') ?>
     #snippet-editorjs {
-        padding: 6px 2px 20px;
+        padding: 20px 16px 20px;
         min-height: 300px;
-        background: var(--bg-card, #111827);
-        border: 1px solid var(--border-subtle);
+        background: #ffffff;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
         border-radius: var(--radius-sm, 8px);
     }
     #snippet-editorjs .ce-block__content, #snippet-editorjs .ce-toolbar__content { max-width: 100%; }
-    #snippet-editorjs .cdx-block { font-size: 14px; line-height: 1.6; color: var(--text-main); }
+    #snippet-editorjs .cdx-block { font-size: 14px; line-height: 1.6; color: #0f172a; }
+    #snippet-editorjs [data-placeholder]:empty::before { color: #94a3b8; }
     #snippet-editorjs .modo-image img { max-width: 100%; height: auto; }
 </style>
 <script src="assets/js/editorjs-init.js"></script>
