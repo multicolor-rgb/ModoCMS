@@ -1,3 +1,5 @@
+# Publishes the static landing page from site/ to GitHub Pages.
+# One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
 name: Deploy site to GitHub Pages
 
 on:
