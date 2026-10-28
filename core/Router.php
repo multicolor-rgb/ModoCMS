@@ -47,56 +47,13 @@ final class Router {
         return $baseDir;
     }
 
+    /**
+     * Backwards-compatible entry point. Tracking itself lives in
+     * Core\Analytics so that index.php can record the visit before the
+     * full-page cache serves a stored response.
+     */
     public static function trackVisit(): void {
-        if (defined('IN_ADMIN')) {
-            return;
-        }
-
-        $rawUri = $_SERVER['REQUEST_URI'] ?? '/';
-        $uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
-
-        if (str_starts_with($uriPath, '/admin')) {
-            return;
-        }
-
-        $extension = strtolower(pathinfo($uriPath, PATHINFO_EXTENSION));
-        if (in_array($extension, ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'woff', 'woff2', 'map', 'txt', 'xml'], true)) {
-            return;
-        }
-
-        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        if (preg_match('/bot|crawl|slurp|spider|mediapartners/i', $userAgent)) {
-            return;
-        }
-
-        try {
-            $db = Database::getConnection();
-            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-            $ipHash = hash('sha256', $ipAddress . 'modocms_salt');
-
-            $checkStmt = $db->prepare("
-                SELECT id 
-                FROM visits 
-                WHERE ip_hash = :ip 
-                  AND visited_at >= datetime('now', '-24 hours') 
-                LIMIT 1
-            ");
-            $checkStmt->execute([':ip' => $ipHash]);
-
-            if ($checkStmt->fetchColumn()) {
-                return;
-            }
-
-            $insertStmt = $db->prepare("
-                INSERT INTO visits (path, ip_hash, user_agent, visited_at)
-                VALUES (:path, :ip, :ua, datetime('now'))
-            ");
-            $insertStmt->execute([
-                ':path' => $uriPath,
-                ':ip'   => $ipHash,
-                ':ua'   => substr($userAgent, 0, 255)
-            ]);
-        } catch (\Throwable $e) {}
+        Analytics::track();
     }
 
     private function renderBlogArchive(\PDO $database, string $themeDirectory, string $activeLocale, string $title = '', bool $isHomepage = false): void {
@@ -325,7 +282,7 @@ final class Router {
             return;
         }
 
-        self::trackVisit();
+        // Analytics are recorded in index.php before the full-page cache runs.
 
         if (isset($this->registeredRoutes[$requestMethod][$normalizedPath])) {
             call_user_func($this->registeredRoutes[$requestMethod][$normalizedPath]);

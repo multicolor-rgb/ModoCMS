@@ -47,36 +47,20 @@ $totalPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page'")-
 $totalPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post'")->fetchColumn();
 $totalUsers = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
 
-// 2. Traffic analytics (today and last 7 days)
-$todayVisits = (int)$db->query("SELECT COUNT(*) FROM visits WHERE visited_at = DATE('now')")->fetchColumn();
-$weekVisits  = (int)$db->query("SELECT COUNT(*) FROM visits WHERE visited_at >= DATE('now', '-6 days')")->fetchColumn();
+// 2. Traffic analytics (all views + unique visitors)
+$analyticsSummary = \Core\Analytics::summary();
+$analyticsMode    = \Core\Analytics::mode();
+$analyticsPeriod  = (int)($analyticsSummary['days'] ?? 7);
+$todayAll         = (int)($analyticsSummary['totals']['today']['all'] ?? 0);
+$todayUnique      = (int)($analyticsSummary['totals']['today']['unique'] ?? 0);
+$periodAll        = (int)($analyticsSummary['totals']['period']['all'] ?? 0);
+$periodUnique     = (int)($analyticsSummary['totals']['period']['unique'] ?? 0);
+$analyticsLastReset = \Core\Analytics::lastReset();
+$showAllViews      = $analyticsMode !== 'unique';
+$showUniqueViews   = $analyticsMode !== 'all';
 
-// 7-day sparkline bar chart data aggregation
-$chartQuery = $db->query("
-    SELECT d.dt as date, COUNT(v.id) as count 
-    FROM (
-        SELECT DATE('now', '-6 days') as dt UNION ALL
-        SELECT DATE('now', '-5 days') UNION ALL
-        SELECT DATE('now', '-4 days') UNION ALL
-        SELECT DATE('now', '-3 days') UNION ALL
-        SELECT DATE('now', '-2 days') UNION ALL
-        SELECT DATE('now', '-1 days') UNION ALL
-        SELECT DATE('now')
-    ) d
-    LEFT JOIN visits v ON v.visited_at = d.dt
-    GROUP BY d.dt ORDER BY d.dt ASC
-");
-$chartData = $chartQuery->fetchAll();
-
-// Top visited paths (last 7 days)
-$topPages = $db->query("
-    SELECT path, COUNT(*) as hits 
-    FROM visits 
-    WHERE visited_at >= DATE('now', '-6 days')
-    GROUP BY path 
-    ORDER BY hits DESC 
-    LIMIT 5
-")->fetchAll();
+// Top visited paths for the selected period
+$topPages = \Core\Analytics::topPages();
 
 // 3. Recently updated pages and blog posts
 $recentContent = $db->query("
@@ -109,11 +93,17 @@ $recentContent = $db->query("
 <div class="metrics-grid">
     <div class="metric-card">
         <span class="metric-label"><?= _e('Pageviews (Today)') ?></span>
-        <span class="metric-value" style="color: var(--primary);"><?= $todayVisits ?></span>
+        <span class="metric-value" style="color: var(--primary);"><?= $showAllViews ? $todayAll : $todayUnique ?> <span style="font-size:14px; font-weight:500; color:var(--text-muted);"><?= $showAllViews ? _e('all') : _e('unique') ?></span></span>
+        <?php if ($showAllViews && $showUniqueViews): ?>
+            <span style="font-size: 12px; color: var(--text-muted);"><?= $todayUnique ?> <?= _e('unique') ?></span>
+        <?php endif; ?>
     </div>
     <div class="metric-card">
-        <span class="metric-label"><?= _e('Pageviews (7 Days)') ?></span>
-        <span class="metric-value"><?= $weekVisits ?></span>
+        <span class="metric-label"><?= sprintf(__('Pageviews (%d Days)'), $analyticsPeriod) ?></span>
+        <span class="metric-value"><?= $showAllViews ? $periodAll : $periodUnique ?> <span style="font-size:14px; font-weight:500; color:var(--text-muted);"><?= $showAllViews ? _e('all') : _e('unique') ?></span></span>
+        <?php if ($showAllViews && $showUniqueViews): ?>
+            <span style="font-size: 12px; color: var(--text-muted);" title="<?= _e('Sum of daily unique visitors') ?>"><?= $periodUnique ?> <?= _e('unique') ?></span>
+        <?php endif; ?>
     </div>
     <div class="metric-card">
         <span class="metric-label"><?= _e('Blog Posts') ?> / <?= _e('Pages') ?></span>
@@ -132,43 +122,49 @@ $recentContent = $db->query("
     <div>
         <!-- Analytics & Popular Pages Card -->
         <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
-                <h2 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;"><?= _e('Traffic (Last 7 Days)') ?></h2>
-                <span class="badge" style="background: var(--primary-subtle); color: var(--primary);"><?= _e('Daily Unique') ?></span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap;">
+                <h2 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;"><?= sprintf(__('Traffic (Last %d Days)'), $analyticsPeriod) ?></h2>
+                <span class="badge" style="background: var(--primary-subtle); color: var(--primary);">
+                    <?= $analyticsMode === 'unique' ? _e('Unique views') : ($analyticsMode === 'all' ? _e('All views') : _e('Unique + all')) ?>
+                </span>
             </div>
 
-            <!-- CSS Bar Chart (Zero dependencies) -->
-            <?php
-            $maxVisits = 1;
-            foreach ($chartData as $cd) {
-                if ($cd['count'] > $maxVisits) $maxVisits = $cd['count'];
-            }
-            ?>
-            <div class="dashboard-chart" style="display: flex; align-items: flex-end; gap: 12px; height: 110px; padding-top: 15px; border-bottom: 1px solid var(--border-subtle);">
-                <?php foreach ($chartData as $bar): 
-                    $h = max(6, (int)(($bar['count'] / $maxVisits) * 85));
-                    $dayLabel = date('d.m', strtotime($bar['date']));
-                ?>
-                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);"><?= $bar['count'] ?></span>
-                        <div style="width: 100%; max-width: 32px; height: <?= $h ?>px; background: linear-gradient(180deg, var(--primary), #818cf8); border-radius: 4px 4px 0 0;" title="<?= $bar['date'] ?>: <?= $bar['count'] ?> views"></div>
-                        <span style="font-size: 10px; color: var(--text-muted);"><?= $dayLabel ?></span>
-                    </div>
-                <?php endforeach; ?>
-            </div>
+            <?= \Core\Analytics::renderChart($analyticsSummary, $analyticsMode) ?>
+
+            <?php if ($analyticsLastReset !== ''): ?>
+                <p style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0 0;">
+                    <?= sprintf(__('Statistics counted since the last reset: %s'), date('d.m.Y H:i', strtotime($analyticsLastReset))) ?>
+                </p>
+            <?php endif; ?>
 
             <!-- Top Visited Routes -->
             <div style="margin-top: 16px;">
                 <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;"><?= _e('Top Visited Pages') ?></span>
                 <table class="pro-table" style="margin-top: 8px;">
+                    <thead>
+                        <tr>
+                            <th><?= _e('Page') ?></th>
+                            <?php if ($analyticsMode !== 'unique'): ?>
+                                <th style="text-align: right;"><?= _e('All views') ?></th>
+                            <?php endif; ?>
+                            <?php if ($analyticsMode !== 'all'): ?>
+                                <th style="text-align: right;"><?= _e('Unique views') ?></th>
+                            <?php endif; ?>
+                        </tr>
+                    </thead>
                     <tbody>
                         <?php if (empty($topPages)): ?>
-                            <tr><td style="color: var(--text-muted); font-size: 12px; padding: 12px 0; border: none;"><?= _e('No visit records available for this week.') ?></td></tr>
+                            <tr><td colspan="3" style="color: var(--text-muted); font-size: 12px; padding: 12px 0; border: none;"><?= _e('No visit records available for this period.') ?></td></tr>
                         <?php else: ?>
                             <?php foreach ($topPages as $tp): ?>
                                 <tr>
                                     <td style="font-family: monospace; font-size: 12px; padding: 6px 0; border: none; color: var(--text-main);"><?= Security::sanitize($tp['path']) ?></td>
-                                    <td style="text-align: right; font-weight: 600; padding: 6px 0; border: none; color: var(--text-main);"><?= $tp['hits'] ?> <?= _e('views') ?></td>
+                                    <?php if ($analyticsMode !== 'unique'): ?>
+                                        <td style="text-align: right; font-weight: 600; padding: 6px 0; border: none; color: var(--text-main);"><?= (int)$tp['all'] ?></td>
+                                    <?php endif; ?>
+                                    <?php if ($analyticsMode !== 'all'): ?>
+                                        <td style="text-align: right; font-weight: 600; padding: 6px 0; border: none; color: var(--text-muted);"><?= (int)$tp['unique'] ?></td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

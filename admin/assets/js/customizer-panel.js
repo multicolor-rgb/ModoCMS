@@ -121,6 +121,11 @@
             if (text) text.value = el.value;
         }
 
+        // Image preview mirror.
+        if (el.classList.contains('modo-media-url')) {
+            updateMediaPreview(el);
+        }
+
         scheduleDraftSave();
 
         // Full refresh only when the change cannot be previewed via CSS vars.
@@ -143,33 +148,157 @@
         }
     });
 
-    // Media picker (reuses the shared admin upload endpoint).
-    root.addEventListener('click', (e) => {
-        const btn = e.target.closest('.modo-media-btn');
-        if (!btn) return;
-        const wrap = btn.closest('.modo-media-wrap');
-        const picker = wrap.parentNode.querySelector('.modo-media-picker');
-        const field = wrap.querySelector('.modo-control');
-        if (!picker || !field) return;
+    // ------------------------------------------------------------------
+    // Media fields: choose from the library or upload from the computer
+    // ------------------------------------------------------------------
+    const mediaModal = document.getElementById('modo-cz-media-modal');
+    const mediaGrid = document.getElementById('modo-cz-media-grid');
+    const mediaEmpty = document.getElementById('modo-cz-media-empty');
+    let mediaTarget = null;
+    let uploadFromModal = false;
+
+    function updateMediaPreview(field) {
+        const wrap = field && field.closest ? field.closest('.modo-media-field') : null;
+        if (!wrap) return;
+
+        const preview = wrap.querySelector('[data-media-preview]');
+        const img = wrap.querySelector('[data-media-preview-img]');
+        const placeholder = wrap.querySelector('[data-media-placeholder]');
+        const remove = wrap.querySelector('.modo-media-remove');
+        const value = (field.value || '').trim();
+        const hasImage = value !== '';
+
+        if (preview) preview.classList.toggle('has-image', hasImage);
+        if (img) {
+            if (hasImage) {
+                img.src = value;
+                img.hidden = false;
+            } else {
+                img.removeAttribute('src');
+                img.hidden = true;
+            }
+        }
+        if (placeholder) placeholder.hidden = hasImage;
+        if (remove) remove.hidden = !hasImage;
+    }
+
+    function setMediaValue(field, url) {
+        if (!field) return;
+        field.value = url || '';
+        updateMediaPreview(field);
+        onControlChange(field);
+    }
+
+    function triggerMediaPicker(field, fromModal) {
+        const wrap = field && field.closest ? field.closest('.modo-media-field') : null;
+        const picker = wrap ? wrap.querySelector('.modo-media-picker') : null;
+        if (!picker) return;
+
+        uploadFromModal = !!fromModal;
         picker.onchange = () => {
-            if (!picker.files.length) return;
+            if (!picker.files || !picker.files.length) return;
+            const file = picker.files[0];
             const fd = new FormData();
-            fd.append('file', picker.files[0]);
+            fd.append('file', file);
+
+            setStatus(L.uploading, 'ok');
             fetch(uploadUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
                 .then((r) => r.json())
                 .then((data) => {
-                    if (data.location) {
-                        field.value = data.location;
-                        onControlChange(field);
-                    } else {
-                        setStatus(data.error || L.uploadFailed, 'err');
+                    if (!data || !data.location) {
+                        setStatus((data && data.error) || L.uploadFailed, 'err');
+                        return;
                     }
+                    addMediaTile(data.location, file.name);
+                    setMediaValue(field, data.location);
+                    setStatus(L.saved, 'ok');
+                    if (uploadFromModal) closeMediaModal();
                 })
                 .catch(() => setStatus(L.uploadFailed, 'err'));
         };
         picker.value = '';
         picker.click();
+    }
+
+    function addMediaTile(url, name) {
+        if (!mediaGrid || !url) return;
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'modo-cz-media-item';
+        tile.setAttribute('data-media-url', url);
+
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = name || '';
+        img.loading = 'lazy';
+
+        const label = document.createElement('span');
+        label.className = 'modo-cz-media-name';
+        label.textContent = name || url.split('/').pop();
+
+        tile.appendChild(img);
+        tile.appendChild(label);
+        mediaGrid.insertBefore(tile, mediaGrid.firstChild);
+        if (mediaEmpty) mediaEmpty.hidden = true;
+    }
+
+    function openMediaModal(field) {
+        if (!mediaModal || !field) return;
+        mediaTarget = field;
+        mediaModal.hidden = false;
+        const first = mediaGrid ? mediaGrid.querySelector('.modo-cz-media-item') : null;
+        if (first) setTimeout(() => first.focus(), 30);
+    }
+
+    function closeMediaModal() {
+        if (!mediaModal) return;
+        mediaModal.hidden = true;
+        mediaTarget = null;
+        uploadFromModal = false;
+    }
+
+    root.addEventListener('click', (e) => {
+        const action = e.target.closest('.modo-media-library, .modo-media-upload, .modo-media-remove');
+        if (!action) return;
+        const wrap = action.closest('.modo-media-field');
+        const field = wrap ? wrap.querySelector('.modo-media-url') : null;
+        if (!field) return;
+
+        if (action.classList.contains('modo-media-library')) {
+            openMediaModal(field);
+        } else if (action.classList.contains('modo-media-upload')) {
+            triggerMediaPicker(field, false);
+        } else {
+            setMediaValue(field, '');
+        }
     });
+
+    if (mediaModal) {
+        mediaModal.addEventListener('click', (e) => {
+            if (e.target === mediaModal || e.target.closest('[data-media-close]')) {
+                closeMediaModal();
+                return;
+            }
+            if (e.target.closest('[data-media-upload]')) {
+                if (mediaTarget) triggerMediaPicker(mediaTarget, true);
+                return;
+            }
+            const tile = e.target.closest('.modo-cz-media-item');
+            if (tile && mediaTarget) {
+                const field = mediaTarget;
+                const url = tile.getAttribute('data-media-url') || '';
+                closeMediaModal();
+                setMediaValue(field, url);
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !mediaModal.hidden) closeMediaModal();
+        });
+    }
+
+    // Reflect any server-rendered values in the preview boxes on load.
+    root.querySelectorAll('.modo-media-url').forEach(updateMediaPreview);
 
     // ------------------------------------------------------------------
     // Top bar actions

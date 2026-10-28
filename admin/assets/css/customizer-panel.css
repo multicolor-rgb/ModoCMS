@@ -203,8 +203,163 @@ html.modo-cz-panel-collapsed .modo-czp-reopen { display: flex; }
 .modo-range-value { font-size: 12px; color: var(--cz-muted); min-width: 32px; text-align: right; }
 .modo-color-wrap { display: flex; align-items: center; gap: 8px; }
 .modo-color-input { width: 42px; height: 34px; padding: 2px; border: 1px solid var(--cz-input-border); border-radius: var(--cz-radius); background: var(--cz-input-bg); cursor: pointer; }
-.modo-media-wrap { display: flex; gap: 8px; align-items: center; }
-.modo-media-wrap .form-control { flex: 1 1 auto; width: auto; min-width: 0; }
-.modo-media-wrap .modo-media-btn { flex: 0 0 auto; white-space: nowrap; }
+
+/* Media field (image controls) -------------------------------------------- */
+.modo-media-field { display: flex; flex-direction: column; gap: 8px; }
+.modo-media-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 110px;
+    padding: 6px;
+    overflow: hidden;
+    border: 1px dashed var(--cz-border-strong);
+    border-radius: var(--cz-radius);
+    background: var(--cz-main);
+}
+.modo-media-preview.has-image {
+    border-style: solid;
+    background-color: var(--cz-surface);
+    background-image:
+        linear-gradient(45deg, #eef0f2 25%, transparent 25%),
+        linear-gradient(-45deg, #eef0f2 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eef0f2 75%),
+        linear-gradient(-45deg, transparent 75%, #eef0f2 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+}
+.modo-media-preview img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.modo-media-preview img[hidden] { display: none; }
+.modo-media-placeholder { font-size: 12px; color: var(--cz-muted); text-align: center; }
+.modo-media-placeholder[hidden] { display: none; }
+.modo-media-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.modo-media-actions .btn { flex: 1 1 40%; padding: 6px 10px; white-space: nowrap; }
+.modo-media-actions .modo-media-library { flex: 1 1 100%; }
+#modo-cz-panel .modo-media-actions .modo-media-remove { color: var(--cz-danger); border-color: rgba(214, 54, 56, .45); }
+#modo-cz-panel .modo-media-actions .modo-media-remove:hover { background: rgba(214, 54, 56, .08); color: var(--cz-danger); }
+#modo-cz-panel .modo-media-actions .modo-media-remove[hidden] { display: none; }
+#modo-cz-panel .modo-media-url { font-size: 12px; }
+#modo-cz-panel .modo-media-picker { display: none !important; }
 .modo-radio { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; cursor: pointer; color: var(--cz-text); }
+
+/* Media library modal ------------------------------------------------------ */
+.modo-cz-media-modal {
+    /* Same palette as #modo-cz-panel: the modal lives outside the panel. */
+    --cz-surface: #ffffff;
+    --cz-main: #f6f7f7;
+    --cz-text: #1d2327;
+    --cz-muted: #646970;
+    --cz-primary: #2271b1;
+    --cz-input-border: #8c8f94;
+    --cz-radius: 8px;
+
+    position: fixed;
+    inset: 0;
+    z-index: 100002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .62);
+    backdrop-filter: blur(3px);
+    color: #1d2327;
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+.modo-cz-media-modal[hidden] { display: none; }
+.modo-cz-media-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(760px, 100%);
+    max-height: min(82vh, 640px);
+    overflow: hidden;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, .5);
+    box-sizing: border-box;
+}
+.modo-cz-media-dialog *,
+.modo-cz-media-dialog *::before,
+.modo-cz-media-dialog *::after { box-sizing: border-box; }
+.modo-cz-media-dialog button { font-family: inherit; }
+.modo-cz-media-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e4e7;
+}
+.modo-cz-media-head h3 { margin: 0; font-size: 15px; font-weight: 700; color: #1d2327; }
+.modo-cz-media-close {
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: #646970;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+.modo-cz-media-close:hover { color: #1d2327; }
+.modo-cz-media-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 16px 18px;
+    overflow-y: auto;
+    background: #f6f7f7;
+}
+.modo-cz-media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+}
+.modo-cz-media-item {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+    cursor: pointer;
+    text-align: left;
+}
+.modo-cz-media-item:hover,
+.modo-cz-media-item:focus-visible {
+    border-color: #2271b1;
+    outline: none;
+}
+.modo-cz-media-item img {
+    display: block;
+    width: 100%;
+    height: 96px;
+    object-fit: cover;
+    background: #e2e4e7;
+}
+.modo-cz-media-name {
+    display: block;
+    padding: 6px 8px;
+    overflow: hidden;
+    color: #646970;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.modo-cz-media-empty {
+    margin: 0;
+    padding: 36px 8px;
+    color: #646970;
+    font-size: 13px;
+    text-align: center;
+}
+.modo-cz-media-empty[hidden] { display: none; }
+.modo-cz-media-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid #e2e4e7;
+    background: #fff;
+}
 

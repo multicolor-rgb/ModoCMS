@@ -292,6 +292,15 @@ final class Database {
             'css_grid_inject_frontend' => '1',
             'css_grid_inject_editor' => '1',
             'css_grid_custom_css' => '',
+            'analytics_mode' => 'both',
+            'analytics_chart_type' => 'bar',
+            'analytics_chart_palette' => 'primary',
+            'analytics_chart_custom_color' => '#6366f1',
+            'analytics_chart_height' => '110',
+            'analytics_chart_period' => '7',
+            'analytics_chart_show_values' => '1',
+            'analytics_chart_show_legend' => '1',
+            'analytics_chart_show_grid' => '0',
         ];
 
         $setStmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
@@ -360,6 +369,15 @@ final class Database {
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX IF NOT EXISTS idx_redirects_from ON redirects(from_path);
+
+                CREATE TABLE IF NOT EXISTS visits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    path TEXT NOT NULL,
+                    ip_hash TEXT NOT NULL,
+                    user_agent TEXT,
+                    visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_visits_date ON visits(visited_at);
 
                 CREATE TABLE IF NOT EXISTS page_meta (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -433,6 +451,19 @@ final class Database {
         self::ensureColumn($db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'media', 'webp_path', 'TEXT');
 
+        // Older installs stored some visits as DATE only. Normalise them to a
+        // full datetime once (a flag avoids scanning the table on every boot).
+        try {
+            $normalized = $db->query("SELECT value FROM settings WHERE key = 'analytics_dates_normalized' LIMIT 1")->fetchColumn();
+            if (!$normalized) {
+                $db->exec("UPDATE visits SET visited_at = visited_at || ' 00:00:00' WHERE length(visited_at) = 10");
+                $markStmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('analytics_dates_normalized', '1')");
+                $markStmt->execute();
+            }
+        } catch (PDOException $e) {
+            // Optional — ignore.
+        }
+
         // Seed newly introduced settings on databases created by older versions.
         try {
             $seed = [
@@ -464,6 +495,15 @@ final class Database {
                 'css_grid_inject_frontend' => '1',
                 'css_grid_inject_editor' => '1',
                 'css_grid_custom_css' => '',
+                'analytics_mode' => 'both',
+                'analytics_chart_type' => 'bar',
+                'analytics_chart_palette' => 'primary',
+                'analytics_chart_custom_color' => '#6366f1',
+                'analytics_chart_height' => '110',
+                'analytics_chart_period' => '7',
+                'analytics_chart_show_values' => '1',
+                'analytics_chart_show_legend' => '1',
+                'analytics_chart_show_grid' => '0',
             ];
             $stmt = $db->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)");
             foreach ($seed as $k => $v) {

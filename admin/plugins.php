@@ -4,6 +4,7 @@ require_once __DIR__ . '/../core/bootstrap.php';
 
 use Core\Auth;
 use Core\Database;
+use Core\PluginLoader;
 use Core\Security;
 
 Auth::requireCapability('manage_settings');
@@ -141,11 +142,13 @@ require_once __DIR__ . '/views/header.php';
                             $reg = \Core\GSRegistry::$registeredPlugins[$baseNameNoExt] ?? null;
                         }
 
-                        $title = $reg['name'] ?? $identifier;
-                        $version = $reg['version'] ?? '1.0';
-                        $author = $reg['author'] ?? '&mdash;';
-                        $authorUrl = $reg['url'] ?? '';
-                        $desc = $reg['desc'] ?? '';
+                        $header = $reg === null ? PluginLoader::readMetadata($item['path'] ?? '') : [];
+
+                        $title = $reg['name'] ?? $header['name'] ?? $identifier;
+                        $version = $reg['version'] ?? $header['version'] ?? '1.0';
+                        $author = $reg['author'] ?? $header['author'] ?? '—';
+                        $authorUrl = $reg['url'] ?? $header['url'] ?? '';
+                        $desc = $reg['desc'] ?? $header['desc'] ?? '';
                     ?>
                         <tr>
                             <td>

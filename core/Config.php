@@ -523,7 +523,7 @@ final class Config {
                 'default' => true,
                 'group'   => 'availability',
                 'label'   => 'Collect internal visit statistics',
-                'help'    => 'Stores anonymous, daily rotating IP hashes for visited pages. Disabling it stops all writes to the statistics table, which removes the Dashboard traffic report.',
+                'help'    => 'Stores anonymous, daily rotating IP hashes for visited pages. Disabling it stops all writes to the statistics table; previously collected data stays visible on the Dashboard until it is reset.',
             ],
             'upload_max_size' => [
                 'type'    => 'int',
