@@ -128,6 +128,12 @@ final class PageCache
             return;
         }
 
+        // Never cache pages containing a form: the CSRF token and the signed
+        // time-trap token are bound to a single session and would go stale.
+        if (str_contains($buffer, 'name="mf_csrf"') || str_contains($buffer, "name='mf_csrf'")) {
+            return;
+        }
+
         @file_put_contents(self::dir() . '/' . self::$cacheKey . '.html', $buffer, LOCK_EX);
     }
 

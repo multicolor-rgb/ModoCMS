@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Modo Form
- * Description: Kreator formularzy zapytań i ankiet. Osadzanie przez shortcode [form id="1"] lub bezpośrednio w PHP (the_modo_form). Archiwizacja zgłoszeń w bazie oraz obsługa hCaptcha, Google reCAPTCHA i własnego zabezpieczenia (honeypot + pułapka czasowa + podpisany token).
- * Version: 1.0.0
+ * Description: Kreator formularzy zapytań i ankiet. Osadzanie przez shortcode [form id="1"] lub bezpośrednio w PHP (the_modo_form). Archiwizacja zgłoszeń w bazie, powiadomienia e-mail HTML oraz obsługa hCaptcha, Google reCAPTCHA i własnego zabezpieczenia (honeypot + pułapka czasowa + podpisany token).
+ * Version: 1.1.0
  * Author: Modo CMS
  *
  * @package ModoForm
@@ -16,7 +16,7 @@ if (!class_exists('ModoForm')) {
     final class ModoForm
     {
         public const PLUGIN_ID  = 'modo-form';
-        public const VERSION    = '1.0.0';
+        public const VERSION    = '1.1.0';
         public const TAG        = 'form';
         public const OPT_PREFIX = 'mf_';
 
@@ -24,8 +24,9 @@ if (!class_exists('ModoForm')) {
         private static bool $cssDone = false;
         private static bool $jsDone  = false;
         private static bool $used    = false;
-        private static bool $needHcaptcha  = false;
-        private static bool $needRecaptcha = false;
+
+        /** Skrypty dostawcow captcha juz wyemitowane (klucz = tryb). @var array<string,bool> */
+        private static array $captchaScriptsDone = [];
 
         /** Błędy walidacji bieżącego żądania (per formularz). @var array<int,array<string,string>> */
         private static array $errors = [];
@@ -34,7 +35,7 @@ if (!class_exists('ModoForm')) {
 
         /** @var array<string,string> Domyślne ustawienia globalne. */
         private static array $defaults = [
-            'captcha_mode'      => 'own',   // none | own | hcaptcha | recaptcha
+            'captcha_mode'      => 'auto',  // auto | none | own | hcaptcha | recaptcha
             'hcaptcha_site'     => '',
             'hcaptcha_secret'   => '',
             'recaptcha_site'    => '',
@@ -58,6 +59,7 @@ if (!class_exists('ModoForm')) {
             self::$booted = true;
 
             self::ensureTables();
+            self::maybeUpgrade();
 
             if (function_exists('register_plugin')) {
                 register_plugin(
@@ -66,7 +68,7 @@ if (!class_exists('ModoForm')) {
                     self::VERSION,
                     'Modo CMS',
                     '',
-                    'Kreator formularzy zapytań i ankiet z archiwizacją zgłoszeń oraz obsługą hCaptcha, reCAPTCHA i własnego zabezpieczenia.',
+                    'Kreator formularzy zapytań i ankiet z archiwizacją zgłoszeń, powiadomieniami e-mail HTML oraz obsługą hCaptcha, reCAPTCHA i własnego zabezpieczenia.',
                     'settings',
                     'ModoForm::renderAdmin'
                 );
@@ -142,6 +144,68 @@ if (!class_exists('ModoForm')) {
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )");
                 $db->exec("CREATE INDEX IF NOT EXISTS idx_mf_subs_form ON modo_form_submissions(form_id)");
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        /** Po aktualizacji czyści cache stron (stary HTML z formularzami/captcha). */
+        private static function maybeUpgrade(): void
+        {
+            if (self::opt('asset_version') !== self::VERSION) {
+                if (class_exists('\\Core\\PageCache')) {
+                    \Core\PageCache::purge();
+                }
+                self::setOption('asset_version', self::VERSION);
+            }
+
+            // Formularze zapisane przed wprowadzeniem dziedziczenia miały
+            // zaszyte "0"/"1" - zamieniamy je raz na "inherit", aby globalny
+            // przełącznik powiadomień zaczął działać również dla nich.
+            if (self::opt('inherit_migrated') !== '1') {
+                self::migrateLegacySettings();
+                self::setOption('inherit_migrated', '1');
+            }
+
+            // Stare instalacje zapisywały tryb "own" nawet po wpisaniu kluczy
+            // hCaptcha/reCAPTCHA. Przy pierwszej aktualizacji przełączamy na
+            // "auto", aby widget od razu się pojawił.
+            if (self::opt('captcha_mode_migrated') !== '1') {
+                if (self::opt('captcha_mode', 'auto') === 'own'
+                    && (self::captchaConfigured('hcaptcha') || self::captchaConfigured('recaptcha'))) {
+                    self::setOption('captcha_mode', 'auto');
+                }
+                self::setOption('captcha_mode_migrated', '1');
+            }
+        }
+
+        /** Jednorazowa migracja starego ustawienia notify do dziedziczenia. */
+        private static function migrateLegacySettings(): void
+        {
+            $db = self::db();
+            if (!$db) {
+                return;
+            }
+            try {
+                $rows = $db->query("SELECT id, settings FROM modo_forms")->fetchAll() ?: [];
+                $stmt = $db->prepare("UPDATE modo_forms SET settings = :s WHERE id = :id");
+                foreach ($rows as $row) {
+                    $settings = json_decode((string)($row['settings'] ?? ''), true);
+                    if (!is_array($settings)) {
+                        continue;
+                    }
+                    $changed = false;
+                    if (array_key_exists('notify', $settings) && in_array((string)$settings['notify'], ['0', '1'], true)) {
+                        $settings['notify'] = 'inherit';
+                        $changed = true;
+                    }
+                    if ($changed) {
+                        $stmt->execute([
+                            ':s'  => json_encode($settings, JSON_UNESCAPED_UNICODE),
+                            ':id' => (int)$row['id'],
+                        ]);
+                    }
+                }
             } catch (\Throwable $e) {
                 // ignore
             }
@@ -238,8 +302,8 @@ if (!class_exists('ModoForm')) {
                 'submit_label' => '',
                 'success'      => '',
                 'redirect'     => '',
-                'store'        => '1',
-                'notify'       => '0',
+                'store'        => 'inherit', // inherit | 1 | 0
+                'notify'       => 'inherit', // inherit | 1 | 0
                 'notify_email' => '',
                 'captcha'      => 'inherit', // inherit | none | own | hcaptcha | recaptcha
                 'honeypot'     => '1',
@@ -388,23 +452,105 @@ if (!class_exists('ModoForm')) {
             }
         }
 
-        /** Efektywny tryb captcha dla formularza. */
+        /** Efektywny tryb captcha dla formularza (z bezpiecznym fallbackiem). */
         private static function captchaMode(array $settings): string
         {
             $mode = (string)($settings['captcha'] ?? 'inherit');
             if ($mode === 'inherit' || $mode === '') {
-                $mode = self::opt('captcha_mode', 'own');
+                $mode = self::opt('captcha_mode', 'auto');
             }
-            return in_array($mode, ['none', 'own', 'hcaptcha', 'recaptcha'], true) ? $mode : 'none';
+
+            if ($mode === 'auto') {
+                if (self::captchaConfigured('hcaptcha')) {
+                    return 'hcaptcha';
+                }
+                if (self::captchaConfigured('recaptcha')) {
+                    return 'recaptcha';
+                }
+                return 'own';
+            }
+
+            if (!in_array($mode, ['none', 'own', 'hcaptcha', 'recaptcha'], true)) {
+                return 'none';
+            }
+
+            // Wybrany dostawca bez kompletu kluczy: nie zostawiamy formularza
+            // bez zabezpieczenia - wracamy do wlasnego mechanizmu.
+            if (($mode === 'hcaptcha' || $mode === 'recaptcha') && !self::captchaConfigured($mode)) {
+                return 'own';
+            }
+
+            return $mode;
+        }
+
+        /** Czy dostawca captcha ma komplet kluczy (site + secret). */
+        private static function captchaConfigured(string $provider): bool
+        {
+            if ($provider === 'hcaptcha') {
+                return self::opt('hcaptcha_site') !== '' && self::opt('hcaptcha_secret') !== '';
+            }
+            if ($provider === 'recaptcha') {
+                return self::opt('recaptcha_site') !== '' && self::opt('recaptcha_secret') !== '';
+            }
+            return false;
+        }
+
+        /** Czy site key dostawcy jest ustawiony (do podpowiedzi w panelu). */
+        private static function captchaKeyPresent(string $provider): bool
+        {
+            if ($provider === 'hcaptcha') {
+                return self::opt('hcaptcha_site') !== '';
+            }
+            if ($provider === 'recaptcha') {
+                return self::opt('recaptcha_site') !== '';
+            }
+            return false;
+        }
+
+        /** Ostrzezenia dotyczace konfiguracji captchy / powiadomien. @return array<int,string> */
+        private static function configWarnings(): array
+        {
+            $warnings = [];
+            $mode = self::opt('captcha_mode', 'auto');
+
+            if ($mode === 'hcaptcha' && !self::captchaConfigured('hcaptcha')) {
+                $warnings[] = __('mf_warn_hcaptcha_keys');
+            } elseif ($mode === 'recaptcha' && !self::captchaConfigured('recaptcha')) {
+                $warnings[] = __('mf_warn_recaptcha_keys');
+            } elseif ($mode === 'own' || $mode === 'none') {
+                if (self::captchaConfigured('hcaptcha')) {
+                    $warnings[] = __('mf_warn_hcaptcha_ready');
+                } elseif (self::captchaConfigured('recaptcha')) {
+                    $warnings[] = __('mf_warn_recaptcha_ready');
+                }
+            }
+
+            if (self::opt('notify') === '1' && self::opt('notify_email') === '') {
+                $warnings[] = __('mf_warn_notify_email');
+            }
+
+            return $warnings;
         }
 
         private static function effectiveSetting(array $settings, string $key): string
         {
             $v = (string)($settings[$key] ?? '');
-            if ($v === '' && array_key_exists($key, self::$defaults)) {
+            if (($v === '' || $v === 'inherit') && array_key_exists($key, self::$defaults)) {
                 return self::opt($key);
             }
             return $v;
+        }
+
+        /** Normalizuje trójstanowe pole formularza do inherit | 1 | 0. */
+        private static function triState(mixed $value): string
+        {
+            if ($value === '1' || $value === 1 || $value === true) {
+                return '1';
+            }
+            if ($value === '0' || $value === 0 || $value === false) {
+                return '0';
+            }
+            return 'inherit';
         }
 
         // ---------------------------------------------------------------------
@@ -592,22 +738,33 @@ if (!class_exists('ModoForm')) {
 
         private static function renderCaptcha(int $formId, string $mode, int $ts, callable $esc): string
         {
+            $html = '';
+
             if ($mode === 'hcaptcha') {
                 $site = self::opt('hcaptcha_site');
-                if ($site !== '') {
-                    self::$needHcaptcha = true;
-                    return '<div class="modo-form__captcha"><div class="h-captcha" data-sitekey="' . $esc($site) . '"></div></div>';
+                if ($site !== '' && self::opt('hcaptcha_secret') !== '') {
+                    $html = '<div class="modo-form__captcha"><div class="h-captcha" data-sitekey="' . $esc($site) . '"></div></div>'
+                        . self::captchaScriptHtml('hcaptcha');
+                    return $html;
                 }
+                // Brak kompletu kluczy - bezpieczny fallback do wlasnego mechanizmu.
+                $mode = 'own';
             } elseif ($mode === 'recaptcha') {
                 $site = self::opt('recaptcha_site');
-                if ($site !== '') {
-                    self::$needRecaptcha = true;
+                if ($site !== '' && self::opt('recaptcha_secret') !== '') {
                     if (self::opt('recaptcha_version', 'v2') === 'v3') {
-                        return '<div class="modo-form__captcha"><input type="hidden" name="mf_grecaptcha" value=""></div>';
+                        $html = '<div class="modo-form__captcha"><input type="hidden" name="mf_grecaptcha" value=""></div>'
+                            . self::captchaScriptHtml('recaptcha');
+                    } else {
+                        $html = '<div class="modo-form__captcha"><div class="g-recaptcha" data-sitekey="' . $esc($site) . '"></div></div>'
+                            . self::captchaScriptHtml('recaptcha');
                     }
-                    return '<div class="modo-form__captcha"><div class="g-recaptcha" data-sitekey="' . $esc($site) . '"></div></div>';
+                    return $html;
                 }
-            } elseif ($mode === 'own') {
+                $mode = 'own';
+            }
+
+            if ($mode === 'own') {
                 $a   = random_int(1, 9);
                 $b   = random_int(1, 9);
                 $sum = $a + $b;
@@ -618,6 +775,35 @@ if (!class_exists('ModoForm')) {
                     . '<input class="modo-form__input" type="text" name="mf_own_answer" value="" autocomplete="off" required style="max-width:140px;">'
                     . '</div>';
             }
+
+            return $html;
+        }
+
+        /**
+         * Zwraca (raz na dany dostawca) znacznik skryptu captchy. Dzieki temu
+         * widget dziala niezaleznie od tego, czy formularz jest renderowany
+         * przez shortcode, the_modo_form(), czy po hooku theme-footer.
+         */
+        private static function captchaScriptHtml(string $provider): string
+        {
+            if (isset(self::$captchaScriptsDone[$provider])) {
+                return '';
+            }
+            self::$captchaScriptsDone[$provider] = true;
+
+            if ($provider === 'hcaptcha') {
+                return '<script src="https://js.hcaptcha.com/1/api.js" async defer></script>';
+            }
+
+            if ($provider === 'recaptcha') {
+                if (self::opt('recaptcha_version', 'v2') === 'v3') {
+                    $site = self::opt('recaptcha_site');
+                    return '<script src="https://www.google.com/recaptcha/api.js?render=' . htmlspecialchars($site, ENT_QUOTES, 'UTF-8') . '" async defer></script>'
+                        . '<script>window.mfRecaptchaV3={siteKey:' . json_encode($site, JSON_UNESCAPED_SLASHES) . ',score:0};</script>';
+                }
+                return '<script src="https://www.google.com/recaptcha/api.js" async defer></script>';
+            }
+
             return '';
         }
 
@@ -667,19 +853,8 @@ if (!class_exists('ModoForm')) {
             self::$jsDone = true;
             $u = self::assetsUrl();
 
-            if (self::$needHcaptcha) {
-                echo '<script src="https://js.hcaptcha.com/1/api.js" async defer></script>' . PHP_EOL;
-            }
-            if (self::$needRecaptcha) {
-                if (self::opt('recaptcha_version', 'v2') === 'v3') {
-                    $site = self::opt('recaptcha_site');
-                    echo '<script src="https://www.google.com/recaptcha/api.js?render=' . htmlspecialchars($site, ENT_QUOTES, 'UTF-8') . '"></script>' . PHP_EOL;
-                    echo '<script>window.mfRecaptchaV3={siteKey:' . json_encode($site) . ',score:0};</script>' . PHP_EOL;
-                } else {
-                    echo '<script src="https://www.google.com/recaptcha/api.js" async defer></script>' . PHP_EOL;
-                }
-            }
-
+            // Skrypty dostawcow captcha sa dolaczane bezposrednio przy widgetcie
+            // (captchaScriptHtml), wiec dzialaja takze przy osadzaniu w szablonie.
             echo '<script src="' . htmlspecialchars($u . '/modo-form.js', ENT_QUOTES, 'UTF-8') . '" defer></script>' . PHP_EOL;
         }
 
@@ -758,7 +933,7 @@ if (!class_exists('ModoForm')) {
                 $notifyEmail = self::opt('notify_email');
             }
             if (self::effectiveSetting($settings, 'notify') === '1' && $notifyEmail !== '') {
-                self::notifyEmail($notifyEmail, $form, $collected);
+                self::notifyEmail($notifyEmail, $form, $collected, $fields);
             }
 
             if (class_exists('\\Core\\PageCache')) {
@@ -792,7 +967,7 @@ if (!class_exists('ModoForm')) {
             if ($mode === 'hcaptcha') {
                 $secret = self::opt('hcaptcha_secret');
                 if ($secret === '') {
-                    return '';
+                    return __('mf_err_captcha');
                 }
                 $resp = trim((string)($_POST['h-captcha-response'] ?? ''));
                 if ($resp === '') {
@@ -805,7 +980,7 @@ if (!class_exists('ModoForm')) {
             if ($mode === 'recaptcha') {
                 $secret = self::opt('recaptcha_secret');
                 if ($secret === '') {
-                    return '';
+                    return __('mf_err_captcha');
                 }
                 $resp = trim((string)($_POST['g-recaptcha-response'] ?? $_POST['mf_grecaptcha'] ?? ''));
                 if ($resp === '') {
@@ -977,38 +1152,217 @@ if (!class_exists('ModoForm')) {
             }
         }
 
-        private static function notifyEmail(string $to, array $form, array $data): void
+        private static function notifyEmail(string $to, array $form, array $data, array $fields = []): void
         {
             if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
                 return;
             }
-            $subject = sprintf(__('mf_email_subject'), (string)$form['name']);
-            $lines = [];
-            foreach ($data as $k => $v) {
-                $lines[] = $k . ': ' . (is_array($v) ? implode(', ', $v) : (string)$v);
-            }
-            $body = implode("\n", $lines);
+
+            $subject = sprintf(__('mf_email_subject'), (string)($form['name'] ?? ''));
+            $html    = self::buildEmailHtml($form, $data);
+
+            $options = ['from_name' => self::siteName()];
 
             // Per-form sender override; when empty the site-wide sender is used.
-            $options = [];
             $from = trim(self::opt('from_email'));
             if ($from !== '' && filter_var($from, FILTER_VALIDATE_EMAIL)) {
                 $options['from_email'] = $from;
             }
 
-            // Delegate to the central mailer so the site-wide transport
-            // (PHP mail() or SMTP via PHPMailer) and sender identity are respected.
+            // Reply straight to the person who filled in the form.
+            $replyTo = self::findReplyTo($fields, $data);
+            if ($replyTo !== '') {
+                $options['reply_to'] = $replyTo;
+            }
+
+            self::sendEmail($to, $subject, $html, $options);
+        }
+
+        /** Znajduje adres e-mail nadawcy na podstawie pol formularza. */
+        private static function findReplyTo(array $fields, array $data): string
+        {
+            foreach ($fields as $field) {
+                if ((string)($field['type'] ?? '') !== 'email') {
+                    continue;
+                }
+                $label = (string)($field['label'] ?? '') !== '' ? (string)$field['label'] : (string)($field['name'] ?? '');
+                $value = $data[$label] ?? '';
+                if (is_string($value) && filter_var(trim($value), FILTER_VALIDATE_EMAIL)) {
+                    return trim($value);
+                }
+            }
+            return '';
+        }
+
+        /**
+         * Buduje czytelny, ostylowany (inline CSS) e-mail HTML ze zgłoszeniem.
+         *
+         * @param array<string,mixed> $form
+         * @param array<string,mixed> $data
+         */
+        private static function buildEmailHtml(array $form, array $data, bool $isTest = false): string
+        {
+            $esc  = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+            $site = self::siteName();
+            $url  = self::siteUrl();
+            $name = (string)($form['name'] ?? '');
+            $date = date('d.m.Y H:i');
+            $accent = '#2563eb';
+            $lang   = class_exists('\\Core\\I18n') ? \Core\I18n::getLocale() : 'pl';
+
+            $rows = '';
+            foreach ($data as $label => $value) {
+                $label = (string)$label;
+                $value = is_array($value) ? implode(', ', array_map('strval', $value)) : (string)$value;
+
+                if (preg_match('~^https?://\S+$~i', trim($value))) {
+                    $safe = $esc(trim($value));
+                    $valHtml = '<a href="' . $safe . '" style="color:' . $accent . ';text-decoration:none;word-break:break-all;">' . $safe . '</a>';
+                } elseif (filter_var(trim($value), FILTER_VALIDATE_EMAIL)) {
+                    $safe = $esc(trim($value));
+                    $valHtml = '<a href="mailto:' . $safe . '" style="color:' . $accent . ';text-decoration:none;">' . $safe . '</a>';
+                } else {
+                    $valHtml = nl2br($esc($value), false);
+                }
+
+                $rows .= '<tr>'
+                    . '<td style="padding:11px 12px 11px 0;border-bottom:1px solid #eef0f3;vertical-align:top;font-size:13px;line-height:1.5;color:#6b7280;width:36%;">' . $esc($label) . '</td>'
+                    . '<td style="padding:11px 0;border-bottom:1px solid #eef0f3;vertical-align:top;font-size:14px;line-height:1.55;color:#111827;word-break:break-word;">' . $valHtml . '</td>'
+                    . '</tr>';
+            }
+            if ($rows === '') {
+                $rows = '<tr><td colspan="2" style="padding:12px 0;font-size:14px;color:#6b7280;">' . $esc(__('mf_email_no_data')) . '</td></tr>';
+            }
+
+            $intro = $isTest ? __('mf_test_mail_intro') : __('mf_email_intro');
+            $adminUrl = '';
+            if (!$isTest && (int)($form['id'] ?? 0) > 0) {
+                $adminUrl = $url . '/admin/plugins.php?id=modo-form&mf_view=subs&fid=' . (int)$form['id'];
+            }
+
+            $html  = '<!DOCTYPE html><html lang="' . $esc($lang) . '"><head>'
+                . '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                . '<title>' . $esc($name) . '</title></head>'
+                . '<body style="margin:0;padding:0;background-color:#f3f4f6;">'
+                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">'
+                . '<tr><td align="center" style="padding:28px 12px;">'
+                . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">'
+                . '<tr><td style="height:6px;background-color:' . $accent . ';font-size:0;line-height:0;">&nbsp;</td></tr>'
+                . '<tr><td style="padding:26px 30px 6px 30px;">'
+                . '<div style="font-size:12px;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;font-weight:700;">' . $esc($site) . '</div>'
+                . '<h1 style="margin:10px 0 4px;font-size:22px;line-height:1.3;color:#111827;font-weight:700;">' . $esc($name) . '</h1>'
+                . '<p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;">' . $esc($intro) . '</p>'
+                . '</td></tr>'
+                . '<tr><td style="padding:16px 30px 0 30px;">'
+                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' . $rows . '</table>'
+                . '</td></tr>'
+                . '<tr><td style="padding:20px 30px 26px 30px;">';
+
+            if ($adminUrl !== '') {
+                $html .= '<a href="' . $esc($adminUrl) . '" style="display:inline-block;padding:11px 20px;background-color:' . $accent . ';color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">' . $esc(__('mf_email_admin_button')) . '</a>';
+            } else {
+                $html .= '<a href="' . $esc($url . '/') . '" style="display:inline-block;padding:11px 20px;background-color:' . $accent . ';color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">' . $esc(__('mf_email_site_button')) . '</a>';
+            }
+
+            $html .= '</td></tr>'
+                . '<tr><td style="padding:16px 30px;background-color:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.6;color:#6b7280;">'
+                . $esc(sprintf(__('mf_email_footer'), $site)) . '<br>'
+                . '<span style="color:#9ca3af;">' . $esc($date) . '</span>'
+                . '</td></tr>'
+                . '</table></td></tr></table></body></html>';
+
+            return $html;
+        }
+
+        /** Wysyła wiadomość przez centralny Mailer, z awaryjnym fallbackiem mail(). */
+        private static function sendEmail(string $to, string $subject, string $html, array $options = []): bool
+        {
+            if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                return false;
+            }
+
             if (class_exists('\\Core\\Mailer')) {
-                \Core\Mailer::send($to, $subject, $body, $options);
-                return;
+                $ok = \Core\Mailer::send($to, $subject, $html, array_merge(['html' => true], $options));
+                if (!$ok) {
+                    self::logMailError((string)\Core\Mailer::lastError());
+                }
+                return (bool)$ok;
             }
 
             // Fallback for an environment without the Core\Mailer class.
-            $headers = 'Content-Type: text/plain; charset=UTF-8';
-            if (isset($options['from_email'])) {
-                $headers .= "\r\nFrom: " . $options['from_email'];
+            $from = trim((string)($options['from_email'] ?? self::opt('from_email')));
+            if ($from === '' || !filter_var($from, FILTER_VALIDATE_EMAIL)) {
+                $host = preg_replace('/[^A-Za-z0-9.\-]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost')) ?: 'localhost';
+                $from = 'no-reply@' . $host;
             }
-            @mail($to, $subject, $body, $headers);
+
+            $headers = [
+                'MIME-Version: 1.0',
+                'Content-Type: text/html; charset=UTF-8',
+                'From: ' . $from,
+            ];
+            $replyTo = trim((string)($options['reply_to'] ?? ''));
+            if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+                $headers[] = 'Reply-To: ' . $replyTo;
+            }
+
+            $subject = str_replace(["\r", "\n"], '', $subject);
+            $ok = @mail($to, $subject, $html, implode("\r\n", $headers));
+            if (!$ok) {
+                self::logMailError('PHP mail() returned false.');
+            }
+            return (bool)$ok;
+        }
+
+        private static function sendTestEmail(string $to): bool
+        {
+            $form = ['id' => 0, 'name' => __('mf_test_mail_form')];
+            $data = [__('mf_test_mail_field') => __('mf_test_mail_value')];
+            $options = ['from_name' => self::siteName()];
+            $from = trim(self::opt('from_email'));
+            if ($from !== '' && filter_var($from, FILTER_VALIDATE_EMAIL)) {
+                $options['from_email'] = $from;
+            }
+            return self::sendEmail($to, __('mf_test_mail_subject'), self::buildEmailHtml($form, $data, true), $options);
+        }
+
+        /** Nazwa strony do nagłówka e-maila. */
+        private static function siteName(): string
+        {
+            $name = class_exists('\\Core\\Router') ? trim((string)\Core\Router::getOption('site_title', '')) : '';
+            return $name !== '' ? $name : 'Modo CMS';
+        }
+
+        /** Bazowy adres strony (bez końcowego ukośnika). */
+        private static function siteUrl(): string
+        {
+            $url = class_exists('\\Core\\Router') ? trim((string)\Core\Router::getOption('site_url', '')) : '';
+            if ($url !== '') {
+                return rtrim($url, '/');
+            }
+
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host   = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+            $base   = class_exists('\\Core\\Router') ? rtrim(\Core\Router::getBaseSubdirectory(), '/') : '';
+            return rtrim($scheme . '://' . $host . $base, '/');
+        }
+
+        private static function logMailError(string $message): void
+        {
+            if ($message === '') {
+                return;
+            }
+            $dir = dirname(__DIR__, 2) . '/data/logs';
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+            if (is_dir($dir) && is_writable($dir)) {
+                @file_put_contents(
+                    $dir . '/modo-form-mail.log',
+                    date('c') . ' ' . str_replace(["\r", "\n"], ' ', $message) . PHP_EOL,
+                    FILE_APPEND | LOCK_EX
+                );
+            }
         }
 
         private static function currentPath(): string
@@ -1069,6 +1423,27 @@ if (!class_exists('ModoForm')) {
                     self::saveSettings();
                 }
                 header('Location: plugins.php?id=' . self::PLUGIN_ID . '&mf_view=settings&mf_saved=1');
+                exit;
+            }
+
+            // Testowa wiadomosc e-mail.
+            if ($isPost && isset($_POST['mf_test_email'])) {
+                $ok  = false;
+                $msg = __('mf_err_csrf');
+                if (\Core\Security::verifyCsrfToken($_POST['mf_csrf'] ?? '')
+                    && (!class_exists('\\Core\\Auth') || \Core\Auth::can('manage_settings'))) {
+                    $to = trim((string)($_POST['mf_test_to'] ?? self::opt('notify_email')));
+                    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                        $msg = __('mf_test_mail_bad_address');
+                    } else {
+                        $ok  = self::sendTestEmail($to);
+                        $msg = $ok ? __('mf_test_mail_ok') : __('mf_test_mail_err');
+                        if (!$ok && class_exists('\\Core\\Mailer') && \Core\Mailer::lastError() !== '') {
+                            $msg .= ' ' . \Core\Mailer::lastError();
+                        }
+                    }
+                }
+                header('Location: plugins.php?id=' . self::PLUGIN_ID . '&mf_view=settings&mf_mailtest=' . ($ok ? 'ok' : 'err') . '&mf_mailmsg=' . rawurlencode($msg));
                 exit;
             }
 
@@ -1176,8 +1551,8 @@ if (!class_exists('ModoForm')) {
                 'submit_label' => trim((string)($_POST['mf_set_submit'] ?? '')),
                 'success'      => trim((string)($_POST['mf_set_success'] ?? '')),
                 'redirect'     => trim((string)($_POST['mf_set_redirect'] ?? '')),
-                'store'        => isset($_POST['mf_set_store']) ? '1' : '0',
-                'notify'       => isset($_POST['mf_set_notify']) ? '1' : '0',
+                'store'        => self::triState($_POST['mf_set_store'] ?? 'inherit'),
+                'notify'       => self::triState($_POST['mf_set_notify'] ?? 'inherit'),
                 'notify_email' => trim((string)($_POST['mf_set_notify_email'] ?? '')),
                 'captcha'      => in_array($capMode, ['inherit', 'none', 'own', 'hcaptcha', 'recaptcha'], true) ? $capMode : 'inherit',
                 'honeypot'     => isset($_POST['mf_set_honeypot']) ? '1' : '0',
@@ -1185,6 +1560,10 @@ if (!class_exists('ModoForm')) {
 
             $fieldsJson   = json_encode($fields, JSON_UNESCAPED_UNICODE);
             $settingsJson = json_encode($settings, JSON_UNESCAPED_UNICODE);
+
+            if (class_exists('\\Core\\PageCache')) {
+                \Core\PageCache::purge();
+            }
 
             if (!$db) {
                 return $id;
@@ -1211,7 +1590,7 @@ if (!class_exists('ModoForm')) {
                     self::setOption($k, trim((string)$_POST['mf_' . $k]));
                 }
             }
-            if (isset($_POST['mf_captcha_mode']) && in_array($_POST['mf_captcha_mode'], ['none', 'own', 'hcaptcha', 'recaptcha'], true)) {
+            if (isset($_POST['mf_captcha_mode']) && in_array($_POST['mf_captcha_mode'], ['auto', 'none', 'own', 'hcaptcha', 'recaptcha'], true)) {
                 self::setOption('captcha_mode', (string)$_POST['mf_captcha_mode']);
             }
             if (isset($_POST['mf_recaptcha_version']) && in_array($_POST['mf_recaptcha_version'], ['v2', 'v3'], true)) {
@@ -1242,6 +1621,9 @@ if (!class_exists('ModoForm')) {
                 $db->prepare("DELETE FROM modo_form_submissions WHERE form_id=:id")->execute([':id' => $id]);
             } catch (\Throwable $e) {
                 // ignore
+            }
+            if (class_exists('\\Core\\PageCache')) {
+                \Core\PageCache::purge();
             }
         }
 
@@ -1354,6 +1736,16 @@ if (!class_exists('ModoForm')) {
             echo '</div>';
 
             echo '<style>' . self::adminStyles() . '</style>';
+
+            $warnings = self::configWarnings();
+            if ($warnings !== []) {
+                echo '<div class="card" style="padding:12px 16px;margin-bottom:16px;border-left:4px solid #f59e0b;background:#fffbeb;color:#92400e;">';
+                echo '<strong style="display:block;margin-bottom:4px;">' . $esc(__('mf_config_warnings')) . '</strong><ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.5;">';
+                foreach ($warnings as $warning) {
+                    echo '<li>' . $esc($warning) . '</li>';
+                }
+                echo '</ul></div>';
+            }
 
             switch ($view) {
                 case 'edit':
@@ -1581,9 +1973,21 @@ if (!class_exists('ModoForm')) {
             $h .= '</select></div>';
             $h .= '</div>';
 
+            $h .= '<div class="mf-grid2" style="margin-top:10px;">';
+            foreach (['store' => __('mf_store'), 'notify' => __('mf_notify')] as $key => $label) {
+                $current = (string)($settings[$key] ?? 'inherit');
+                if (!in_array($current, ['inherit', '1', '0'], true)) {
+                    $current = in_array($current, ['1', 'yes', 'on'], true) ? '1' : 'inherit';
+                }
+                $h .= '<div class="form-group"><label class="form-label">' . $esc($label) . '</label>'
+                    . '<select class="form-control" name="mf_set_' . $key . '">';
+                foreach (['inherit' => __('mf_inherit'), '1' => __('mf_yes'), '0' => __('mf_no')] as $val => $lbl) {
+                    $h .= '<option value="' . $val . '"' . ($current === $val ? ' selected' : '') . '>' . $esc($lbl) . '</option>';
+                }
+                $h .= '</select></div>';
+            }
+            $h .= '</div>';
             $h .= '<div style="display:grid;gap:8px;margin-top:10px;">';
-            $h .= '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_set_store" value="1"' . (!empty($settings['store']) ? ' checked' : '') . '> ' . $esc(__('mf_store')) . '</label>';
-            $h .= '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_set_notify" value="1"' . (!empty($settings['notify']) ? ' checked' : '') . '> ' . $esc(__('mf_notify')) . '</label>';
             $h .= '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_set_honeypot" value="1"' . (!empty($settings['honeypot']) ? ' checked' : '') . '> ' . $esc(__('mf_honeypot')) . '</label>';
             $h .= '</div></div>';
 
@@ -1674,6 +2078,15 @@ if (!class_exists('ModoForm')) {
 
         private static function renderSettings(string $csrf, callable $esc): void
         {
+            if (isset($_GET['mf_mailtest'])) {
+                $ok  = (string)$_GET['mf_mailtest'] === 'ok';
+                $msg = (string)($_GET['mf_mailmsg'] ?? '');
+                $style = $ok
+                    ? 'border-left:4px solid #16a34a;background:#f0fdf4;color:#166534;'
+                    : 'border-left:4px solid #dc2626;background:#fef2f2;color:#991b1b;';
+                echo '<div class="card" style="padding:12px 16px;margin-bottom:14px;' . $style . '">' . $esc($msg) . '</div>';
+            }
+
             echo '<form method="post" action="plugins.php?id=' . self::PLUGIN_ID . '&mf_view=settings">';
             echo '<input type="hidden" name="mf_csrf" value="' . $esc($csrf) . '">';
             echo '<input type="hidden" name="mf_settings" value="1">';
@@ -1683,17 +2096,29 @@ if (!class_exists('ModoForm')) {
             }
 
             echo '<div class="card" style="margin-bottom:16px;"><h3 style="margin:0 0 12px;font-size:15px;">' . $esc(__('mf_captcha')) . '</h3>';
-            $mode = self::opt('captcha_mode', 'own');
-            echo '<div class="form-group"><label class="form-label">' . $esc(__('mf_captcha_mode')) . '</label><select class="form-control" name="mf_captcha_mode" style="max-width:320px;">';
-            foreach (['none' => __('mf_captcha_none'), 'own' => __('mf_captcha_own'), 'hcaptcha' => 'hCaptcha', 'recaptcha' => 'Google reCAPTCHA'] as $val => $lbl) {
+            $mode = self::opt('captcha_mode', 'auto');
+            echo '<div class="form-group"><label class="form-label">' . $esc(__('mf_captcha_mode')) . '</label><select class="form-control" name="mf_captcha_mode" style="max-width:360px;">';
+            foreach (['auto' => __('mf_captcha_auto'), 'none' => __('mf_captcha_none'), 'own' => __('mf_captcha_own'), 'hcaptcha' => 'hCaptcha', 'recaptcha' => 'Google reCAPTCHA'] as $val => $lbl) {
                 echo '<option value="' . $val . '"' . ($mode === $val ? ' selected' : '') . '>' . $esc($lbl) . '</option>';
             }
-            echo '</select></div>';
+            echo '</select>';
+            echo '<small style="font-size:11px;color:var(--text-muted);display:block;margin-top:6px;line-height:1.4;">' . $esc(__('mf_captcha_auto_hint')) . '</small></div>';
+
+            // Status kluczy: zielony = komplet, zolty = czesciowo, czerwony = brak.
+            $badge = static function (bool $full, bool $any) use ($esc): string {
+                if ($full) {
+                    return '<span class="mf-badge mf-badge--read">' . $esc(__('mf_captcha_status_ok')) . '</span>';
+                }
+                if ($any) {
+                    return '<span class="mf-badge mf-badge--draft">' . $esc(__('mf_captcha_status_partial')) . '</span>';
+                }
+                return '<span class="mf-badge mf-badge--spam">' . $esc(__('mf_captcha_status_missing')) . '</span>';
+            };
 
             echo '<div class="mf-grid2">';
-            echo '<div class="form-group"><label class="form-label">hCaptcha Site Key</label><input class="form-control" type="text" name="mf_hcaptcha_site" value="' . $esc(self::opt('hcaptcha_site')) . '"></div>';
+            echo '<div class="form-group"><label class="form-label">hCaptcha Site Key ' . $badge(self::captchaConfigured('hcaptcha'), self::captchaKeyPresent('hcaptcha')) . '</label><input class="form-control" type="text" name="mf_hcaptcha_site" value="' . $esc(self::opt('hcaptcha_site')) . '"></div>';
             echo '<div class="form-group"><label class="form-label">hCaptcha Secret</label><input class="form-control" type="text" name="mf_hcaptcha_secret" value="' . $esc(self::opt('hcaptcha_secret')) . '"></div>';
-            echo '<div class="form-group"><label class="form-label">reCAPTCHA Site Key</label><input class="form-control" type="text" name="mf_recaptcha_site" value="' . $esc(self::opt('recaptcha_site')) . '"></div>';
+            echo '<div class="form-group"><label class="form-label">reCAPTCHA Site Key ' . $badge(self::captchaConfigured('recaptcha'), self::captchaKeyPresent('recaptcha')) . '</label><input class="form-control" type="text" name="mf_recaptcha_site" value="' . $esc(self::opt('recaptcha_site')) . '"></div>';
             echo '<div class="form-group"><label class="form-label">reCAPTCHA Secret</label><input class="form-control" type="text" name="mf_recaptcha_secret" value="' . $esc(self::opt('recaptcha_secret')) . '"></div>';
             echo '<div class="form-group"><label class="form-label">reCAPTCHA ' . $esc(__('mf_version')) . '</label><select class="form-control" name="mf_recaptcha_version">';
             foreach (['v2', 'v3'] as $v) {
@@ -1710,7 +2135,12 @@ if (!class_exists('ModoForm')) {
             echo '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_store_ip" value="1"' . (self::opt('store_ip') === '1' ? ' checked' : '') . '> ' . $esc(__('mf_store_ip')) . '</label>';
             echo '</div></div>';
 
-            echo '<div class="card" style="margin-bottom:16px;"><h3 style="margin:0 0 12px;font-size:15px;">' . $esc(__('mf_notifications')) . '</h3><div class="mf-grid2">';
+            echo '<div class="card" style="margin-bottom:16px;"><h3 style="margin:0 0 12px;font-size:15px;">' . $esc(__('mf_notifications')) . '</h3>';
+            echo '<div style="display:grid;gap:8px;margin-bottom:14px;">';
+            echo '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_store" value="1"' . (self::opt('store') === '1' ? ' checked' : '') . '> ' . $esc(__('mf_store')) . '</label>';
+            echo '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_notify" value="1"' . (self::opt('notify') === '1' ? ' checked' : '') . '> ' . $esc(__('mf_notify')) . '</label>';
+            echo '</div>';
+            echo '<div class="mf-grid2">';
             echo '<div class="form-group"><label class="form-label">' . $esc(__('mf_notify_email')) . '</label><input class="form-control" type="text" name="mf_notify_email" value="' . $esc(self::opt('notify_email')) . '"></div>';
             echo '<div class="form-group"><label class="form-label">' . $esc(__('mf_from_email')) . '</label><input class="form-control" type="text" name="mf_from_email" value="' . $esc(self::opt('from_email')) . '"></div>';
             echo '</div>';
@@ -1719,6 +2149,15 @@ if (!class_exists('ModoForm')) {
 
             echo '<button type="submit" class="btn btn-primary" style="margin-bottom:20px;">' . $esc(__('mf_save')) . '</button>';
             echo '</form>';
+
+            echo '<div class="card" style="margin-bottom:20px;"><h3 style="margin:0 0 10px;font-size:15px;">' . $esc(__('mf_test_email')) . '</h3>';
+            echo '<form method="post" action="plugins.php?id=' . self::PLUGIN_ID . '&mf_view=settings" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">';
+            echo '<input type="hidden" name="mf_csrf" value="' . $esc($csrf) . '">';
+            echo '<input type="hidden" name="mf_test_email" value="1">';
+            echo '<div class="form-group" style="flex:1 1 260px;margin:0;"><label class="form-label">' . $esc(__('mf_test_mail_to')) . '</label>'
+                . '<input class="form-control" type="text" name="mf_test_to" value="' . $esc(self::opt('notify_email')) . '" placeholder="name@example.com"></div>';
+            echo '<button type="submit" class="btn btn-secondary">' . $esc(__('mf_test_email')) . '</button>';
+            echo '</form></div>';
         }
 
         private static function editorScript(callable $esc): string
@@ -1902,8 +2341,10 @@ if (!function_exists('the_modo_form')) {
     {
         $f = ModoForm::resolve($idOrSlug);
         if ($f) {
+            // Render first so captcha/asset flags are known, then enqueue.
+            $html = ModoForm::renderOne($f, $args);
             ModoForm::enqueueAssets();
-            echo ModoForm::renderOne($f, $args);
+            echo $html;
         }
     }
 }

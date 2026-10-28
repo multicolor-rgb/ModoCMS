@@ -23,7 +23,25 @@
         // reCAPTCHA v3 - wypełnij ukryte pole tokenem przed wysłaniem.
         var v3 = window.mfRecaptchaV3;
         var pending = false;
-        if (v3 && typeof v3 === "object" && v3.siteKey && window.grecaptcha) {
+
+        function whenRecaptcha(callback) {
+            if (window.grecaptcha && typeof window.grecaptcha.ready === "function") {
+                window.grecaptcha.ready(callback);
+                return;
+            }
+            var tries = 0;
+            var timer = setInterval(function () {
+                tries++;
+                if (window.grecaptcha && typeof window.grecaptcha.ready === "function") {
+                    clearInterval(timer);
+                    window.grecaptcha.ready(callback);
+                } else if (tries > 120) {
+                    clearInterval(timer);
+                }
+            }, 100);
+        }
+
+        if (v3 && typeof v3 === "object" && v3.siteKey) {
             Array.prototype.forEach.call(forms, function (form) {
                 var hidden = form.querySelector('input[name="mf_grecaptcha"]');
                 if (!hidden) {
@@ -35,8 +53,8 @@
                     }
                     e.preventDefault();
                     pending = true;
-                    grecaptcha.ready(function () {
-                        grecaptcha.execute(v3.siteKey, { action: "modo_form" }).then(function (token) {
+                    whenRecaptcha(function () {
+                        window.grecaptcha.execute(v3.siteKey, { action: "modo_form" }).then(function (token) {
                             hidden.value = token;
                             pending = false;
                             if (form.requestSubmit) {
@@ -44,6 +62,8 @@
                             } else {
                                 form.submit();
                             }
+                        }).catch(function () {
+                            pending = false;
                         });
                     });
                 });

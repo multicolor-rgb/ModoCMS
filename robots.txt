@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /core/
+Disallow: /data/
 Disallow: /uploads/cache/
 
-Sitemap: http://localhost/modocms/sitemap.xml
+Sitemap: http://localhost:8001/sitemap.xml
