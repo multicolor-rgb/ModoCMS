@@ -263,7 +263,7 @@
     hooks: { pl: 'docs/pl/hooki.md', en: 'docs/en/hooks.md' },
     examples: { pl: 'docs/pl/przyklady.md', en: 'docs/en/examples.md' }
   };
-  var REPO_BLOB = 'https://github.com/multicolor-rgb/ModoCMS/blob/3.0/';
+  var REPO_BLOB = 'https://github.com/multicolor-rgb/ModoCMS/blob/4.0/';
 
   var STORAGE_KEY = 'modo-lang';
   var currentLang = 'pl';

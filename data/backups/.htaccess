@@ -1,7 +1,13 @@
-# Prevent direct access to databases and backups
-<IfModule authz_core_module>
+# ModoCMS .htaccess v3 - do not remove this line
+#
+# This directory must never be reachable over HTTP (databases, backups, caches,
+# translation packs, framework code). PHP itself is unaffected: Apache
+# authorization rules only apply to direct web requests.
+<IfModule mod_authz_core.c>
     Require all denied
 </IfModule>
-<IfModule !authz_core_module>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
     Deny from all
 </IfModule>
+Options -Indexes -ExecCGI

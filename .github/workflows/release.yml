@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release (e.g. v3.0.0)'
+        description: 'Existing tag to release (e.g. v2.0.0)'
         required: true
 
 permissions:
@@ -51,6 +51,26 @@ jobs:
           files: ModoCMS-*.zip
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
+
+            ### What's new in 2.0.0
+            - **New analytics engine:** every page view is recorded before the full-page cache; bots, admin, API and static assets are ignored; IP hashes rotate daily.
+            - **Statistics dashboard:** all views vs. unique visitors, top pages, bar/line/area chart, palette/custom colour, chart height, 7/14/30-day period, values/legend/grid toggles and a reset action.
+            - **Statistics settings tab** with an `analytics_enabled` switch in `modoconfig.php`.
+            - **Form builder 1.1.0:** hCaptcha, reCAPTCHA, built-in protection (honeypot + time trap + signed token), safe fallback when keys are missing, HTML e-mail notifications, Reply-To, test e-mail, per-form inheritance and automatic migrations.
+            - **Customizer:** media-library picker with previews and upload.
+            - **Core:** new analytics table/indexes and migrations, form pages excluded from page cache, plugin metadata for disabled plugins, PL/EN/DE/ES translations.
+            - **Security & packaging:** hardened `data/.htaccess`, no local `localhost` URLs in the release package, clean ZIP without database, uploads, `site/` or CI files.
+
+            ### Najważniejsze zmiany w 2.0.0
+            - **Nowy silnik statystyk:** każda odsłona liczona przed cache; pomijanie botów, panelu admina, API i plików statycznych; hash IP rotowany codziennie.
+            - **Dashboard statystyk:** wszystkie odsłony i unikalni odwiedzający, top strony, wykres bar/line/area, paleta lub własny kolor, wysokość, okres 7/14/30 dni, przełączniki wartości/legendy/siatki oraz reset danych.
+            - **Zakładka „Statystyki”** w ustawieniach i przełącznik `analytics_enabled` w `modoconfig.php`.
+            - **Formularze 1.1.0:** hCaptcha, reCAPTCHA, własna ochrona (honeypot + pułapka czasowa + podpisany token), bezpieczny fallback, e-maile HTML, Reply-To, test e-mail, dziedziczenie ustawień i automatyczne migracje.
+            - **Customizer:** wybór mediów z biblioteki, podgląd miniatur i upload.
+            - **Core:** nowe tabele/indeksy i migracje statystyk, brak cache dla stron z formularzami, metadane wyłączonych pluginów, tłumaczenia PL/EN/DE/ES.
+            - **Bezpieczeństwo i pakowanie:** wzmocnione `data/.htaccess`, brak lokalnych adresów `localhost`, czysty ZIP bez bazy, uploadów, `site/` i plików CI.
+
+            Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
             ### Install
             1. Extract the archive into your web root (or a subdirectory).
