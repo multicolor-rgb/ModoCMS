@@ -112,6 +112,8 @@
       'doc5.desc': 'Wszystkie akcje i filtry: gdzie działają i do czego służą.',
       'doc6.title': 'Przykłady',
       'doc6.desc': 'Gotowe wtyczki i fragmenty motywu do skopiowania.',
+      'doc7.title': 'Typy stron',
+      'doc7.desc': 'Gotowe presety treści z domyślnymi polami niestandardowymi.',
 
       'cta.title': 'Gotowy zbudować coś lekkiego?',
       'cta.sub': 'Pobierz Modo CMS, przeczytaj dokumentację i postaw własną witrynę na PHP 8 i SQLite3 — bez bazy do konfiguracji i bez zewnętrznych zależności.',
@@ -227,6 +229,8 @@
       'doc5.desc': 'Every action and filter: where it fires and what it is for.',
       'doc6.title': 'Examples',
       'doc6.desc': 'Ready-to-copy plugins and theme snippets.',
+      'doc7.title': 'Page types',
+      'doc7.desc': 'Reusable content presets with default custom fields.',
 
       'cta.title': 'Ready to build something lightweight?',
       'cta.sub': 'Download Modo CMS, read the docs and launch your own site on PHP 8 and SQLite3 — with no database to configure and no external dependencies.',
@@ -261,9 +265,10 @@
     getsimple: { pl: 'docs/pl/wtyczki.md', en: 'docs/en/getsimple-plugins.md' },
     functions: { pl: 'docs/pl/funkcje-motywu.md', en: 'docs/en/theme-functions.md' },
     hooks: { pl: 'docs/pl/hooki.md', en: 'docs/en/hooks.md' },
+    'page-types': { pl: 'docs/pl/typy-stron.md', en: 'docs/en/page-types.md' },
     examples: { pl: 'docs/pl/przyklady.md', en: 'docs/en/examples.md' }
   };
-  var REPO_BLOB = 'https://github.com/multicolor-rgb/ModoCMS/blob/3.0/';
+  var REPO_BLOB = 'https://github.com/multicolor-rgb/ModoCMS/blob/5.0/';
 
   var STORAGE_KEY = 'modo-lang';
   var currentLang = 'pl';
