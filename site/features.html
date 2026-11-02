@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="meta.features.title">Funkcje — Modo CMS</title>
+  <meta name="description" content="Poznaj funkcje Modo CMS: Theme Customizer, dwa edytory treści, siatki CSS bez CDN, hooki, pola niestandardowe, kategorie, SMTP i bezpieczeństwo." data-i18n-attr="content:meta.features.desc">
+  <meta name="theme-color" content="#0b1120">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+  <link rel="canonical" href="https://modocms.top/features.html">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Funkcje — Modo CMS">
+  <meta property="og:description" content="Theme Customizer, dwa edytory, hooki, pola niestandardowe, kategorie, SMTP i bezpieczeństwo — w lekkim CMS na PHP 8 i SQLite3.">
+  <meta property="og:url" content="https://modocms.top/features.html">
+  <meta property="og:image" content="https://modocms.top/assets/img/og-image.jpg">
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body data-page="features">
+  <a class="skip-link" href="#main" data-i18n="a11y.skip">Przejdź do treści</a>
+
+  <header class="nav" id="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="/index.html">
+        <img src="/assets/img/logo.svg" alt="Modo CMS" width="36" height="36">
+        <span>Modo CMS<small data-i18n="brand.sub">PHP 8 · SQLite3</small></span>
+      </a>
+      <nav class="nav__links" id="navLinks" aria-label="Nawigacja">
+        <a class="nav__link" href="/index.html" data-i18n="nav.home">Start</a>
+        <a class="nav__link is-active" href="/features.html" aria-current="page" data-i18n="nav.features">Funkcje</a>
+        <a class="nav__link" href="/docs/" data-i18n="nav.docs">Dokumentacja</a>
+        <a class="nav__link" href="/plugins.html" data-i18n="nav.plugins">Pluginy</a>
+        <a class="nav__link" href="/changelog.html" data-i18n="nav.changelog">Changelog</a>
+        <a class="nav__link" href="/download.html" data-i18n="nav.download">Pobierz</a>
+      </nav>
+      <div class="nav__actions">
+        <div class="lang-switch" role="group" aria-label="Język / Language">
+          <button type="button" data-lang="pl" aria-pressed="true">PL</button>
+          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <a class="btn btn--ghost" href="https://github.com/multicolor-rgb/ModoCMS" target="_blank" rel="noopener">
+          <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.4-5.25 5.69.41.35.78 1.05.78 2.12v3.14c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+          <span data-i18n="nav.github">GitHub</span>
+        </a>
+        <button class="nav__burger" id="burger" type="button" aria-expanded="false" aria-controls="navLinks" data-i18n-attr="aria-label:nav.menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container page-hero">
+      <span class="eyebrow" data-i18n="features.eyebrow">Możliwości</span>
+      <h1 data-i18n="features.title">Wszystko, czego potrzebujesz — bez balastu</h1>
+      <p data-i18n="features.sub">Nowoczesne funkcje CMS w lekkim, czytelnym kodzie. Każdą część rozbudujesz wtyczką, nie forkiem.</p>
+    </div>
+
+    <section class="section">
+      <div class="container">
+        <div class="cards">
+          <article class="card" data-reveal>
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9l6 3"/><circle cx="12" cy="12" r="1"/></svg></div>
+            <h3 data-i18n="f1.title">Theme Customizer</h3>
+            <p data-i18n="f1.desc">Ustawienia motywu z podglądem na żywo — pola deklarujesz w theme.json lub z wtyczki, a kolory aktualizują się natychmiast przez zmienne CSS.</p>
+          </article>
+          <article class="card" data-reveal data-delay="1">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></div>
+            <h3 data-i18n="f2.title">Dwa edytory treści</h3>
+            <p data-i18n="f2.desc">Klasyczny WYSIWYG (TinyMCE) albo edytor blokowy (Editor.js). Zmiana edytora nie niszczy istniejących treści — oba formaty współistnieją.</p>
+          </article>
+          <article class="card" data-reveal data-delay="2">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+            <h3 data-i18n="f3.title">Siatki CSS bez CDN</h3>
+            <p data-i18n="f3.desc">Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind lub własna siatka — dołączone lokalnie i spójne między frontendem a edytorem.</p>
+          </article>
+          <article class="card" data-reveal>
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h2M15 7h2a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-2"/></svg></div>
+            <h3 data-i18n="f4.title">Hooki i filtry</h3>
+            <p data-i18n="f4.desc">System akcji i filtrów w stylu WordPressa (Core\Hooks) pozwala rozbudować panel i frontend bez dotykania plików rdzenia.</p>
+          </article>
+          <article class="card" data-reveal data-delay="1">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a2 2 0 0 1 2-2h2M20 7V5a2 2 0 0 0-2-2h-2M4 17v2a2 2 0 0 0 2 2h2M20 17v2a2 2 0 0 1-2 2h-2"/><rect x="8" y="9" width="8" height="6" rx="1"/></svg></div>
+            <h3 data-i18n="f5.title">Pola niestandardowe</h3>
+            <p data-i18n="f5.desc">Tekst, liczba, checkbox, kolor, obrazek i JSON — przypisz dowolne metadane do strony i wypisz je w motywie jedną funkcją.</p>
+          </article>
+          <article class="card" data-reveal data-delay="2">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h7l2 3h7v13H4z"/><path d="M4 12h16"/></svg></div>
+            <h3 data-i18n="f6.title">Kategorie i tagi</h3>
+            <p data-i18n="f6.desc">Płaskie kategorie i tagi dla wpisów, z archiwami, paginacją, opisami SEO i wpisami do sitemap.xml — gotowe do użycia z motywu.</p>
+          </article>
+          <article class="card" data-reveal>
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg></div>
+            <h3 data-i18n="f7.title">E-mail przez SMTP</h3>
+            <p data-i18n="f7.desc">Wysyłka przez PHP mail() lub SMTP z PHPMailerem (TLS/SSL). Wszystkie wtyczki korzystają z jednej, globalnej konfiguracji.</p>
+          </article>
+          <article class="card" data-reveal data-delay="1">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M4 12h16"/><circle cx="12" cy="12" r="9" opacity=".4"/></svg></div>
+            <h3 data-i18n="f8.title">Pasek administratora</h3>
+            <p data-i18n="f8.desc">Zalogowani widzą na froncie pasek z szybkimi akcjami: edycja bieżącej strony, dodanie nowej treści i edycja ustawień motywu.</p>
+          </article>
+          <article class="card" data-reveal data-delay="2">
+            <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+            <h3 data-i18n="f9.title">Bezpieczeństwo</h3>
+            <p data-i18n="f9.desc">PDO Prepared Statements, tokeny CSRF, weryfikacja uprawnień i sanityzacja wyjścia — bezpieczne wzorce od pierwszej linii kodu.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section__head" data-reveal>
+          <span class="eyebrow" data-i18n="how.eyebrow">Jak to działa</span>
+          <h2 data-i18n="how.title">Rdzeń zostaje czysty — resztę dopinasz hookami</h2>
+          <p data-i18n="how.sub">Trzy kroki wystarczą, by rozbudować CMS. Twoja wtyczka wpina się w nazwane punkty i nie modyfikuje ani jednego pliku rdzenia.</p>
+        </div>
+        <div class="steps">
+          <div class="step" data-reveal>
+            <span class="step__n">01</span>
+            <h3 data-i18n="how.s1.title">Wrzuć plik do plugins/</h3>
+            <p data-i18n="how.s1.desc">Pojedynczy plik PHP albo folder z własnymi zasobami. Identyfikatorem jest nazwa pliku lub katalogu.</p>
+          </div>
+          <div class="step" data-reveal data-delay="1">
+            <span class="step__n">02</span>
+            <h3 data-i18n="how.s2.title">Włącz w panelu</h3>
+            <p data-i18n="how.s2.desc">Jedno kliknięcie w ekranie Wtyczki ustawia flagę aktywności. Kod ładuje się przy każdym żądaniu.</p>
+          </div>
+          <div class="step" data-reveal data-delay="2">
+            <span class="step__n">03</span>
+            <h3 data-i18n="how.s3.title">Wpnij się w hooki</h3>
+            <p data-i18n="how.s3.desc">Akcje robią coś w danym momencie, filtry zmieniają wartość. Priorytet decyduje o kolejności.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-label="Statystyki">
+      <div class="container">
+        <div class="stats">
+          <div class="stat" data-reveal><b data-count="0">0</b><span data-i18n="stat1">Konfiguracji bazy danych</span></div>
+          <div class="stat" data-reveal data-delay="1"><b data-count="2">0</b><span data-i18n="stat2">Edytory treści</span></div>
+          <div class="stat" data-reveal data-delay="2"><b data-count="57" data-prefix="~">0</b><span data-i18n="stat3">Funkcje motywu</span></div>
+          <div class="stat" data-reveal><b data-count="60" data-suffix="+">0</b><span data-i18n="stat4">Hooki</span></div>
+          <div class="stat" data-reveal data-delay="1"><b data-count="4">0</b><span data-i18n="stat5">Dołączone wtyczki</span></div>
+          <div class="stat" data-reveal data-delay="2"><b>MIT</b><span data-i18n="stat6">Licencja</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta" data-reveal>
+          <h2 data-i18n="cta.title">Gotowy zbudować coś lekkiego?</h2>
+          <p data-i18n="cta.sub">Pobierz Modo CMS, przeczytaj dokumentację i postaw własną witrynę na PHP 8 i SQLite3 — bez bazy do konfiguracji i bez zewnętrznych zależności.</p>
+          <div class="hero__cta">
+            <a class="btn" href="/download.html"><span data-i18n="cta.btn1">Pobierz Modo CMS</span></a>
+            <a class="btn btn--ghost" href="/docs/"><span data-i18n="cta.btn2">Przeczytaj dokumentację</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div>
+          <a class="brand" href="/index.html" style="margin-bottom:16px">
+            <img src="/assets/img/logo.svg" alt="Modo CMS" width="36" height="36">
+            <span>Modo CMS<small data-i18n="brand.sub">PHP 8 · SQLite3</small></span>
+          </a>
+          <p data-i18n="footer.about">Lekki, szybki i modułowy system zarządzania treścią na PHP 8 i SQLite3. Zbudowany dla ludzi, którzy chcą pełnej kontroli nad kodem.</p>
+        </div>
+        <div>
+          <h4 data-i18n="footer.col1">Projekt</h4>
+          <ul>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/5.0/CONTRIBUTING.md" target="_blank" rel="noopener" data-i18n="footer.contributing">Współpraca</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/issues" target="_blank" rel="noopener" data-i18n="footer.issues">Zgłoś błąd</a></li>
+            <li><a href="https://github.com/multicolor-rgb/ModoCMS/blob/5.0/LICENSE" target="_blank" rel="noopener" data-i18n="footer.license">Licencja MIT</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 data-i18n="footer.col2">Nawigacja</h4>
+          <ul>
+            <li><a href="/features.html" data-i18n="nav.features">Funkcje</a></li>
+            <li><a href="/docs/" data-i18n="nav.docs">Dokumentacja</a></li>
+            <li><a href="/plugins.html" data-i18n="nav.plugins">Pluginy</a></li>
+            <li><a href="/changelog.html" data-i18n="nav.changelog">Changelog</a></li>
+            <li><a href="/download.html" data-i18n="nav.download">Pobierz</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© 2026 Modo CMS · <span data-i18n="footer.license">Licencja MIT</span></span>
+        <span data-i18n="footer.made">Zbudowano na PHP 8 + SQLite3 · bez CDN</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

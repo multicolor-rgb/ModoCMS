@@ -15,12 +15,67 @@
     pl: {
       'a11y.skip': 'Przejdź do treści',
       'brand.sub': 'PHP 8 · SQLite3',
+      'nav.home': 'Start',
       'nav.features': 'Funkcje',
       'nav.how': 'Jak działa',
       'nav.start': 'Szybki start',
       'nav.docs': 'Dokumentacja',
+      'nav.plugins': 'Pluginy',
+      'nav.changelog': 'Changelog',
+      'nav.download': 'Pobierz',
       'nav.github': 'GitHub',
       'nav.menu': 'Otwórz menu',
+
+      'meta.features.title': 'Funkcje — Modo CMS',
+      'meta.features.desc': 'Poznaj funkcje Modo CMS: Theme Customizer, dwa edytory treści, siatki CSS bez CDN, hooki, pola niestandardowe, kategorie, SMTP i bezpieczeństwo.',
+      'meta.plugins.title': 'Pluginy i motywy — Modo CMS',
+      'meta.plugins.desc': 'Dołączone do Modo CMS wtyczki i motywy: Cookie Consent, Modo Carousel, Modo Form, Modo Gallery oraz trzy motywy Bootstrap.',
+      'meta.download.title': 'Pobierz — Modo CMS',
+      'meta.download.desc': 'Pobierz Modo CMS: wymagania PHP 8, instalacja w katalogu głównym lub podkatalogu, kreator instalacji i czysty ZIP bez bazy oraz uploadów.',
+
+      'highlights.eyebrow': 'Dlaczego Modo',
+      'highlights.title': 'Wszystko, czego potrzebujesz — bez balastu',
+      'highlights.sub': 'Nowoczesne funkcje CMS w lekkim, czytelnym kodzie. Każdą część rozbudujesz wtyczką, nie forkiem.',
+      'highlights.more': 'Poznaj wszystkie funkcje',
+
+      'plugins.eyebrow': 'Wtyczki i motywy',
+      'plugins.title': 'Gotowe rozszerzenia w paczce',
+      'plugins.sub': 'Modo CMS działa od razu po instalacji. Dołączone wtyczki i motywy korzystają wyłącznie z lokalnych zasobów — bez CDN i bez zewnętrznych zależności.',
+      'plugins.core': 'Wtyczki',
+      'plugins.coreTitle': 'Cztery wtyczki, które po prostu działają',
+      'plugins.themes': 'Motywy',
+      'plugins.themesTitle': 'Trzy motywy startowe',
+      'plugins.themesSub': 'Każdy motyw korzysta z pełnego API Modo CMS: menu, języki, tagi, pętla wpisów, hooki i SEO.',
+      'plugins.read': 'Dokumentacja wtyczek',
+      'p1.desc': 'Baner zgody zgodny z RODO, ePrivacy i Google Consent Mode v2. Blokuje skrypty analityczne i marketingowe do momentu wyrażenia zgody.',
+      'p2.desc': 'Responsywny slider z lokalnym Swiperem. Slajdy z obrazem, nagłówkiem, tekstem i CTA, autoplay, efekty, strzałki, paginacja i breakpointy.',
+      'p3.desc': 'Kreator formularzy i ankiet z archiwizacją zgłoszeń. Domyślne powiadomienia e-mail HTML, Reply-To, hCaptcha, reCAPTCHA i własna ochrona antyspamowa.',
+      'p4.desc': 'Galerie grid, masonry i justified z lokalnym GLightboxem, sortowaniem drag & drop i wyborem zdjęć z biblioteki mediów.',
+      't1.desc': 'Jasny, responsywny motyw oparty na Bootstrap 5.3.8. Dobry punkt startowy dla typowej strony firmowej lub bloga.',
+      't2.desc': 'Ciemny motyw z gradientami i szklanymi kartami. Pełne wykorzystanie API motywów i nowoczesnego wyglądu.',
+      't3.desc': 'Magazynowy motyw z serifowymi nagłówkami i wyróżnionym wpisem. Idealny dla bloga i publikacji treści.',
+
+      'download.eyebrow': 'Pobierz',
+      'download.title': 'Pobierz Modo CMS',
+      'download.sub': 'Czyste archiwum bez bazy danych, uploadów i plików deweloperskich. Rozpakuj, uruchom kreatora i masz gotową stronę na PHP 8 i SQLite3.',
+      'download.btn': 'Pobierz najnowszy release',
+      'download.source': 'Kod źródłowy',
+      'download.req': 'Wymagania',
+      'download.reqTitle': 'Co jest potrzebne',
+      'download.req1': 'PHP 8.0 lub nowszy',
+      'download.req2': 'Rozszerzenia pdo_sqlite, sqlite3 i mbstring',
+      'download.req3': 'Apache, Nginx lub wbudowany serwer PHP',
+      'download.req4': 'Prawo zapisu do katalogów data/ i uploads/',
+      'download.req5': 'Żadnego zewnętrznego serwera bazy danych',
+      'download.step1.title': 'Rozpakuj archiwum',
+      'download.step1.desc': 'Wrzuć pliki do katalogu głównego lub podkatalogu na serwerze.',
+      'download.step2.title': 'Nadaj prawa zapisu',
+      'download.step2.desc': 'Katalogi data/ i uploads/ muszą być zapisywalne przez użytkownika serwera WWW.',
+      'download.step3.title': 'Uruchom kreatora',
+      'download.step3.desc': 'Otwórz /install.php, przejdź przez kreator i usuń plik instalatora.',
+      'download.docs': 'Instrukcja instalacji',
+      'docs.all': 'Cała dokumentacja',
+      'docs.allDesc': 'Instalacja, wtyczki, motywy, hooki, typy stron i przykłady.',
 
       'hero.badge': '100% open source · licencja MIT',
       'hero.title': 'Postaw stronę',
@@ -122,7 +177,7 @@
 
       'footer.about': 'Lekki, szybki i modułowy system zarządzania treścią na PHP 8 i SQLite3. Zbudowany dla ludzi, którzy chcą pełnej kontroli nad kodem.',
       'footer.col1': 'Projekt',
-      'footer.col2': 'Dokumentacja',
+      'footer.col2': 'Nawigacja',
       'footer.contributing': 'Współpraca',
       'footer.issues': 'Zgłoś błąd',
       'footer.license': 'Licencja MIT',
@@ -132,12 +187,67 @@
     en: {
       'a11y.skip': 'Skip to content',
       'brand.sub': 'PHP 8 · SQLite3',
+      'nav.home': 'Home',
       'nav.features': 'Features',
       'nav.how': 'How it works',
       'nav.start': 'Quick start',
       'nav.docs': 'Documentation',
+      'nav.plugins': 'Plugins',
+      'nav.changelog': 'Changelog',
+      'nav.download': 'Download',
       'nav.github': 'GitHub',
       'nav.menu': 'Open menu',
+
+      'meta.features.title': 'Features — Modo CMS',
+      'meta.features.desc': 'Explore Modo CMS features: Theme Customizer, two content editors, CSS grids without a CDN, hooks, custom fields, categories, SMTP and security.',
+      'meta.plugins.title': 'Plugins & themes — Modo CMS',
+      'meta.plugins.desc': 'Plugins and themes bundled with Modo CMS: Cookie Consent, Modo Carousel, Modo Form, Modo Gallery and three Bootstrap themes.',
+      'meta.download.title': 'Download — Modo CMS',
+      'meta.download.desc': 'Download Modo CMS: PHP 8 requirements, root or subdirectory installation, the setup wizard and a clean ZIP without database or uploads.',
+
+      'highlights.eyebrow': 'Why Modo',
+      'highlights.title': 'Everything you need — nothing you do not',
+      'highlights.sub': 'Modern CMS features in a light, readable codebase. Extend every part with a plugin, not a fork.',
+      'highlights.more': 'See all features',
+
+      'plugins.eyebrow': 'Plugins & themes',
+      'plugins.title': 'Bundled extensions',
+      'plugins.sub': 'Modo CMS works right after installation. Every bundled plugin and theme uses local assets only — no CDN and no external dependencies.',
+      'plugins.core': 'Plugins',
+      'plugins.coreTitle': 'Four plugins that simply work',
+      'plugins.themes': 'Themes',
+      'plugins.themesTitle': 'Three starter themes',
+      'plugins.themesSub': 'Every theme uses the full Modo CMS API: menus, languages, tags, the posts loop, hooks and SEO.',
+      'plugins.read': 'Plugin documentation',
+      'p1.desc': 'A consent banner compliant with GDPR, ePrivacy and Google Consent Mode v2. Blocks analytics and marketing scripts until consent is given.',
+      'p2.desc': 'A responsive slider powered by a local Swiper build. Slides with image, heading, text and CTA, plus autoplay, effects, arrows, pagination and breakpoints.',
+      'p3.desc': 'A form and survey builder with submission archiving. HTML e-mail notifications by default, Reply-To, hCaptcha, reCAPTCHA and built-in spam protection.',
+      'p4.desc': 'Grid, masonry and justified galleries with a local GLightbox, drag & drop ordering and a media-library picker.',
+      't1.desc': 'A light, responsive theme based on Bootstrap 5.3.8. A great starting point for a typical company site or blog.',
+      't2.desc': 'A dark theme with gradients and glass cards. Full use of the theme API and a modern look.',
+      't3.desc': 'A magazine-style theme with serif headings and a featured post. Ideal for blogs and publishing.',
+
+      'download.eyebrow': 'Download',
+      'download.title': 'Download Modo CMS',
+      'download.sub': 'A clean archive without a database, uploads or development files. Extract it, run the wizard and you have a working site on PHP 8 and SQLite3.',
+      'download.btn': 'Download the latest release',
+      'download.source': 'Source code',
+      'download.req': 'Requirements',
+      'download.reqTitle': 'What you need',
+      'download.req1': 'PHP 8.0 or newer',
+      'download.req2': 'The pdo_sqlite, sqlite3 and mbstring extensions',
+      'download.req3': 'Apache, Nginx or the built-in PHP server',
+      'download.req4': 'Write access to the data/ and uploads/ directories',
+      'download.req5': 'No external database server',
+      'download.step1.title': 'Extract the archive',
+      'download.step1.desc': 'Upload the files to your web root or a subdirectory.',
+      'download.step2.title': 'Set write permissions',
+      'download.step2.desc': 'The data/ and uploads/ directories must be writable by the web server user.',
+      'download.step3.title': 'Run the wizard',
+      'download.step3.desc': 'Open /install.php, follow the wizard and delete the installer.',
+      'download.docs': 'Installation guide',
+      'docs.all': 'All documentation',
+      'docs.allDesc': 'Installation, plugins, themes, hooks, page types and examples.',
 
       'hero.badge': '100% open source · MIT licensed',
       'hero.title': 'Ship your site',
@@ -239,7 +349,7 @@
 
       'footer.about': 'A lightweight, fast and modular content management system built on PHP 8 and SQLite3. Made for people who want full control over their code.',
       'footer.col1': 'Project',
-      'footer.col2': 'Documentation',
+      'footer.col2': 'Navigation',
       'footer.contributing': 'Contributing',
       'footer.issues': 'Report a bug',
       'footer.license': 'MIT License',
@@ -257,18 +367,6 @@
       desc: 'Modo CMS is a lightweight, fast and modular content management system built on PHP 8 and SQLite3. No database setup, no CDN, full control over your theme and plugins. MIT licensed.'
     }
   };
-
-  /* Doc links switch with the language (repo tracks the docs in docs/pl and docs/en) */
-  var DOCs = {
-    installation: { pl: 'docs/pl/instalacja.md', en: 'docs/en/installation.md' },
-    plugins: { pl: 'docs/pl/pluginy.md', en: 'docs/en/plugins.md' },
-    getsimple: { pl: 'docs/pl/wtyczki.md', en: 'docs/en/getsimple-plugins.md' },
-    functions: { pl: 'docs/pl/funkcje-motywu.md', en: 'docs/en/theme-functions.md' },
-    hooks: { pl: 'docs/pl/hooki.md', en: 'docs/en/hooks.md' },
-    'page-types': { pl: 'docs/pl/typy-stron.md', en: 'docs/en/page-types.md' },
-    examples: { pl: 'docs/pl/przyklady.md', en: 'docs/en/examples.md' }
-  };
-  var REPO_BLOB = 'https://github.com/multicolor-rgb/ModoCMS/blob/5.0/';
 
   var STORAGE_KEY = 'modo-lang';
   var currentLang = 'pl';
@@ -313,20 +411,11 @@
       }
     }
 
-    // Document title + description
-    if (META[lang]) {
+    // Landing meta tags only; subpages carry their own data-i18n title/description.
+    if (document.body.getAttribute('data-page') === 'home' && META[lang]) {
       document.title = META[lang].title;
       var desc = document.querySelector('meta[name="description"]');
       if (desc) desc.setAttribute('content', META[lang].desc);
-    }
-
-    // Documentation links
-    var docLinks = document.querySelectorAll('[data-doc]');
-    for (var d = 0; d < docLinks.length; d++) {
-      var id = docLinks[d].getAttribute('data-doc');
-      if (DOCs[id] && DOCs[id][lang]) {
-        docLinks[d].setAttribute('href', REPO_BLOB + DOCs[id][lang]);
-      }
     }
 
     // Language buttons
@@ -372,13 +461,27 @@
   }
 
   /* ---------------- Language switch ---------------- */
-  var langButtons = document.querySelectorAll('.lang-switch button');
-  for (var i = 0; i < langButtons.length; i++) {
-    langButtons[i].addEventListener('click', function () {
-      applyLang(this.getAttribute('data-lang'));
+  var staticLang = document.body.getAttribute('data-static-lang');
+  if (staticLang) {
+    currentLang = staticLang === 'en' ? 'en' : 'pl';
+    document.documentElement.lang = currentLang;
+  } else {
+    var langButtons = document.querySelectorAll('.lang-switch button');
+    for (var i = 0; i < langButtons.length; i++) {
+      langButtons[i].addEventListener('click', function () {
+        applyLang(this.getAttribute('data-lang'));
+      });
+    }
+    applyLang(getInitialLang());
+  }
+
+  // Language links on generated docs pages: remember the choice for the rest of the site.
+  var langLinks = document.querySelectorAll('.lang-switch a[data-lang]');
+  for (var ll = 0; ll < langLinks.length; ll++) {
+    langLinks[ll].addEventListener('click', function () {
+      try { localStorage.setItem(STORAGE_KEY, this.getAttribute('data-lang')); } catch (e) {}
     });
   }
-  applyLang(getInitialLang());
 
   /* ---------------- Mobile nav ---------------- */
   var nav = document.getElementById('nav');
@@ -429,6 +532,41 @@
         document.body.removeChild(ta);
       }
     });
+  }
+
+  /* ---------------- Copy buttons on documentation code blocks ---------------- */
+  var docBlocks = document.querySelectorAll('.prose pre');
+  for (var pb = 0; pb < docBlocks.length; pb++) {
+    (function (pre) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-btn code-copy';
+      btn.textContent = (I18N[currentLang] || I18N.pl)['start.copy'];
+      pre.appendChild(btn);
+
+      btn.addEventListener('click', function () {
+        var code = pre.querySelector('code');
+        var text = (code || pre).innerText.trim();
+        var done = function () {
+          btn.classList.add('is-done');
+          btn.textContent = (I18N[currentLang] || I18N.pl)['start.copied'];
+          setTimeout(function () {
+            btn.classList.remove('is-done');
+            btn.textContent = (I18N[currentLang] || I18N.pl)['start.copy'];
+          }, 1800);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () {});
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); done(); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+      });
+    })(docBlocks[pb]);
   }
 
   /* ---------------- Scroll reveal ---------------- */

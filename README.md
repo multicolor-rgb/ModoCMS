@@ -2,12 +2,12 @@
 
 **English** | [Polski](README.pl.md)
 
-[![Website](assets/badges/website.svg)](https://multicolor-rgb.github.io/ModoCMS/)
+[![Website](assets/badges/website.svg)](https://modocms.top/)
 ![PHP 8](assets/badges/php.svg)
 ![SQLite3](assets/badges/sqlite.svg)
 ![License MIT](assets/badges/license.svg)
 
-**🌐 Live site:** <https://multicolor-rgb.github.io/ModoCMS/>
+**🌐 Live site:** <https://modocms.top/>
 
 **Modo CMS** is a lightweight, fast and modular content management system (CMS) built on **PHP 8.x** and **SQLite3**. It is designed for developers who value a readable architecture based on simple procedural functions, no unnecessary object overhead, and full control over the code of templates and plugins.
 
