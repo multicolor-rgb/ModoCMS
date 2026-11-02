@@ -1,0 +1,10 @@
+{
+  "name": "modo-site-build",
+  "private": true,
+  "type": "module",
+  "description": "Generates the Modo CMS project site (docs pages, changelog, sitemap).",
+  "dependencies": {
+    "github-slugger": "^2.0.0",
+    "marked": "^12.0.2"
+  }
+}

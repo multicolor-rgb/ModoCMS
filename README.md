@@ -2,12 +2,12 @@
 
 **English** | [Polski](README.pl.md)
 
-[![Website](assets/badges/website.svg)](https://multicolor-rgb.github.io/ModoCMS/)
+[![Website](assets/badges/website.svg)](https://modocms.top/)
 ![PHP 8](assets/badges/php.svg)
 ![SQLite3](assets/badges/sqlite.svg)
 ![License MIT](assets/badges/license.svg)
 
-**🌐 Live site:** <https://multicolor-rgb.github.io/ModoCMS/>
+**🌐 Live site:** <https://modocms.top/>
 
 **Modo CMS** is a lightweight, fast and modular content management system (CMS) built on **PHP 8.x** and **SQLite3**. It is designed for developers who value a readable architecture based on simple procedural functions, no unnecessary object overhead, and full control over the code of templates and plugins.
 
@@ -22,6 +22,7 @@
 | Creating GetSimple-style plugins | [docs/en/getsimple-plugins.md](docs/en/getsimple-plugins.md) | [docs/pl/wtyczki.md](docs/pl/wtyczki.md) |
 | Theme functions (plain-language reference) | [docs/en/theme-functions.md](docs/en/theme-functions.md) | [docs/pl/funkcje-motywu.md](docs/pl/funkcje-motywu.md) |
 | Hooks (actions & filters) | [docs/en/hooks.md](docs/en/hooks.md) | [docs/pl/hooki.md](docs/pl/hooki.md) |
+| Page types | [docs/en/page-types.md](docs/en/page-types.md) | [docs/pl/typy-stron.md](docs/pl/typy-stron.md) |
 | Examples | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
 
 ---
@@ -31,11 +32,25 @@
 * **Simple architecture:** Minimalist, easy-to-remember template functions.
 * **SQLite3 database:** No need to configure external database servers — the database is a single file, easy to migrate and back up.
 * **Dynamic Theme Customizer:** Appearance configuration with live preview. Sections and fields (many types) are declared in `theme.json`, through plugin hooks (`modo_customize_register`) or created directly in the panel (GUI builder stored in the database).
-* **Built-in Custom Fields:** Support for various field types (text, textarea, number, checkbox, color, image).
+* **Built-in Custom Fields:** Support for various field types (text, textarea, rich text / TinyMCE, galleries with columns, gap, lightbox and captions, number, checkbox, color, image).
+* **Page types:** Create reusable content presets for pages and posts with default custom fields, available from the editor and exposed to themes via `get_page_type()` / `is_page_type()`.
 * **Plugin architecture (Hooks):** A system of actions and filters that makes it easy to extend the admin panel and the frontend.
 * **Content editor choice (no CDN):** classic WYSIWYG (TinyMCE 6.8.3) or a block editor (Editor.js 2.31.7) — both bundled locally. Content keeps the format in which it was saved, so you can switch editors at any time without losing existing pages.
 * **CSS grids / frameworks (no CDN):** choose a popular grid system (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, a custom "Modo Grid" or Custom). The same bundled CSS is used on the frontend and in the content editor, so a grid laid out in the editor looks identical on the site.
 * **Security:** Protection against SQL Injection (PDO Prepared Statements), CSRF, permission verification and output sanitisation.
+
+---
+
+## 🆕 What's new in 3.0.0
+
+* **Page types:** reusable presets for static pages and blog posts with default custom fields — a dedicated admin screen, `get_page_type()` / `is_page_type()` theme functions, API support and revision history that keeps the document type.
+* **Media library folders:** one-level physical folders inside `uploads/` with upload to a selected folder, single and bulk moves, renaming, breadcrumb filtering and automatic URL updates in pages, posts, snippets, settings, theme data, revisions and plugin data.
+* **Media thumbnails:** lightweight 80/160/240 px images generated on upload, a backfill tool for existing libraries, a paginated library view, lazy loading and `srcset` for HiDPI screens.
+* **Richer custom fields:** rich text (TinyMCE) and galleries with columns, gap, lightbox and captions.
+* **Forms 1.2.0:** HTML e-mail notifications enabled by default, recipient fallback chain, optional Reply-To set to the sender and a redesigned message template.
+* **Automatic slugs:** a duplicate slug no longer blocks saving — `-1`, `-2`, etc. are appended per language in the editor, quick draft, API and revision restore.
+
+The full list is in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

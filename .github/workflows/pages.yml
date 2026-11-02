@@ -1,12 +1,15 @@
-# Publishes the static landing page from site/ to GitHub Pages.
+# Builds the project site (landing + generated docs) and publishes it to GitHub Pages.
 # One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
 name: Deploy site to GitHub Pages
 
 on:
   push:
-    branches: [main, 3.0]
+    branches: [main, 3.0, 4.0, 5.0]
     paths:
       - 'site/**'
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - '.github/site-build/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,6 +32,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: .github/site-build/package-lock.json
+
+      - name: Install site builder dependencies
+        run: npm ci --prefix .github/site-build
+
+      - name: Build site
+        run: node .github/site-build/build.mjs
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -37,7 +53,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: .build/site
 
       - name: Deploy to GitHub Pages
         id: deployment

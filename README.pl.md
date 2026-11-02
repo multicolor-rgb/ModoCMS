@@ -2,12 +2,12 @@
 
 [English](README.md) | **Polski**
 
-[![Strona](assets/badges/website.svg)](https://multicolor-rgb.github.io/ModoCMS/)
+[![Strona](assets/badges/website.svg)](https://modocms.top/)
 ![PHP 8](assets/badges/php.svg)
 ![SQLite3](assets/badges/sqlite.svg)
 ![Licencja MIT](assets/badges/license.svg)
 
-**🌐 Strona na żywo:** <https://multicolor-rgb.github.io/ModoCMS/>
+**🌐 Strona na żywo:** <https://modocms.top/>
 
 **Modo CMS** to lekki, szybki i modułowy system zarządzania treścią (CMS) oparty na **PHP 8.x** oraz bazie danych **SQLite3**. Zaprojektowany z myślą o programistach ceniących czytelną architekturę opartą na prostych funkcjach proceduralnych, brak zbędnego narzutu obiektowego oraz pełną kontrolę nad kodem szablonów i wtyczek.
 
@@ -22,6 +22,7 @@
 | Tworzenie wtyczek w stylu GetSimple | [docs/en/getsimple-plugins.md](docs/en/getsimple-plugins.md) | [docs/pl/wtyczki.md](docs/pl/wtyczki.md) |
 | Funkcje motywu (opis dla laika) | [docs/en/theme-functions.md](docs/en/theme-functions.md) | [docs/pl/funkcje-motywu.md](docs/pl/funkcje-motywu.md) |
 | Hooki (akcje i filtry) | [docs/en/hooks.md](docs/en/hooks.md) | [docs/pl/hooki.md](docs/pl/hooki.md) |
+| Typy stron | [docs/en/page-types.md](docs/en/page-types.md) | [docs/pl/typy-stron.md](docs/pl/typy-stron.md) |
 | Przykłady | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
 
 ---
@@ -31,11 +32,25 @@
 * **Prosta architektura:** Minimalistyczne, łatwe do zapamiętania funkcje szablonu.
 * **Baza SQLite3:** Brak konieczności konfiguracji zewnętrznych serwerów bazodanowych – baza w jednym pliku, łatwa do migracji i kopii zapasowych.
 * **Dynamiczny Theme Customizer:** Konfiguracja wyglądu z podglądem na żywo. Sekcje i pola (wiele typów) deklaruje się w `theme.json`, przez hooki wtyczek (`modo_customize_register`) lub tworzy bezpośrednio w panelu (builder GUI zapisywany w bazie).
-* **Wbudowane pola niestandardowe (Custom Fields):** Obsługa różnych typów pól (tekst, textarea, liczba, checkbox, kolor, obrazek).
+* **Wbudowane pola niestandardowe (Custom Fields):** Obsługa różnych typów pól (tekst, textarea, tekst sformatowany / TinyMCE, galerie z kolumnami, odstępem, lightboxem i podpisami, liczba, checkbox, kolor, obrazek).
+* **Typy stron:** Twórz gotowe szablony treści dla stron i wpisów z domyślnymi polami niestandardowymi, dostępne w edytorze i udostępniane motywom przez `get_page_type()` / `is_page_type()`.
 * **Architektura wtyczek (Hooks):** System akcji i filtrów pozwalający na łatwą rozbudowę panelu admina oraz frontendu.
 * **Wybór edytora treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) albo edytor blokowy (Editor.js 2.31.7) — oba dołączone lokalnie. Treść zachowuje format, w jakim została zapisana, więc edytor można zmienić w każdej chwili bez utraty istniejących stron.
 * **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
+
+---
+
+## 🆕 Co nowego w 3.0.0
+
+* **Typy stron:** gotowe presety dla stron statycznych i wpisów bloga z domyślnymi polami niestandardowymi — osobny ekran w panelu, funkcje motywu `get_page_type()` / `is_page_type()`, obsługa w API oraz rewizje zachowujące typ dokumentu.
+* **Foldery w bibliotece mediów:** jednopoziomowe, fizyczne foldery w `uploads/` z uploadem do wybranego folderu, przenoszeniem pojedynczym i zbiorczym, zmianą nazwy, filtrowaniem z breadcrumbem oraz automatyczną aktualizacją adresów URL w stronach, wpisach, snippetach, ustawieniach, motywie, rewizjach i danych pluginów.
+* **Miniatury mediów:** lekkie obrazy 80/160/240 px generowane przy uploadzie, narzędzie uzupełniania istniejącej biblioteki, paginowana lista, leniwe ładowanie i `srcset` dla ekranów HiDPI.
+* **Bogatsze pola niestandardowe:** tekst sformatowany (TinyMCE) oraz galerie z kolumnami, odstępem, lightboxem i podpisami.
+* **Formularze 1.2.0:** powiadomienia e-mail HTML domyślnie włączone, łańcuch fallbacku odbiorcy, opcjonalne Reply-To na adres nadawcy i przeprojektowany szablon wiadomości.
+* **Automatyczne slugi:** zajęty slug nie blokuje już zapisu — w obrębie języka dopisywane jest `-1`, `-2` itd. w edytorze, szybkim szkicu, API i przywracaniu rewizji.
+
+Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

@@ -33,6 +33,10 @@ uploads/cache/*
 # --- Local configuration (copy of modoconfig.sample.php) ---
 modoconfig.php
 
+# --- Project site build output and tooling dependencies ---
+/.build/
+/.github/site-build/node_modules/
+
 # --- Editor / OS / logs ---
 .DS_Store
 Thumbs.db
