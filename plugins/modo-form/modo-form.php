@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Modo Form
- * Description: Kreator formularzy zapytań i ankiet. Osadzanie przez shortcode [form id="1"] lub bezpośrednio w PHP (the_modo_form). Archiwizacja zgłoszeń w bazie, powiadomienia e-mail HTML oraz obsługa hCaptcha, Google reCAPTCHA i własnego zabezpieczenia (honeypot + pułapka czasowa + podpisany token).
- * Version: 1.1.0
+ * Description: Kreator formularzy zapytań i ankiet. Osadzanie przez shortcode [form id="1"] lub bezpośrednio w PHP (the_modo_form). Archiwizacja zgłoszeń w bazie, domyślne powiadomienia e-mail HTML (z opcjonalnym Reply-To na adres nadawcy) oraz obsługa hCaptcha, Google reCAPTCHA i własnego zabezpieczenia (honeypot + pułapka czasowa + podpisany token).
+ * Version: 1.2.0
  * Author: Modo CMS
  *
  * @package ModoForm
@@ -16,7 +16,7 @@ if (!class_exists('ModoForm')) {
     final class ModoForm
     {
         public const PLUGIN_ID  = 'modo-form';
-        public const VERSION    = '1.1.0';
+        public const VERSION    = '1.2.0';
         public const TAG        = 'form';
         public const OPT_PREFIX = 'mf_';
 
@@ -46,8 +46,9 @@ if (!class_exists('ModoForm')) {
             'min_seconds'       => '3',
             'store_ip'          => '1',
             'store'             => '1',
-            'notify'            => '0',
+            'notify'            => '1',
             'notify_email'      => '',
+            'reply_to_sender'   => '1',
             'from_email'        => '',
         ];
 
@@ -305,6 +306,7 @@ if (!class_exists('ModoForm')) {
                 'store'        => 'inherit', // inherit | 1 | 0
                 'notify'       => 'inherit', // inherit | 1 | 0
                 'notify_email' => '',
+                'reply_to'     => 'inherit', // inherit | 1 | 0
                 'captcha'      => 'inherit', // inherit | none | own | hcaptcha | recaptcha
                 'honeypot'     => '1',
             ];
@@ -525,7 +527,7 @@ if (!class_exists('ModoForm')) {
                 }
             }
 
-            if (self::opt('notify') === '1' && self::opt('notify_email') === '') {
+            if (self::opt('notify') === '1' && self::opt('notify_email') === '' && self::adminEmail() === '') {
                 $warnings[] = __('mf_warn_notify_email');
             }
 
@@ -927,13 +929,22 @@ if (!class_exists('ModoForm')) {
                 self::storeSubmission($formId, $collected);
             }
 
-            // 7. Powiadomienie e-mail.
+            // 7. Powiadomienie e-mail (domyślnie włączone - zob. self::$defaults).
             $notifyEmail = self::effectiveSetting($settings, 'notify_email');
             if ($notifyEmail === '') {
                 $notifyEmail = self::opt('notify_email');
             }
-            if (self::effectiveSetting($settings, 'notify') === '1' && $notifyEmail !== '') {
-                self::notifyEmail($notifyEmail, $form, $collected, $fields);
+            if (self::effectiveSetting($settings, 'notify') === '1') {
+                // Fallback: pierwsze konto administratora, aby powiadomienia
+                // dzialaly od razu, bez recznej konfiguracji adresu.
+                if ($notifyEmail === '') {
+                    $notifyEmail = self::adminEmail();
+                }
+                if ($notifyEmail !== '') {
+                    self::notifyEmail($notifyEmail, $form, $collected, $fields);
+                } else {
+                    self::logMailError('Notification skipped: e-mail notifications are enabled, but no recipient address is configured.');
+                }
             }
 
             if (class_exists('\\Core\\PageCache')) {
@@ -1158,8 +1169,9 @@ if (!class_exists('ModoForm')) {
                 return;
             }
 
-            $subject = sprintf(__('mf_email_subject'), (string)($form['name'] ?? ''));
-            $html    = self::buildEmailHtml($form, $data);
+            $settings = self::decodeSettings($form['settings'] ?? '{}');
+            $subject  = sprintf(__('mf_email_subject'), (string)($form['name'] ?? ''));
+            $html     = self::buildEmailHtml($form, $data, false, $fields);
 
             $options = ['from_name' => self::siteName()];
 
@@ -1169,13 +1181,43 @@ if (!class_exists('ModoForm')) {
                 $options['from_email'] = $from;
             }
 
-            // Reply straight to the person who filled in the form.
-            $replyTo = self::findReplyTo($fields, $data);
-            if ($replyTo !== '') {
-                $options['reply_to'] = $replyTo;
+            // Reply straight to the person who filled in the form (optional,
+            // domyślnie włączone; wymaga wypełnionego pola typu e-mail).
+            if (self::effectiveReplyTo($settings) === '1') {
+                $replyTo = self::findReplyTo($fields, $data);
+                if ($replyTo !== '') {
+                    $options['reply_to'] = $replyTo;
+                }
             }
 
             self::sendEmail($to, $subject, $html, $options);
+        }
+
+        /** Efektywny stan opcji Reply-To dla formularza (inherit -> global). */
+        private static function effectiveReplyTo(array $settings): string
+        {
+            $v = (string)($settings['reply_to'] ?? 'inherit');
+            if ($v === '' || $v === 'inherit') {
+                return self::opt('reply_to_sender', '1') === '1' ? '1' : '0';
+            }
+            return $v;
+        }
+
+        /** E-mail pierwszego konta administratora (fallback odbiorcy powiadomien). */
+        private static function adminEmail(): string
+        {
+            $db = self::db();
+            if (!$db) {
+                return '';
+            }
+            try {
+                $stmt = $db->prepare("SELECT email FROM users WHERE role = 'admin' AND email <> '' ORDER BY id ASC LIMIT 1");
+                $stmt->execute();
+                $email = trim((string)$stmt->fetchColumn());
+                return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
+            } catch (\Throwable $e) {
+                return '';
+            }
         }
 
         /** Znajduje adres e-mail nadawcy na podstawie pol formularza. */
@@ -1195,77 +1237,133 @@ if (!class_exists('ModoForm')) {
         }
 
         /**
-         * Buduje czytelny, ostylowany (inline CSS) e-mail HTML ze zgłoszeniem.
+         * Buduje czytelny, ostylowany (inline CSS) e-mail HTML ze zgłoszeniem
+         * - pelna tresc pol, metadane, automatyczna wersja tekstowa (AltBody).
          *
          * @param array<string,mixed> $form
          * @param array<string,mixed> $data
+         * @param array<int,array<string,mixed>> $fields
          */
-        private static function buildEmailHtml(array $form, array $data, bool $isTest = false): string
+        private static function buildEmailHtml(array $form, array $data, bool $isTest = false, array $fields = []): string
         {
-            $esc  = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
-            $site = self::siteName();
-            $url  = self::siteUrl();
-            $name = (string)($form['name'] ?? '');
-            $date = date('d.m.Y H:i');
-            $accent = '#2563eb';
-            $lang   = class_exists('\\Core\\I18n') ? \Core\I18n::getLocale() : 'pl';
+            $esc     = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+            $site    = self::siteName();
+            $url     = self::siteUrl();
+            $name    = (string)($form['name'] ?? '');
+            $date    = date('d.m.Y H:i');
+            $accent  = '#2563eb';
+            $muted   = '#6b7280';
+            $border  = '#e7eaef';
+            $lang    = class_exists('\\Core\\I18n') ? \Core\I18n::getLocale() : 'pl';
 
+            // Adres strony, z ktorej wyslano zgloszenie (do metadanych).
+            $pageUrl = $url . self::currentPath();
+
+            // Wartosc pola jako bezpieczny HTML (link / mailto / tekst).
+            $valueHtml = static function (string $value) use ($esc, $accent): string {
+                if (preg_match('~^https?://\S+$~i', trim($value))) {
+                    $safe = $esc(trim($value));
+                    return '<a href="' . $safe . '" style="color:' . $accent . ';text-decoration:none;word-break:break-all;">' . $safe . '</a>';
+                }
+                if (filter_var(trim($value), FILTER_VALIDATE_EMAIL)) {
+                    $safe = $esc(trim($value));
+                    return '<a href="mailto:' . $safe . '" style="color:' . $accent . ';text-decoration:none;">' . $safe . '</a>';
+                }
+                return nl2br($esc($value), false);
+            };
+
+            // Pierwsze wypelnione pole textarea = wyróżniona "wiadomosc" zgloszenia.
+            $messageLabel = '';
+            $messageValue = '';
+            foreach ($fields as $f) {
+                if ((string)($f['type'] ?? '') !== 'textarea') {
+                    continue;
+                }
+                $label = (string)($f['label'] ?? '') !== '' ? (string)$f['label'] : (string)($f['name'] ?? '');
+                $value = $data[$label] ?? '';
+                $value = is_array($value) ? implode(', ', array_map('strval', $value)) : (string)$value;
+                if (trim($value) !== '') {
+                    $messageLabel = $label;
+                    $messageValue = $value;
+                    break;
+                }
+            }
+
+            // Tabela wszystkich pol zgloszenia (pelna tresc; wartosci puste -> "-").
             $rows = '';
             foreach ($data as $label => $value) {
                 $label = (string)$label;
-                $value = is_array($value) ? implode(', ', array_map('strval', $value)) : (string)$value;
-
-                if (preg_match('~^https?://\S+$~i', trim($value))) {
-                    $safe = $esc(trim($value));
-                    $valHtml = '<a href="' . $safe . '" style="color:' . $accent . ';text-decoration:none;word-break:break-all;">' . $safe . '</a>';
-                } elseif (filter_var(trim($value), FILTER_VALIDATE_EMAIL)) {
-                    $safe = $esc(trim($value));
-                    $valHtml = '<a href="mailto:' . $safe . '" style="color:' . $accent . ';text-decoration:none;">' . $safe . '</a>';
-                } else {
-                    $valHtml = nl2br($esc($value), false);
+                if ($label === $messageLabel) {
+                    continue;
                 }
+                $value   = is_array($value) ? implode(', ', array_map('strval', $value)) : (string)$value;
+                $valHtml = trim($value) !== '' ? $valueHtml($value) : '<span style="color:#9ca3af;">&ndash;</span>';
 
                 $rows .= '<tr>'
-                    . '<td style="padding:11px 12px 11px 0;border-bottom:1px solid #eef0f3;vertical-align:top;font-size:13px;line-height:1.5;color:#6b7280;width:36%;">' . $esc($label) . '</td>'
-                    . '<td style="padding:11px 0;border-bottom:1px solid #eef0f3;vertical-align:top;font-size:14px;line-height:1.55;color:#111827;word-break:break-word;">' . $valHtml . '</td>'
+                    . '<td style="padding:11px 12px 11px 0;border-bottom:1px solid ' . $border . ';vertical-align:top;font-size:11px;line-height:1.5;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:' . $muted . ';width:34%;">' . $esc($label) . '</td>'
+                    . '<td style="padding:11px 0;border-bottom:1px solid ' . $border . ';vertical-align:top;font-size:14px;line-height:1.55;color:#111827;word-break:break-word;">' . $valHtml . '</td>'
                     . '</tr>';
             }
             if ($rows === '') {
-                $rows = '<tr><td colspan="2" style="padding:12px 0;font-size:14px;color:#6b7280;">' . $esc(__('mf_email_no_data')) . '</td></tr>';
+                $rows = '<tr><td colspan="2" style="padding:12px 0;font-size:14px;color:' . $muted . ';">' . $esc(__('mf_email_no_data')) . '</td></tr>';
             }
 
-            $intro = $isTest ? __('mf_test_mail_intro') : __('mf_email_intro');
+            // Wyróżniona sekcja z dłuższą treścią (pole textarea).
+            $messageBlock = '';
+            if ($messageLabel !== '') {
+                $messageBlock = '<div style="margin-top:18px;background-color:#f8fafc;border:1px solid ' . $border . ';border-left:3px solid ' . $accent . ';border-radius:8px;padding:14px 16px;">'
+                    . '<div style="font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:' . $muted . ';">' . $esc($messageLabel) . '</div>'
+                    . '<div style="margin-top:6px;font-size:15px;line-height:1.65;color:#111827;word-break:break-word;">' . $valueHtml($messageValue) . '</div>'
+                    . '</div>';
+            }
+
+            $intro    = $isTest ? __('mf_test_mail_intro') : __('mf_email_intro');
             $adminUrl = '';
             if (!$isTest && (int)($form['id'] ?? 0) > 0) {
                 $adminUrl = $url . '/admin/plugins.php?id=modo-form&mf_view=subs&fid=' . (int)$form['id'];
             }
 
+            // Ukryty preheader (czesna probka tresci w skrzynkach pocztowych).
+            $preheader = $isTest
+                ? __('mf_test_mail_intro')
+                : trim(strip_tags(__('mf_email_intro'))) . ' - ' . $site . ' - ' . $name;
+
             $html  = '<!DOCTYPE html><html lang="' . $esc($lang) . '"><head>'
                 . '<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
                 . '<title>' . $esc($name) . '</title></head>'
-                . '<body style="margin:0;padding:0;background-color:#f3f4f6;">'
-                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">'
+                . '<body style="margin:0;padding:0;background-color:#eef1f5;">'
+                . '<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#eef1f5;">' . $esc($preheader) . '</div>'
+                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f5;">'
                 . '<tr><td align="center" style="padding:28px 12px;">'
-                . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">'
-                . '<tr><td style="height:6px;background-color:' . $accent . ';font-size:0;line-height:0;">&nbsp;</td></tr>'
-                . '<tr><td style="padding:26px 30px 6px 30px;">'
-                . '<div style="font-size:12px;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;font-weight:700;">' . $esc($site) . '</div>'
-                . '<h1 style="margin:10px 0 4px;font-size:22px;line-height:1.3;color:#111827;font-weight:700;">' . $esc($name) . '</h1>'
+                . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid ' . $border . ';border-radius:16px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">'
+                . '<tr><td style="height:5px;background-color:' . $accent . ';font-size:0;line-height:0;">&nbsp;</td></tr>'
+                . '<tr><td style="padding:28px 30px 4px 30px;">'
+                . '<div style="font-size:11px;line-height:1.4;letter-spacing:.1em;text-transform:uppercase;color:' . $muted . ';font-weight:700;">' . $esc($site) . '</div>'
+                . '<h1 style="margin:10px 0 6px;font-size:22px;line-height:1.3;color:#111827;font-weight:700;">' . $esc($name) . '</h1>'
                 . '<p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;">' . $esc($intro) . '</p>'
                 . '</td></tr>'
-                . '<tr><td style="padding:16px 30px 0 30px;">'
-                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' . $rows . '</table>'
+                // Meta: data zgloszenia + strona zrodlowa.
+                . '<tr><td style="padding:14px 30px 0 30px;">'
+                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc;border:1px solid ' . $border . ';border-radius:8px;">'
+                . '<tr>'
+                . '<td style="padding:10px 16px;font-size:12px;line-height:1.5;color:' . $muted . ';"><span style="font-weight:700;color:#374151;">' . $esc(__('mf_email_meta_date')) . ':</span> ' . $esc($date) . '</td>'
+                . '<td align="right" style="padding:10px 16px;font-size:12px;line-height:1.5;color:' . $muted . ';"><a href="' . $esc($pageUrl) . '" style="color:' . $accent . ';text-decoration:none;">' . $esc(__('mf_email_meta_page')) . ' &rarr;</a></td>'
+                . '</tr></table>'
                 . '</td></tr>'
-                . '<tr><td style="padding:20px 30px 26px 30px;">';
+                . '<tr><td style="padding:18px 30px 0 30px;">'
+                . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' . $rows . '</table>'
+                . $messageBlock
+                . '</td></tr>'
+                . '<tr><td style="padding:22px 30px 26px 30px;">';
 
             if ($adminUrl !== '') {
-                $html .= '<a href="' . $esc($adminUrl) . '" style="display:inline-block;padding:11px 20px;background-color:' . $accent . ';color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">' . $esc(__('mf_email_admin_button')) . '</a>';
+                $html .= '<a href="' . $esc($adminUrl) . '" style="display:inline-block;padding:12px 22px;background-color:' . $accent . ';color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:9px;">' . $esc(__('mf_email_admin_button')) . '</a>';
             } else {
-                $html .= '<a href="' . $esc($url . '/') . '" style="display:inline-block;padding:11px 20px;background-color:' . $accent . ';color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">' . $esc(__('mf_email_site_button')) . '</a>';
+                $html .= '<a href="' . $esc($url . '/') . '" style="display:inline-block;padding:12px 22px;background-color:' . $accent . ';color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:9px;">' . $esc(__('mf_email_site_button')) . '</a>';
             }
 
             $html .= '</td></tr>'
-                . '<tr><td style="padding:16px 30px;background-color:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.6;color:#6b7280;">'
+                . '<tr><td style="padding:16px 30px;background-color:#f9fafb;border-top:1px solid ' . $border . ';font-size:12px;line-height:1.6;color:' . $muted . ';">'
                 . $esc(sprintf(__('mf_email_footer'), $site)) . '<br>'
                 . '<span style="color:#9ca3af;">' . $esc($date) . '</span>'
                 . '</td></tr>'
@@ -1554,6 +1652,7 @@ if (!class_exists('ModoForm')) {
                 'store'        => self::triState($_POST['mf_set_store'] ?? 'inherit'),
                 'notify'       => self::triState($_POST['mf_set_notify'] ?? 'inherit'),
                 'notify_email' => trim((string)($_POST['mf_set_notify_email'] ?? '')),
+                'reply_to'     => self::triState($_POST['mf_set_reply_to'] ?? 'inherit'),
                 'captcha'      => in_array($capMode, ['inherit', 'none', 'own', 'hcaptcha', 'recaptcha'], true) ? $capMode : 'inherit',
                 'honeypot'     => isset($_POST['mf_set_honeypot']) ? '1' : '0',
             ];
@@ -1602,7 +1701,7 @@ if (!class_exists('ModoForm')) {
             if (array_key_exists('mf_min_seconds', $_POST)) {
                 self::setOption('min_seconds', (string)max(0, (int)$_POST['mf_min_seconds']));
             }
-            foreach (['honeypot_enabled', 'store_ip', 'store', 'notify'] as $k) {
+            foreach (['honeypot_enabled', 'store_ip', 'store', 'notify', 'reply_to_sender'] as $k) {
                 self::setOption($k, isset($_POST['mf_' . $k]) ? '1' : '0');
             }
             if (class_exists('\\Core\\PageCache')) {
@@ -1974,7 +2073,7 @@ if (!class_exists('ModoForm')) {
             $h .= '</div>';
 
             $h .= '<div class="mf-grid2" style="margin-top:10px;">';
-            foreach (['store' => __('mf_store'), 'notify' => __('mf_notify')] as $key => $label) {
+            foreach (['store' => __('mf_store'), 'notify' => __('mf_notify'), 'reply_to' => __('mf_reply_to')] as $key => $label) {
                 $current = (string)($settings[$key] ?? 'inherit');
                 if (!in_array($current, ['inherit', '1', '0'], true)) {
                     $current = in_array($current, ['1', 'yes', 'on'], true) ? '1' : 'inherit';
@@ -1987,6 +2086,7 @@ if (!class_exists('ModoForm')) {
                 $h .= '</select></div>';
             }
             $h .= '</div>';
+            $h .= '<small style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px;line-height:1.4;">' . $esc(__('mf_reply_to_hint')) . '</small>';
             $h .= '<div style="display:grid;gap:8px;margin-top:10px;">';
             $h .= '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_set_honeypot" value="1"' . (!empty($settings['honeypot']) ? ' checked' : '') . '> ' . $esc(__('mf_honeypot')) . '</label>';
             $h .= '</div></div>';
@@ -2139,12 +2239,15 @@ if (!class_exists('ModoForm')) {
             echo '<div style="display:grid;gap:8px;margin-bottom:14px;">';
             echo '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_store" value="1"' . (self::opt('store') === '1' ? ' checked' : '') . '> ' . $esc(__('mf_store')) . '</label>';
             echo '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_notify" value="1"' . (self::opt('notify') === '1' ? ' checked' : '') . '> ' . $esc(__('mf_notify')) . '</label>';
+            echo '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" name="mf_reply_to_sender" value="1"' . (self::opt('reply_to_sender', '1') === '1' ? ' checked' : '') . '> ' . $esc(__('mf_reply_to')) . '</label>';
             echo '</div>';
+            echo '<small style="font-size:11px;color:var(--text-muted);display:block;margin-top:-6px;margin-bottom:14px;line-height:1.4;">' . $esc(__('mf_reply_to_hint')) . '</small>';
             echo '<div class="mf-grid2">';
             echo '<div class="form-group"><label class="form-label">' . $esc(__('mf_notify_email')) . '</label><input class="form-control" type="text" name="mf_notify_email" value="' . $esc(self::opt('notify_email')) . '"></div>';
             echo '<div class="form-group"><label class="form-label">' . $esc(__('mf_from_email')) . '</label><input class="form-control" type="text" name="mf_from_email" value="' . $esc(self::opt('from_email')) . '"></div>';
             echo '</div>';
             echo '<small style="font-size:11px;color:var(--text-muted);display:block;line-height:1.4;">' . $esc(__('mf_mail_hint')) . '</small>';
+            echo '<small style="font-size:11px;color:var(--text-muted);display:block;line-height:1.4;margin-top:4px;">' . $esc(__('mf_notify_fallback_hint')) . '</small>';
             echo '</div>';
 
             echo '<button type="submit" class="btn btn-primary" style="margin-bottom:20px;">' . $esc(__('mf_save')) . '</button>';

@@ -78,6 +78,7 @@ final class Database {
                 title TEXT NOT NULL,
                 content TEXT,
                 type TEXT NOT NULL DEFAULT 'page',
+                page_type_id INTEGER,
                 status TEXT DEFAULT 'published',
                 lang TEXT NOT NULL DEFAULT 'en',
                 translation_group TEXT NOT NULL,
@@ -92,6 +93,7 @@ final class Database {
             CREATE UNIQUE INDEX IF NOT EXISTS idx_pages_slug_lang ON pages(slug, lang);
             CREATE INDEX IF NOT EXISTS idx_pages_trans_group ON pages(translation_group);
             CREATE INDEX IF NOT EXISTS idx_pages_parent_id ON pages(parent_id);
+            CREATE INDEX IF NOT EXISTS idx_pages_page_type ON pages(page_type_id);
 
             -- Tabela na pola niestandardowe (Custom Fields) z obsługą typów danych
             CREATE TABLE IF NOT EXISTS page_meta (
@@ -100,9 +102,36 @@ final class Database {
                 meta_key TEXT NOT NULL,
                 meta_value TEXT,
                 meta_type TEXT DEFAULT 'text',
+                meta_label TEXT,
                 UNIQUE(page_id, meta_key)
             );
             CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
+
+            -- Predefiniowane typy treści (stron i wpisów) z domyślnymi polami.
+            CREATE TABLE IF NOT EXISTS page_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT,
+                base_type TEXT NOT NULL DEFAULT 'page',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_page_types_slug ON page_types(slug);
+
+            CREATE TABLE IF NOT EXISTS page_type_fields (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type_id INTEGER NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
+                field_key TEXT NOT NULL,
+                label TEXT,
+                field_type TEXT NOT NULL DEFAULT 'text',
+                default_value TEXT,
+                required INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(type_id, field_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_page_type_fields_type ON page_type_fields(type_id);
 
             -- Tabela na wycinki treści (Reusable Snippets) wstawiane przez [snippet:nazwa]
             CREATE TABLE IF NOT EXISTS snippets (
@@ -169,6 +198,7 @@ final class Database {
                 slug TEXT,
                 content TEXT,
                 type TEXT,
+                page_type_id INTEGER,
                 status TEXT,
                 parent_id INTEGER DEFAULT 0,
                 lang TEXT,
@@ -214,6 +244,7 @@ final class Database {
                 user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE INDEX IF NOT EXISTS idx_media_filepath ON media(filepath);
 
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
@@ -354,6 +385,8 @@ final class Database {
                     schema TEXT NOT NULL
                 );
 
+                CREATE INDEX IF NOT EXISTS idx_media_filepath ON media(filepath);
+
                 CREATE TABLE IF NOT EXISTS login_attempts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     ip_address TEXT NOT NULL,
@@ -385,9 +418,35 @@ final class Database {
                     meta_key TEXT NOT NULL,
                     meta_value TEXT,
                     meta_type TEXT DEFAULT 'text',
+                    meta_label TEXT,
                     UNIQUE(page_id, meta_key)
                 );
                 CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
+
+                CREATE TABLE IF NOT EXISTS page_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slug TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    base_type TEXT NOT NULL DEFAULT 'page',
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_page_types_slug ON page_types(slug);
+
+                CREATE TABLE IF NOT EXISTS page_type_fields (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type_id INTEGER NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
+                    field_key TEXT NOT NULL,
+                    label TEXT,
+                    field_type TEXT NOT NULL DEFAULT 'text',
+                    default_value TEXT,
+                    required INTEGER NOT NULL DEFAULT 0,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE(type_id, field_key)
+                );
+                CREATE INDEX IF NOT EXISTS idx_page_type_fields_type ON page_type_fields(type_id);
 
                 CREATE TABLE IF NOT EXISTS snippets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -424,6 +483,7 @@ final class Database {
                     slug TEXT,
                     content TEXT,
                     type TEXT,
+                    page_type_id INTEGER,
                     status TEXT,
                     parent_id INTEGER DEFAULT 0,
                     lang TEXT,
@@ -450,6 +510,16 @@ final class Database {
         self::ensureColumn($db, 'users', 'totp_secret', 'TEXT');
         self::ensureColumn($db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'media', 'webp_path', 'TEXT');
+        self::ensureColumn($db, 'pages', 'page_type_id', 'INTEGER');
+        self::ensureColumn($db, 'page_meta', 'meta_label', 'TEXT');
+        self::ensureColumn($db, 'page_revisions', 'page_type_id', 'INTEGER');
+
+        // The index can only be created after the column exists on older installs.
+        try {
+            $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_page_type ON pages(page_type_id)");
+        } catch (PDOException $e) {
+            // Optional — ignore.
+        }
 
         // Older installs stored some visits as DATE only. Normalise them to a
         // full datetime once (a flag avoids scanning the table on every boot).

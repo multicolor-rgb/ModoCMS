@@ -4,6 +4,8 @@ require_once __DIR__ . '/../core/bootstrap.php';
 use Core\Database;
 use Core\Security;
 use Core\Auth;
+use Core\MediaLibrary;
+use Core\PageTypes;
 use Core\Sitemap;
 
 Auth::requireCapability('manage_pages');
@@ -11,6 +13,8 @@ Auth::requireCapability('manage_pages');
 $db = Database::getConnection();
 $currentType = $_GET['type'] ?? 'all';
 $currentLang = $_GET['lang'] ?? 'all';
+$currentPageType = isset($_GET['page_type']) ? (int) $_GET['page_type'] : 0;
+$pageTypes = PageTypes::all();
 
 // Fetch all pages to calculate full hierarchical URL paths
 $allPagesStmt = $db->query("SELECT id, parent_id, slug, lang, type FROM pages");
@@ -154,7 +158,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
             }
         }
 
-        header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang) . '&deleted=1');
+        header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang) . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '') . '&deleted=1');
         exit;
     }
 }
@@ -231,6 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
     }
 
     header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang)
+        . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '')
         . '&bulk=' . urlencode($bulkResult) . '&count=' . (int)$affected);
     exit;
 }
@@ -238,13 +243,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
 
 
 // Build query with filters
-$sql = "SELECT p.*, u.username as author_name FROM pages p LEFT JOIN users u ON p.author_id = u.id";
+$sql = "SELECT p.*, u.username as author_name,
+               pt.name AS page_type_name, pt.slug AS page_type_slug, pt.base_type AS page_type_base
+        FROM pages p
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN page_types pt ON pt.id = p.page_type_id";
 $conditions = [];
 $params = [];
 
 if ($currentType === 'post' || $currentType === 'page') {
     $conditions[] = "p.type = :tp";
     $params[':tp'] = $currentType;
+}
+
+if ($currentPageType > 0) {
+    $conditions[] = "p.page_type_id = :ptid";
+    $params[':ptid'] = $currentPageType;
 }
 
 if ($currentLang !== 'all') {
@@ -270,6 +284,10 @@ $items = $stmt->fetchAll();
 $countAll = (int)$db->query("SELECT COUNT(*) FROM pages")->fetchColumn();
 $countPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post'")->fetchColumn();
 $countPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page'")->fetchColumn();
+$pageTypeCounts = [];
+foreach ($db->query("SELECT page_type_id, COUNT(*) AS total FROM pages WHERE page_type_id IS NOT NULL GROUP BY page_type_id")->fetchAll() as $countRow) {
+    $pageTypeCounts[(int) $countRow['page_type_id']] = (int) $countRow['total'];
+}
 // Authors list for the bulk "Change author" action (privileged users only)
 $allUsers = [];
 if (Auth::can('edit_others_pages')) {
@@ -286,7 +304,17 @@ require_once __DIR__ . '/views/header.php';
         <h1 class="page-title"><?= _e('Content') ?></h1>
         <p style="color: var(--text-muted); font-size: 13px;"><?= _e('Manage static pages, blog articles, and localized content') ?></p>
     </div>
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <?php if (!empty($pageTypes)): ?>
+            <select class="form-control" style="width: auto; padding: 8px 12px; font-size: 12px;" onchange="if (this.value) { const opt = this.options[this.selectedIndex]; location.href = 'page-edit.php?type=' + encodeURIComponent(opt.dataset.base || 'page') + '&page_type=' + encodeURIComponent(this.value); }">
+                <option value="">+ <?= _e('New from type...') ?></option>
+                <?php foreach ($pageTypes as $preset): ?>
+                    <option value="<?= htmlspecialchars((string) $preset['slug'], ENT_QUOTES, 'UTF-8') ?>" data-base="<?= htmlspecialchars((string) $preset['base_type'], ENT_QUOTES, 'UTF-8') ?>">
+                        <?= Security::sanitize((string) $preset['name']) ?> (<?= $preset['base_type'] === 'post' ? _e('Post') : _e('Page') ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        <?php endif; ?>
         <a href="page-edit.php?type=post" class="btn btn-primary">+ <?= _e('New Post') ?></a>
         <a href="page-edit.php?type=page" class="btn btn-secondary">+ <?= _e('New Page') ?></a>
     </div>
@@ -325,14 +353,29 @@ require_once __DIR__ . '/views/header.php';
     </div>
 
     <!-- Quick Language Filter -->
-    <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Language:') ?></span>
-        <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="location.href='pages.php?type=<?= urlencode($currentType) ?>&lang=' + this.value">
-            <option value="all" <?= $currentLang === 'all' ? 'selected' : '' ?>><?= _e('All Languages') ?></option>
-            <?php foreach (\Core\I18n::getAvailableLanguages() as $code => $name): ?>
-                <option value="<?= $code ?>" <?= $currentLang === $code ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?> (<?= strtoupper($code) ?>)</option>
-            <?php endforeach; ?>
-        </select>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <?php if (!empty($pageTypes)): ?>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Page type:') ?></span>
+                <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="const value = this.value; const opt = this.options[this.selectedIndex]; const base = value === '0' ? <?= json_encode((string) $currentType) ?> : (opt.dataset.base || 'all'); location.href = 'pages.php?type=' + encodeURIComponent(base) + '&lang=<?= urlencode($currentLang) ?>&page_type=' + encodeURIComponent(value);">
+                    <option value="0"><?= _e('All page types') ?></option>
+                    <?php foreach ($pageTypes as $preset): ?>
+                        <option value="<?= (int) $preset['id'] ?>" data-base="<?= htmlspecialchars((string) $preset['base_type'], ENT_QUOTES, 'UTF-8') ?>" <?= $currentPageType === (int) $preset['id'] ? 'selected' : '' ?>>
+                            <?= Security::sanitize((string) $preset['name']) ?> (<?= (int) ($pageTypeCounts[(int) $preset['id']] ?? 0) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Language:') ?></span>
+            <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="location.href='pages.php?type=<?= urlencode($currentType) ?>&lang=' + this.value<?= $currentPageType > 0 ? " + '&page_type=" . $currentPageType . "'" : '' ?>">
+                <option value="all" <?= $currentLang === 'all' ? 'selected' : '' ?>><?= _e('All Languages') ?></option>
+                <?php foreach (\Core\I18n::getAvailableLanguages() as $code => $name): ?>
+                    <option value="<?= $code ?>" <?= $currentLang === $code ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?> (<?= strtoupper($code) ?>)</option>
+                <?php endforeach; ?>
+            </select>
+        </div>
     </div>
 </div>
 
@@ -414,8 +457,9 @@ require_once __DIR__ . '/views/header.php';
                         </td>
                         <td style="text-align: center; vertical-align: middle;">
                             <?php if (!empty($item['featured_image'])): ?>
-                                <img src="<?= htmlspecialchars($item['featured_image'], ENT_QUOTES, 'UTF-8') ?>" 
+                                <img src="<?= htmlspecialchars(MediaLibrary::thumbnailUrl((string) $item['featured_image'], 80), ENT_QUOTES, 'UTF-8') ?>"
                                      alt="Thumb" 
+                                     loading="lazy" decoding="async"
                                      style="width: 38px; height: 38px; object-fit: cover; border-radius: var(--radius-sm, 6px); border: 1px solid var(--border-subtle); display: block; margin: 0 auto;">
                             <?php else: ?>
                                 <div style="width: 38px; height: 38px; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 6px); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px; margin: 0 auto;">
@@ -434,8 +478,8 @@ require_once __DIR__ . '/views/header.php';
                             </div>
                         </td>
                         <td>
-                            <span class="badge" style="background: var(--bg-surface, #1e293b); color: var(--text-muted); border: 1px solid var(--border-subtle); font-size: 11px;">
-                                <?= $item['type'] === 'post' ? _e('Post') : _e('Page') ?>
+                            <span class="badge" style="background: var(--bg-surface, #1e293b); color: var(--text-muted); border: 1px solid var(--border-subtle); font-size: 11px;" title="<?= $item['type'] === 'post' ? _e('Blog Post') : _e('Static Page') ?>">
+                                <?= !empty($item['page_type_name']) ? Security::sanitize((string) $item['page_type_name']) : ($item['type'] === 'post' ? _e('Post') : _e('Page')) ?>
                             </span>
                         </td>
                         <td>

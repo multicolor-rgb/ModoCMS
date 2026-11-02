@@ -5,4 +5,4 @@ Disallow: /core/
 Disallow: /data/
 Disallow: /uploads/cache/
 
-Sitemap: http://localhost:8001/sitemap.xml
+Sitemap: http://localhost:8002/sitemap.xml

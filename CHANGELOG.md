@@ -4,6 +4,71 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.0] — 2026-11-02
+
+### Dodane
+
+- **Typy stron i wpisów**:
+  - nowy ekran **Typy stron** (`admin/page-types.php`) do definiowania presetów
+    z nazwą, slugiem, typem bazowym i zestawem domyślnych pól niestandardowych,
+  - presety można tworzyć dla **stron statycznych i wpisów bloga**; wybór typu
+    w edytorze automatycznie ustawia właściwy typ bazowy,
+  - nowe dokumenty otrzymują domyślne pola z wartościami startowymi, a istniejące
+    można uzupełnić przyciskiem **Zastosuj domyślne pola typu** (bez nadpisywania
+    wartości),
+  - nowe funkcje motywu: `get_page_type()`, `page_type_slug()` i `is_page_type()`,
+  - filtr typu na liście treści, szybkie tworzenie „Nowy z typu…” oraz obsługa
+    `page_type` / `page_type_id` w API,
+  - migracje: `pages.page_type_id`, `page_meta.meta_label` i
+    `page_revisions.page_type_id`; przywracanie wersji zachowuje typ dokumentu,
+  - nowe tłumaczenia PL/EN/DE/ES oraz dokumentacja
+    [PL](docs/pl/typy-stron.md) / [EN](docs/en/page-types.md).
+
+- **Foldery w bibliotece mediów**:
+  - fizyczne podkatalogi w `uploads/` (jeden poziom) z tworzeniem, zmianą nazwy
+    i usuwaniem pustych folderów,
+  - upload bezpośrednio do wybranego folderu, przenoszenie plików pojedynczo
+    i zbiorczo oraz filtrowanie widoku z breadcrumbem,
+  - automatyczna aktualizacja odwołań URL w stronach, wpisach, snippetach,
+    ustawieniach, motywie, rewizjach i danych pluginów przy przenoszeniu plików
+    lub zmianie nazwy folderu,
+  - foldery widoczne również w wyborze mediów w edytorze, customizerze,
+    galerii i karuzeli,
+  - automatyczna synchronizacja plików z dysku do tabeli `media`.
+
+- **Miniatury biblioteki mediów**:
+  - wybór mediów, biblioteka, customizer, lista stron oraz pickery galerii
+    i karuzeli ładują teraz lekkie miniatury (80/160/240 px) zamiast
+    pełnych zdjęć,
+  - miniatury są generowane od razu przy uploadzie, a istniejącą bibliotekę
+    można uzupełnić przyciskiem **Wygeneruj brakujące miniatury** (partiami,
+    z paskiem postępu),
+  - statyczne pliki trafiają do `uploads/thumbs/`, więc przeglądarka pobiera je
+    bez uruchamiania PHP; katalog jest ukryty w widoku biblioteki,
+  - wybór backendu: GD → Imagick → ImageMagick CLI (`convert`) → oryginał,
+  - modal wyboru mediów pokazuje 24 kafelki i przycisk **Pokaż więcej**,
+    dzięki czemu przy 100–200 zdjęciach nie pobiera całej biblioteki,
+  - lista biblioteki mediów jest paginowana po 48 pozycji,
+  - leniwe ładowanie (`loading="lazy"`), `decoding="async"` i `srcset` dla
+    ekranów HiDPI,
+  - automatyczne czyszczenie miniatur przy usuwaniu, przenoszeniu i zmianie
+    nazwy folderu.
+
+### Zmienione
+
+- **Formularze 1.2.0**:
+  - powiadomienia e-mail **domyślnie włączone** — każdy formularz od razu
+    wysyła e-mail HTML ze zgłoszeniem, bez ręcznej konfiguracji,
+  - nowy fallback odbiorcy: adres formularza → adres globalny → e-mail
+    pierwszego konta administratora,
+  - opcjonalne **Reply-To na adres e-mail nadawcy** (pierwsze wypełnione pole
+    typu e-mail), domyślnie włączone z przełącznikiem globalnym
+    `reply_to_sender` oraz per formularz (`Dziedzicz / Tak / Nie`),
+  - przeprojektowany, elegancki szablon wiadomości: preheader, metadane
+    (data, strona źródłowa), pełna tabela pól, wyróżniona dłuższa treść,
+    odświeżona typografia i przycisk do zgłoszeń,
+  - nowe i zaktualizowane tłumaczenia (PL/EN/DE/ES).
+
 ## [2.0.0] — 2026-10-28
 
 ### Dodane
@@ -57,6 +122,9 @@ z [Semantic Versioning](https://semver.org/lang/pl/).
   i godziny.
 - Przywrócono wzmocnione pliki `data/.htaccess` i `data/backups/.htaccess`
   (`Require all denied`, `Options -Indexes -ExecCGI`).
+- Zapis strony lub wpisu nie kończy się już błędem, gdy slug jest zajęty:
+  system automatycznie dopisuje `-1`, `-2` itd. w obrębie tego samego języka
+  (dotyczy edytora, szybkiego szkicu, API i przywracania rewizji).
 
 ### Bezpieczeństwo
 

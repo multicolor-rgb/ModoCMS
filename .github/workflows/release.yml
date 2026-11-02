@@ -52,23 +52,23 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 2.0.0
-            - **New analytics engine:** every page view is recorded before the full-page cache; bots, admin, API and static assets are ignored; IP hashes rotate daily.
-            - **Statistics dashboard:** all views vs. unique visitors, top pages, bar/line/area chart, palette/custom colour, chart height, 7/14/30-day period, values/legend/grid toggles and a reset action.
-            - **Statistics settings tab** with an `analytics_enabled` switch in `modoconfig.php`.
-            - **Form builder 1.1.0:** hCaptcha, reCAPTCHA, built-in protection (honeypot + time trap + signed token), safe fallback when keys are missing, HTML e-mail notifications, Reply-To, test e-mail, per-form inheritance and automatic migrations.
-            - **Customizer:** media-library picker with previews and upload.
-            - **Core:** new analytics table/indexes and migrations, form pages excluded from page cache, plugin metadata for disabled plugins, PL/EN/DE/ES translations.
-            - **Security & packaging:** hardened `data/.htaccess`, no local `localhost` URLs in the release package, clean ZIP without database, uploads, `site/` or CI files.
+            ### What's new in 3.0.0
+            - **Page types:** reusable content presets for static pages and blog posts with default custom fields, a dedicated admin screen, `get_page_type()` / `is_page_type()` theme functions, API support and revision history that keeps the document type.
+            - **Media library folders:** one-level physical folders in `uploads/`, upload to a selected folder, single and bulk moves, renaming, breadcrumb filtering and automatic URL updates across pages, posts, snippets, settings, theme data, revisions and plugin data.
+            - **Media thumbnails:** lightweight 80/160/240 px images generated on upload, a backfill tool, a paginated library, lazy loading and `srcset` for HiDPI screens.
+            - **Richer custom fields:** rich text (TinyMCE) and galleries with columns, gap, lightbox and captions.
+            - **Forms 1.2.0:** HTML e-mail notifications enabled by default, recipient fallback chain, optional Reply-To set to the sender and a redesigned message template.
+            - **Automatic slugs:** duplicate slugs are suffixed (`-1`, `-2`, …) per language in the editor, quick draft, API and revision restore.
+            - **Packaging:** clean ZIP without database, uploads, `site/` or CI files.
 
-            ### Najważniejsze zmiany w 2.0.0
-            - **Nowy silnik statystyk:** każda odsłona liczona przed cache; pomijanie botów, panelu admina, API i plików statycznych; hash IP rotowany codziennie.
-            - **Dashboard statystyk:** wszystkie odsłony i unikalni odwiedzający, top strony, wykres bar/line/area, paleta lub własny kolor, wysokość, okres 7/14/30 dni, przełączniki wartości/legendy/siatki oraz reset danych.
-            - **Zakładka „Statystyki”** w ustawieniach i przełącznik `analytics_enabled` w `modoconfig.php`.
-            - **Formularze 1.1.0:** hCaptcha, reCAPTCHA, własna ochrona (honeypot + pułapka czasowa + podpisany token), bezpieczny fallback, e-maile HTML, Reply-To, test e-mail, dziedziczenie ustawień i automatyczne migracje.
-            - **Customizer:** wybór mediów z biblioteki, podgląd miniatur i upload.
-            - **Core:** nowe tabele/indeksy i migracje statystyk, brak cache dla stron z formularzami, metadane wyłączonych pluginów, tłumaczenia PL/EN/DE/ES.
-            - **Bezpieczeństwo i pakowanie:** wzmocnione `data/.htaccess`, brak lokalnych adresów `localhost`, czysty ZIP bez bazy, uploadów, `site/` i plików CI.
+            ### Najważniejsze zmiany w 3.0.0
+            - **Typy stron:** gotowe presety treści dla stron i wpisów z domyślnymi polami niestandardowymi, osobny ekran w panelu, funkcje motywu `get_page_type()` / `is_page_type()`, obsługa w API i rewizje zachowujące typ dokumentu.
+            - **Foldery w bibliotece mediów:** jednopoziomowe, fizyczne foldery w `uploads/`, upload do wybranego folderu, przenoszenie pojedyncze i zbiorcze, zmiana nazwy, filtrowanie z breadcrumbem oraz automatyczna aktualizacja adresów URL w stronach, wpisach, snippetach, ustawieniach, motywie, rewizjach i danych pluginów.
+            - **Miniatury mediów:** lekkie obrazy 80/160/240 px generowane przy uploadzie, narzędzie uzupełniania biblioteki, paginowana lista, leniwe ładowanie i `srcset` dla ekranów HiDPI.
+            - **Bogatsze pola niestandardowe:** tekst sformatowany (TinyMCE) oraz galerie z kolumnami, odstępem, lightboxem i podpisami.
+            - **Formularze 1.2.0:** powiadomienia e-mail HTML domyślnie włączone, łańcuch fallbacku odbiorcy, opcjonalne Reply-To na adres nadawcy i przeprojektowany szablon wiadomości.
+            - **Automatyczne slugi:** zajęty slug nie blokuje zapisu — w obrębie języka dopisywane jest `-1`, `-2` itd. w edytorze, szybkim szkicu, API i przywracaniu rewizji.
+            - **Pakowanie:** czysty ZIP bez bazy, uploadów, `site/` i plików CI.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

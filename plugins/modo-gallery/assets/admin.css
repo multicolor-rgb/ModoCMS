@@ -1,0 +1,262 @@
+/* ==========================================================================
+   Modo Gallery — admin gallery picker
+   Mirrors the system media-library modal (#media-modal) on page-edit.
+   ========================================================================== */
+
+.mg-gmodal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(11, 15, 25, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.mg-gmodal.is-open {
+    display: flex;
+}
+
+html.mg-modal-open {
+    overflow: hidden;
+}
+
+.mg-gmodal__box {
+    width: 100%;
+    max-width: 860px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--text-main, #0f172a);
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md, 14px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    animation: mg-gmodal-pop 0.18s ease;
+}
+
+@keyframes mg-gmodal-pop {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.mg-gmodal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.mg-gmodal__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.mg-gmodal__icon {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    color: var(--primary, #3b82f6);
+}
+
+.mg-gmodal__icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.mg-gmodal__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.mg-gmodal__close {
+    padding: 0 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.mg-gmodal__close:hover {
+    color: var(--text-main);
+}
+
+.mg-gmodal__body {
+    flex: 1;
+    padding: 20px 24px 24px;
+    overflow-y: auto;
+}
+
+.mg-gmodal__subtitle {
+    margin: 0 0 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.mg-gmodal__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.mg-gcard {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: var(--text-main, #0f172a);
+    background: var(--bg-main, #f8fafc);
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm, 8px);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mg-gcard:hover {
+    border-color: var(--primary, #3b82f6);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+.mg-gcard.is-selected {
+    border-color: var(--primary, #3b82f6);
+    box-shadow: 0 0 0 1px var(--primary, #3b82f6) inset;
+}
+
+.mg-gcard__thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    color: var(--text-muted);
+    background: rgba(148, 163, 184, 0.15);
+}
+
+.mg-gcard__thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mg-gcard__placeholder svg {
+    width: 34px;
+    height: 34px;
+    opacity: 0.55;
+}
+
+.mg-gcard__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    padding: 9px 10px 11px;
+}
+
+.mg-gcard__name {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.mg-gcard__sub {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.mg-gmodal__empty {
+    grid-column: 1 / -1;
+    padding: 44px 16px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.mg-gmodal__empty p {
+    margin: 0 0 16px;
+    font-size: 14px;
+}
+
+.mg-gmodal__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-surface, #ffffff);
+    flex-wrap: wrap;
+}
+
+.mg-gmodal__preview {
+    min-height: 1em;
+    color: var(--text-muted);
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.mg-gmodal__actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.mg-gmodal__actions .btn {
+    font-size: 13px;
+}
+
+.mg-gmodal__actions .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .mg-gmodal {
+        padding: 12px;
+    }
+
+    .mg-gmodal__head,
+    .mg-gmodal__body,
+    .mg-gmodal__foot {
+        padding-right: 16px;
+        padding-left: 16px;
+    }
+
+    .mg-gmodal__grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 10px;
+    }
+
+    .mg-gmodal__foot {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mg-gmodal__actions {
+        margin-left: 0;
+    }
+
+    .mg-gmodal__actions .btn {
+        flex: 1;
+    }
+}

@@ -69,6 +69,10 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
                     <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                     <span class="nav-text"><?= _e('Categories') ?></span>
                 </a>
+                <a href="page-types.php" class="nav-link <?= $currentPage === 'page-types.php' ? 'active' : '' ?>">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+                    <span class="nav-text"><?= _e('Page Types') ?></span>
+                </a>
             <?php endif; ?>
 
             <a href="media.php" class="nav-link <?= $currentPage === 'media.php' ? 'active' : '' ?>">

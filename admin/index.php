@@ -7,9 +7,11 @@ use Core\Database;
 use Core\Security;
 use Core\Auth;
 use Core\Hooks;
+use Core\PageTypes;
 use Core\Sitemap;
 
 $db = Database::getConnection();
+$pageTypes = PageTypes::all();
 $msg = '';
 
 // Handle Quick Draft submission
@@ -19,13 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $draftContent = trim($_POST['draft_content'] ?? '');
 
         if ($draftTitle !== '') {
-            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $draftTitle), '-'));
+            $draftLang = \Core\I18n::getDefaultLocale();
+            $slug = \Core\PageSlug::slugify($draftTitle);
+            $requestedSlug = $slug;
+            $slug = \Core\PageSlug::unique($slug !== '' ? $slug : 'draft', $draftLang);
             $stmt = $db->prepare("INSERT INTO pages (title, slug, content, type, status, lang, translation_group, author_id) VALUES (:t, :s, :c, 'post', 'draft', :l, :g, :a)");
             $stmt->execute([
                 ':t' => $draftTitle,
-                ':s' => $slug ?: 'draft-' . bin2hex(random_bytes(3)),
+                ':s' => $slug,
                 ':c' => nl2br(htmlspecialchars($draftContent, ENT_QUOTES, 'UTF-8')),
-                ':l' => \Core\I18n::getDefaultLocale(),
+                ':l' => $draftLang,
                 ':g' => bin2hex(random_bytes(8)),
                 ':a' => Auth::id()
             ]);
@@ -38,6 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
 
             $msg = __('Draft saved successfully.');
+            if ($slug !== $requestedSlug) {
+                $msg .= ' ' . sprintf(__('The slug was already in use, so it was changed to: %s'), $slug);
+            }
         }
     }
 }
@@ -77,7 +85,17 @@ $recentContent = $db->query("
         <h1 class="page-title"><?= _e('System Overview') ?></h1>
         <p style="color: var(--text-muted); font-size: 13px;"><?= _e('Summary of your website activity and resources') ?></p>
     </div>
-    <div style="display:flex; gap: 8px;">
+    <div style="display:flex; gap: 8px; align-items:center; flex-wrap:wrap;">
+        <?php if (!empty($pageTypes)): ?>
+            <select class="form-control" style="width:auto; padding:8px 12px; font-size:12px;" onchange="if (this.value) { const opt = this.options[this.selectedIndex]; location.href = 'page-edit.php?type=' + encodeURIComponent(opt.dataset.base || 'page') + '&page_type=' + encodeURIComponent(this.value); }">
+                <option value="">+ <?= _e('New from type...') ?></option>
+                <?php foreach ($pageTypes as $preset): ?>
+                    <option value="<?= htmlspecialchars((string) $preset['slug'], ENT_QUOTES, 'UTF-8') ?>" data-base="<?= htmlspecialchars((string) $preset['base_type'], ENT_QUOTES, 'UTF-8') ?>">
+                        <?= Security::sanitize((string) $preset['name']) ?> (<?= $preset['base_type'] === 'post' ? _e('Post') : _e('Page') ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        <?php endif; ?>
         <a href="page-edit.php?type=post" class="btn btn-primary">+ <?= _e('New Post') ?></a>
         <a href="page-edit.php?type=page" class="btn btn-secondary">+ <?= _e('New Page') ?></a>
     </div>

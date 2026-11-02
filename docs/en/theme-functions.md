@@ -402,6 +402,27 @@ foreach (get_all_meta() as $key => $value) {
 }
 ```
 
+### `get_page_type(?int $pageId = null): ?array`
+
+Returns the predefined page type assigned to a document, including its default field definitions, or `null` for a classic page/post.
+
+### `page_type_slug(?int $pageId = null): string`
+
+Returns the page type slug (e.g. `product-page`), or an empty string.
+
+### `is_page_type(string $slug, ?int $pageId = null): bool`
+
+Checks whether the current (or given) document uses the page type slug.
+
+```php
+<?php if (is_page_type('product-page')): ?>
+    <div class="price"><?= get_meta('price') ?></div>
+    <?php the_meta_gallery('gallery'); ?>
+<?php endif; ?>
+```
+
+See [Page types](page-types.md) for the admin workflow.
+
 ## 12. Snippets (reusable blocks)
 
 ### `snippet_content(string $name, string $default = ''): string`
@@ -464,7 +485,7 @@ Same, but prints it escaped.
 
 ## Quick index
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 

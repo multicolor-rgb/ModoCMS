@@ -104,43 +104,18 @@ final class CustomizerPanel
     /**
      * Lists image files available in the media library (uploads directory).
      *
-     * @return array<int,array{name:string,url:string}>
+     * @return array<int,array{name:string,url:string,path:string,folder:string}>
      */
     private static function mediaItems(): array
     {
-        $uploadsDir = dirname(__DIR__) . '/uploads/';
-        if (!is_dir($uploadsDir)) {
-            return [];
-        }
-
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif'];
-        $base = class_exists('Core\\Router') ? rtrim(Router::getBaseSubdirectory(), '/') : '';
-
-        $items = [];
-        foreach (scandir($uploadsDir) ?: [] as $file) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-            $path = $uploadsDir . $file;
-            if (!is_file($path)) {
-                continue;
-            }
-            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-            if (!in_array($ext, $allowed, true)) {
-                continue;
-            }
-            $items[] = [
-                'name'  => $file,
-                'url'   => $base . '/uploads/' . $file,
-                'mtime' => (int) @filemtime($path),
-            ];
-        }
-
-        usort($items, static fn (array $a, array $b): int => $b['mtime'] <=> $a['mtime']);
-
         return array_map(
-            static fn (array $item): array => ['name' => $item['name'], 'url' => $item['url']],
-            $items
+            static fn (array $item): array => [
+                'name'   => $item['name'],
+                'url'    => $item['url'],
+                'path'   => $item['path'],
+                'folder' => $item['folder'],
+            ],
+            MediaLibrary::listImages()
         );
     }
 
@@ -187,6 +162,7 @@ final class CustomizerPanel
 
         $token = self::ensurePreviewToken();
         $mediaItems = self::mediaItems();
+        $mediaFolders = MediaLibrary::folders();
         ?>
 <div id="modo-cz-panel" class="modo-cz-panel-root" role="dialog" aria-label="<?= _e('Edit template settings') ?>">
     <header class="modo-czp-topbar">
@@ -210,10 +186,24 @@ final class CustomizerPanel
             <button type="button" class="modo-cz-media-close" data-media-close aria-label="<?= _e('Close') ?>">&times;</button>
         </header>
         <div class="modo-cz-media-body">
+            <?php if (!empty($mediaItems)): ?>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
+                    <label for="modo-cz-media-folder-filter" style="font-size: 12px; color: var(--text-muted);"><?= _e('Folder') ?></label>
+                    <select id="modo-cz-media-folder-filter" class="form-control" style="max-width: 240px; padding: 6px 10px; font-size: 13px;">
+                        <option value="__all__"><?= _e('All files') ?></option>
+                        <option value=""><?= _e('Root') ?></option>
+                        <?php foreach ($mediaFolders as $folder): ?>
+                            <option value="<?= htmlspecialchars((string) $folder['name'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) $folder['name'], ENT_QUOTES, 'UTF-8') ?> (<?= (int) $folder['count'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
             <div class="modo-cz-media-grid" id="modo-cz-media-grid">
                 <?php foreach ($mediaItems as $media): ?>
-                    <button type="button" class="modo-cz-media-item" data-media-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>">
-                        <img src="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" loading="lazy">
+                    <button type="button" class="modo-cz-media-item" data-media-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" data-folder="<?= htmlspecialchars((string) ($media['folder'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                        <img src="<?= htmlspecialchars(\Core\MediaLibrary::thumbnailUrl((string) $media['path'], 160), ENT_QUOTES, 'UTF-8') ?>" srcset="<?= htmlspecialchars(\Core\MediaLibrary::thumbnailUrl((string) $media['path'], 160), ENT_QUOTES, 'UTF-8') ?> 1x, <?= htmlspecialchars(\Core\MediaLibrary::thumbnailUrl((string) $media['path'], 240), ENT_QUOTES, 'UTF-8') ?> 2x" alt="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" loading="lazy" decoding="async">
                         <span class="modo-cz-media-name"><?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?></span>
                     </button>
                 <?php endforeach; ?>

@@ -796,7 +796,7 @@ if (!class_exists('ModoCookieConsent')) {
                     </div>
                 </div>
 
-                <div style="position:sticky; bottom:0; padding:14px 0; background:var(--bg-body,#fff);">
+                <div style="padding:14px 0;">
                     <button type="submit" name="cc_save" value="1" class="btn btn-primary"><?php _e('cc_save_settings'); ?></button>
                 </div>
             </form>

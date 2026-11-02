@@ -318,6 +318,7 @@ HTACCESS;
                     title TEXT NOT NULL,
                     content TEXT,
                     type TEXT NOT NULL DEFAULT 'page',
+                    page_type_id INTEGER,
                     status TEXT DEFAULT 'published',
                     lang TEXT NOT NULL DEFAULT 'en',
                     translation_group TEXT NOT NULL,
@@ -339,9 +340,36 @@ HTACCESS;
                     meta_key TEXT NOT NULL,
                     meta_value TEXT,
                     meta_type TEXT DEFAULT 'text',
+                    meta_label TEXT,
                     UNIQUE(page_id, meta_key)
                 );
                 CREATE INDEX idx_page_meta_page ON page_meta(page_id);
+
+                CREATE TABLE page_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slug TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    base_type TEXT NOT NULL DEFAULT 'page',
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX idx_page_types_slug ON page_types(slug);
+
+                CREATE TABLE page_type_fields (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type_id INTEGER NOT NULL REFERENCES page_types(id) ON DELETE CASCADE,
+                    field_key TEXT NOT NULL,
+                    label TEXT,
+                    field_type TEXT NOT NULL DEFAULT 'text',
+                    default_value TEXT,
+                    required INTEGER NOT NULL DEFAULT 0,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE(type_id, field_key)
+                );
+                CREATE INDEX idx_page_type_fields_type ON page_type_fields(type_id);
+                CREATE INDEX idx_pages_page_type ON pages(page_type_id);
 
                 CREATE TABLE snippets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -424,6 +452,7 @@ HTACCESS;
                     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE INDEX idx_media_filepath ON media(filepath);
 
                 CREATE TABLE redirects (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -48,10 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':uid'   => $foundUser['id']
                 ]);
 
-                // Generowanie pełnego adresu URL resetu
-                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-                $host = $_SERVER['HTTP_HOST'];
-                $resetUrl = $protocol . $host . dirname($_SERVER['PHP_SELF']) . '/forgot-password.php?token=' . $rawToken;
+                // Generowanie pełnego adresu URL resetu. Router::getSiteUrl()
+                // respektuje ustawienie site_url oraz podkatalog instalacji,
+                // dzięki czemu link działa też za proxy i po HTTPS.
+                $baseUrl = rtrim(\Core\Router::getSiteUrl(), '/');
+                $resetUrl = $baseUrl . '/admin/forgot-password.php?token=' . urlencode($rawToken);
 
                 // Wysłanie wiadomości e-mail (jeśli e-mail istnieje w bazie)
                 $userEmail = $foundUser['email'] ?? null;
@@ -62,15 +63,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $foundUser['username'],
                         $resetUrl
                     );
+
+                    $hostName = preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? ''));
+                    $fromEmail = $hostName !== '' ? 'no-reply@' . $hostName : '';
+
                     // Send through the central mailer so the site-wide transport
                     // (PHP mail() or SMTP/PHPMailer, see Settings → Email) is used.
-                    $fromEmail = 'no-reply@' . parse_url($host, PHP_URL_HOST);
-                    if (class_exists('\\Core\\Mailer')) {
-                        \Core\Mailer::send($userEmail, $subject, $body, ['from_email' => $fromEmail]);
-                    } else {
-                        $headers = "From: " . $fromEmail . "\r\n" .
-                                   "Content-Type: text/plain; charset=UTF-8\r\n";
-                        @mail($userEmail, $subject, $body, $headers);
+                    try {
+                        if (class_exists('\\Core\\Mailer')) {
+                            $mailOptions = $fromEmail !== '' ? ['from_email' => $fromEmail] : [];
+                            if (!\Core\Mailer::send($userEmail, $subject, $body, $mailOptions)) {
+                                error_log('Password reset e-mail failed for ' . $userEmail . ': ' . \Core\Mailer::lastError());
+                            }
+                        } else {
+                            $headers = ($fromEmail !== '' ? "From: " . $fromEmail . "\r\n" : '') .
+                                       "Content-Type: text/plain; charset=UTF-8\r\n";
+                            if (!@mail($userEmail, $subject, $body, $headers)) {
+                                error_log('Password reset e-mail failed for ' . $userEmail . ': PHP mail() returned false.');
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        error_log('Password reset e-mail error for ' . $userEmail . ': ' . $e->getMessage());
                     }
                 }
 
@@ -92,15 +105,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($newPass !== $confirmPass) {
             $error = __('Passwords do not match.');
         } else {
-            $hash = password_hash($newPass, PASSWORD_DEFAULT);
-            $stmt = $db->prepare("UPDATE users SET password = :pwd, reset_token = NULL, reset_expires = NULL WHERE id = :uid");
-            $stmt->execute([
-                ':pwd' => $hash,
-                ':uid' => $user['id']
-            ]);
+            try {
+                $hash = password_hash($newPass, PASSWORD_DEFAULT);
+                $stmt = $db->prepare("UPDATE users SET password_hash = :pwd, reset_token = NULL, reset_expires = NULL WHERE id = :uid");
+                $stmt->execute([
+                    ':pwd' => $hash,
+                    ':uid' => $user['id']
+                ]);
 
-            header('Location: login.php?reset=success');
-            exit;
+                header('Location: login.php?reset=success');
+                exit;
+            } catch (\Throwable $e) {
+                error_log('Password reset failed for user #' . ($user['id'] ?? '?') . ': ' . $e->getMessage());
+                $error = __('Could not update the password. Please try again later.');
+            }
         }
     }
 }

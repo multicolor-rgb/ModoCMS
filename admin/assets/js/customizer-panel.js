@@ -154,8 +154,22 @@
     const mediaModal = document.getElementById('modo-cz-media-modal');
     const mediaGrid = document.getElementById('modo-cz-media-grid');
     const mediaEmpty = document.getElementById('modo-cz-media-empty');
+    const mediaFolderFilter = document.getElementById('modo-cz-media-folder-filter');
     let mediaTarget = null;
     let uploadFromModal = false;
+
+    function applyMediaFolderFilter() {
+        if (!mediaGrid) return;
+        const value = mediaFolderFilter ? mediaFolderFilter.value : '__all__';
+        mediaGrid.querySelectorAll('.modo-cz-media-item').forEach((tile) => {
+            const matches = value === '__all__' || (tile.getAttribute('data-folder') || '') === value;
+            tile.style.display = matches ? '' : 'none';
+        });
+    }
+
+    if (mediaFolderFilter) {
+        mediaFolderFilter.addEventListener('change', applyMediaFolderFilter);
+    }
 
     function updateMediaPreview(field) {
         const wrap = field && field.closest ? field.closest('.modo-media-field') : null;
@@ -226,6 +240,7 @@
         tile.type = 'button';
         tile.className = 'modo-cz-media-item';
         tile.setAttribute('data-media-url', url);
+        tile.setAttribute('data-folder', '');
 
         const img = document.createElement('img');
         img.src = url;
@@ -240,11 +255,16 @@
         tile.appendChild(label);
         mediaGrid.insertBefore(tile, mediaGrid.firstChild);
         if (mediaEmpty) mediaEmpty.hidden = true;
+        applyMediaFolderFilter();
     }
 
     function openMediaModal(field) {
         if (!mediaModal || !field) return;
         mediaTarget = field;
+        if (mediaFolderFilter) {
+            mediaFolderFilter.value = '__all__';
+            applyMediaFolderFilter();
+        }
         mediaModal.hidden = false;
         const first = mediaGrid ? mediaGrid.querySelector('.modo-cz-media-item') : null;
         if (first) setTimeout(() => first.focus(), 30);
