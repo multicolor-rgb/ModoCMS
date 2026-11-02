@@ -144,7 +144,7 @@ const UI = {
     footerIssues: 'Zgłoś błąd',
     footerLicense: 'Licencja MIT',
     footerMade: 'Zbudowano na PHP 8 + SQLite3 · bez CDN',
-    changelogNote: 'Changelog projektu jest prowadzony po polsku. Historia wersji znajduje się także w repozytorium.',
+    changelogNote: 'Changelog projektu jest prowadzony po polsku i angielsku. Historia wersji znajduje się także w repozytorium.',
     changelogTitle: 'Changelog',
     changelogLead: 'Wszystkie istotne zmiany w projekcie Modo CMS — od pierwszego publicznego wydania po najnowsze funkcje.'
   },
@@ -181,7 +181,7 @@ const UI = {
     footerIssues: 'Report a bug',
     footerLicense: 'MIT License',
     footerMade: 'Built on PHP 8 + SQLite3 · no CDN',
-    changelogNote: 'The project changelog is maintained in Polish. Version history is also available in the repository.',
+    changelogNote: 'The project changelog is maintained in Polish and English. Version history is also available in the repository.',
     changelogTitle: 'Changelog',
     changelogLead: 'Every important change in Modo CMS — from the first public release to the latest features.'
   }
@@ -371,7 +371,7 @@ function navLinks(lang, active) {
     ['features', '/features.html', ui.nav.features],
     ['docs', '/docs/', ui.nav.docs],
     ['plugins', '/plugins.html', ui.nav.plugins],
-    ['changelog', '/changelog.html', ui.nav.changelog],
+    ['changelog', '/changelog/', ui.nav.changelog],
     ['download', '/download.html', ui.nav.download]
   ];
   return links.map(([key, href, label]) =>
@@ -407,7 +407,7 @@ function footer(lang) {
             <li><a href="/features.html">${escapeHtml(ui.footerFeatures)}</a></li>
             <li><a href="/docs/">${escapeHtml(ui.footerDocs)}</a></li>
             <li><a href="/plugins.html">${escapeHtml(ui.footerPlugins)}</a></li>
-            <li><a href="/changelog.html">${escapeHtml(ui.footerChangelog)}</a></li>
+            <li><a href="/changelog/">${escapeHtml(ui.footerChangelog)}</a></li>
             <li><a href="/download.html">${escapeHtml(ui.footerDownload)}</a></li>
           </ul>
         </div>
@@ -493,6 +493,13 @@ function docsSwitch(lang, slug, isHub = false) {
   return `<div class="lang-switch" role="group" aria-label="Język / Language">
           <a href="/docs/pl/${suffix}" data-lang="pl"${lang === 'pl' ? ' aria-current="true"' : ''}>PL</a>
           <a href="/docs/en/${suffix}" data-lang="en"${lang === 'en' ? ' aria-current="true"' : ''}>EN</a>
+        </div>`;
+}
+
+function changelogSwitch(lang) {
+  return `<div class="lang-switch" role="group" aria-label="Język / Language">
+          <a href="/changelog/pl.html" data-lang="pl"${lang === 'pl' ? ' aria-current="true"' : ''}>PL</a>
+          <a href="/changelog/en.html" data-lang="en"${lang === 'en' ? ' aria-current="true"' : ''}>EN</a>
         </div>`;
 }
 
@@ -638,35 +645,88 @@ write(path.join(OUT, 'docs', 'index.html'), `<!DOCTYPE html>
 
 // changelog
 {
-  const markdown = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-  const rendered = renderMarkdown(markdown, 'pl');
-  const body = `<div class="container page-hero">
-      <span class="eyebrow">${escapeHtml(UI.pl.changelogTitle)}</span>
-      <h1>${escapeHtml(UI.pl.changelogTitle)}</h1>
-      <p>${escapeHtml(UI.pl.changelogLead)}</p>
+  const sources = [
+    { lang: 'pl', file: 'CHANGELOG.md' },
+    { lang: 'en', file: 'CHANGELOG.en.md' }
+  ];
+
+  for (const source of sources) {
+    const ui = UI[source.lang];
+    const markdown = fs.readFileSync(path.join(ROOT, source.file), 'utf8');
+    const rendered = renderMarkdown(markdown, source.lang);
+    const body = `<div class="container page-hero">
+      <span class="eyebrow">${escapeHtml(ui.changelogTitle)}</span>
+      <h1>${escapeHtml(ui.changelogTitle)}</h1>
+      <p>${escapeHtml(ui.changelogLead)}</p>
     </div>
     <div class="container" style="margin-bottom:clamp(48px,8vw,96px)">
       <div class="prose changelog-prose">
-        <p class="callout">${escapeHtml(UI.pl.changelogNote)}</p>
+        <p class="callout">${escapeHtml(ui.changelogNote)}</p>
 ${rendered.html}
       </div>
     </div>`;
 
-  write(path.join(OUT, 'changelog.html'), shell({
-    lang: 'pl',
-    title: 'Changelog — Modo CMS',
-    description: UI.pl.changelogLead,
-    active: 'changelog',
-    canonical: '/changelog.html',
-    body,
-    staticLang: true
-  }));
+    write(path.join(OUT, 'changelog', `${source.lang}.html`), shell({
+      lang: source.lang,
+      title: 'Changelog — Modo CMS',
+      description: ui.changelogLead,
+      active: 'changelog',
+      canonical: `/changelog/${source.lang}.html`,
+      body,
+      langSwitch: changelogSwitch(source.lang),
+      staticLang: true
+    }));
+  }
+
+  // Language chooser for /changelog/
+  write(path.join(OUT, 'changelog', 'index.html'), `<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Changelog — Modo CMS</title>
+  <meta name="description" content="Modo CMS changelog — all notable changes, in Polish and English.">
+  <link rel="canonical" href="${SITE_URL}/changelog/">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>
+    try {
+      var l = localStorage.getItem('modo-lang');
+      location.replace(l === 'en' ? '/changelog/en.html' : '/changelog/pl.html');
+    } catch (e) {
+      location.replace('/changelog/pl.html');
+    }
+  </script>
+</head>
+<body>
+  <main class="container" style="padding:80px 22px">
+    <h1>Changelog</h1>
+    <p><a href="/changelog/pl.html">Polski</a> · <a href="/changelog/en.html">English</a></p>
+  </main>
+</body>
+</html>
+`);
+
+  // Keep the old URL working.
+  write(path.join(OUT, 'changelog.html'), `<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=/changelog/">
+  <link rel="canonical" href="${SITE_URL}/changelog/">
+  <title>Changelog — Modo CMS</title>
+  <script>location.replace('/changelog/');</script>
+</head>
+<body><a href="/changelog/">Changelog</a></body>
+</html>
+`);
 }
 
 // sitemap
 {
   const urls = [
-    '/', '/features.html', '/plugins.html', '/changelog.html', '/download.html',
+    '/', '/features.html', '/plugins.html', '/changelog/', '/changelog/pl.html',
+    '/changelog/en.html', '/download.html',
     '/docs/', '/docs/pl/', '/docs/en/',
     ...DOCS.flatMap(doc => [`/docs/pl/${doc.slug}.html`, `/docs/en/${doc.slug}.html`])
   ];
