@@ -638,6 +638,43 @@ final class MediaLibrary
     /** @return array{ok:bool,error?:string} */
     public static function deleteFile(string $storedPath): array
     {
+        $result = self::deleteFileInternal($storedPath);
+        self::purgeCache();
+
+        return $result;
+    }
+
+    /**
+     * Deletes several media files and clears the page cache only once.
+     *
+     * @param array<int,string> $paths
+     * @return array{deleted:int,failed:int}
+     */
+    public static function deleteFiles(array $paths): array
+    {
+        $deleted = 0;
+        $failed = 0;
+
+        foreach ($paths as $path) {
+            if (!is_string($path) || $path === '') {
+                continue;
+            }
+            $result = self::deleteFileInternal($path);
+            if (!empty($result['ok'])) {
+                $deleted++;
+            } else {
+                $failed++;
+            }
+        }
+
+        self::purgeCache();
+
+        return ['deleted' => $deleted, 'failed' => $failed];
+    }
+
+    /** @return array{ok:bool,error?:string} */
+    private static function deleteFileInternal(string $storedPath): array
+    {
         $absolute = self::absoluteFromStoredPath($storedPath);
         if ($absolute === null) {
             // The file may already be gone; clean up a stale database row.
@@ -692,9 +729,250 @@ final class MediaLibrary
             // blocking the deletion flow.
         }
 
+        return ['ok' => true];
+    }
+
+    /**
+     * Saves a browser-edited image, either replacing the original file or
+     * creating a sibling copy, and refreshes its media record and thumbnails.
+     *
+     * @return array{ok:bool,error?:string,path?:string,url?:string,filename?:string}
+     */
+    public static function saveEditedFile(
+        string $storedPath,
+        string $sourceTmp,
+        string $mime,
+        bool $overwrite = true,
+        ?int $userId = null
+    ): array {
+        $source = self::absoluteFromStoredPath($storedPath);
+        if ($source === null || !is_file($sourceTmp)) {
+            return ['ok' => false, 'error' => 'missing'];
+        }
+
+        $sourceStored = self::storedPathFromAbsolute($source);
+        if ($sourceStored === null) {
+            return ['ok' => false, 'error' => 'invalid'];
+        }
+
+        $extension = self::extensionForMime($mime);
+        if ($extension === null) {
+            return ['ok' => false, 'error' => 'invalid'];
+        }
+
+        $sourceExtension = strtolower((string) pathinfo($source, PATHINFO_EXTENSION));
+        if ($overwrite) {
+            if (!in_array($sourceExtension, ['jpg', 'jpeg', 'png', 'webp'], true)
+                || !self::mimeMatchesExtension($mime, $sourceExtension)
+            ) {
+                return ['ok' => false, 'error' => 'readonly'];
+            }
+        }
+
+        $directory = dirname($source);
+        $baseName = (string) pathinfo($source, PATHINFO_FILENAME);
+
+        if ($overwrite) {
+            $targetName = basename($source);
+            $destination = $source;
+            $targetStored = $sourceStored;
+        } else {
+            $targetName = self::uniqueName($directory, $baseName . '-edited.' . $extension);
+            $destination = $directory . '/' . $targetName;
+            $targetStored = self::storedPathForAbsolute($destination);
+            if ($targetStored === null) {
+                return ['ok' => false, 'error' => 'invalid'];
+            }
+        }
+
+        $oldWebpStored = null;
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT webp_path FROM media WHERE filepath = :path LIMIT 1");
+            $stmt->execute([':path' => $targetStored]);
+            $oldWebp = (string) ($stmt->fetchColumn() ?: '');
+            if ($oldWebp !== '') {
+                $oldWebpStored = $oldWebp;
+            }
+        } catch (\Throwable $e) {
+            $oldWebpStored = null;
+        }
+
+        // Write to a temporary file in the same directory, then rename it over
+        // the destination so a failed upload never leaves a half-written image.
+        $tmp = $directory . '/.' . $targetName . '.tmp-' . bin2hex(random_bytes(6));
+        if (!@copy($sourceTmp, $tmp) || !is_file($tmp) || (int) @filesize($tmp) <= 0) {
+            if (is_file($tmp)) {
+                @unlink($tmp);
+            }
+            return ['ok' => false, 'error' => 'failed'];
+        }
+        @chmod($tmp, 0664);
+        if (!@rename($tmp, $destination)) {
+            @unlink($tmp);
+            return ['ok' => false, 'error' => 'failed'];
+        }
+        @chmod($destination, 0664);
+        clearstatcache(true, $destination);
+
+        $webpStored = null;
+        $canGenerateWebp = in_array($extension, ['jpg', 'png'], true)
+            && class_exists(ImageOptimizer::class)
+            && ImageOptimizer::isEnabled()
+            && ImageOptimizer::isSupported();
+
+        if ($canGenerateWebp) {
+            $converted = self::regenerateWebpSibling($destination);
+            if ($converted !== null) {
+                $webpStored = self::storedPathForAbsolute($converted);
+            } else {
+                self::removeStaleWebpSibling($destination, $overwrite ? $oldWebpStored : null);
+            }
+        } else {
+            self::removeStaleWebpSibling($destination, $overwrite ? $oldWebpStored : null);
+        }
+
+        $fileSize = (int) @filesize($destination);
+        $filename = basename($destination);
+
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT id, filename FROM media WHERE filepath = :path LIMIT 1");
+            $stmt->execute([':path' => $targetStored]);
+            $existingRow = $stmt->fetch() ?: null;
+
+            if ($existingRow !== null) {
+                // Overwriting keeps the user-facing upload name; the stored
+                // filename is usually a random slug generated by upload.php.
+                $displayName = $overwrite && trim((string) ($existingRow['filename'] ?? '')) !== ''
+                    ? (string) $existingRow['filename']
+                    : $filename;
+
+                $update = $db->prepare("
+                    UPDATE media
+                    SET filename = :name, mime_type = :mime, file_size = :size, webp_path = :webp
+                    WHERE id = :id
+                ");
+                $update->execute([
+                    ':name' => $displayName,
+                    ':mime' => $mime,
+                    ':size' => $fileSize,
+                    ':webp' => $webpStored,
+                    ':id'   => (int) $existingRow['id'],
+                ]);
+            } else {
+                $insert = $db->prepare("
+                    INSERT INTO media (filename, filepath, mime_type, file_size, webp_path, user_id)
+                    VALUES (:name, :path, :mime, :size, :webp, :user)
+                ");
+                $insert->execute([
+                    ':name' => $filename,
+                    ':path' => $targetStored,
+                    ':mime' => $mime,
+                    ':size' => $fileSize,
+                    ':webp' => $webpStored,
+                    ':user' => $userId,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // The file is already saved; a stale media row must not undo it.
+        }
+
+        try {
+            self::deleteThumbnails($targetStored);
+            self::ensureThumbnails($targetStored, self::THUMBNAIL_PREVIEW_WIDTHS);
+        } catch (\Throwable $e) {
+            // Thumbnails are an optimisation and can be regenerated later.
+        }
+
         self::purgeCache();
 
-        return ['ok' => true];
+        return [
+            'ok'       => true,
+            'path'     => $targetStored,
+            'url'      => self::urlForStoredPath($targetStored),
+            'filename' => $filename,
+        ];
+    }
+
+    private static function extensionForMime(string $mime): ?string
+    {
+        return match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            default      => null,
+        };
+    }
+
+    private static function mimeMatchesExtension(string $mime, string $extension): bool
+    {
+        $extension = strtolower($extension);
+
+        return match ($mime) {
+            'image/jpeg' => in_array($extension, ['jpg', 'jpeg'], true),
+            'image/png'  => $extension === 'png',
+            'image/webp' => $extension === 'webp',
+            default      => false,
+        };
+    }
+
+    private static function regenerateWebpSibling(string $absolute): ?string
+    {
+        if (!class_exists(ImageOptimizer::class)) {
+            return null;
+        }
+
+        $sibling = preg_replace('/\.[^.]+$/', '', $absolute) . '.webp';
+        $tmp = $sibling . '.tmp-' . bin2hex(random_bytes(6));
+
+        try {
+            $converted = ImageOptimizer::convertToWebp($absolute, $tmp);
+        } catch (\Throwable $e) {
+            $converted = null;
+        }
+
+        if ($converted === null || !is_file($tmp) || (int) @filesize($tmp) <= 0) {
+            if (is_file($tmp)) {
+                @unlink($tmp);
+            }
+            return null;
+        }
+
+        @chmod($tmp, 0664);
+        if (!@rename($tmp, $sibling)) {
+            @unlink($tmp);
+            return null;
+        }
+
+        return $sibling;
+    }
+
+    private static function removeStaleWebpSibling(string $absolute, ?string $storedWebp = null): void
+    {
+        $candidates = [];
+        if ($storedWebp !== null && $storedWebp !== '') {
+            $resolved = self::absoluteFromStoredPath($storedWebp);
+            if ($resolved !== null) {
+                $candidates[] = $resolved;
+            }
+        }
+
+        if (strtolower((string) pathinfo($absolute, PATHINFO_EXTENSION)) !== 'webp') {
+            $candidates[] = preg_replace('/\.[^.]+$/', '', $absolute) . '.webp';
+        }
+
+        $sourceReal = realpath($absolute) ?: $absolute;
+        foreach (array_unique($candidates) as $candidate) {
+            if (!is_file($candidate)) {
+                continue;
+            }
+            $candidateReal = realpath($candidate) ?: $candidate;
+            if ($candidateReal === $sourceReal) {
+                continue;
+            }
+            @unlink($candidate);
+        }
     }
 
     private static function purgeCache(): void
@@ -746,6 +1024,31 @@ final class MediaLibrary
         }
 
         return '/uploads/' . str_replace('\\', '/', substr($real, strlen($root) + 1));
+    }
+
+    /**
+     * Converts an absolute uploads path to its stored form. Unlike
+     * storedPathFromAbsolute() this also works for files that do not exist yet
+     * (needed when saving an edited copy).
+     */
+    private static function storedPathForAbsolute(string $absolute): ?string
+    {
+        $root = realpath(self::rootPath());
+        if ($root === false) {
+            return null;
+        }
+
+        $normalized = str_replace('\\', '/', $absolute);
+        $directory = realpath(dirname($normalized));
+        $name = basename($normalized);
+        if ($directory === false || $name === '' || $name === '.' || $name === '..') {
+            return null;
+        }
+        if ($directory !== $root && !str_starts_with($directory, $root . DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        return '/uploads/' . str_replace('\\', '/', substr($directory . '/' . $name, strlen($root) + 1));
     }
 
     private static function uniqueName(string $directory, string $filename): string
