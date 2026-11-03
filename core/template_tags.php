@@ -379,7 +379,7 @@ if (!function_exists('customizer_css')) {
  *
  * When $pageId is omitted the value is resolved for the current page in the
  * loop. Values are cast according to the field "meta_type" (text, number,
- * boolean, json) so themes can use them directly.
+ * boolean, json, gallery) so themes can use them directly.
  */
 if (!function_exists('get_meta')) {
     function get_meta(string $key, mixed $default = '', ?int $pageId = null): mixed {
@@ -401,6 +401,7 @@ if (!function_exists('get_meta')) {
                 'number'   => is_numeric($value) ? ($value + 0) : $default,
                 'boolean', 'checkbox' => (bool) (int) $value,
                 'json'     => (json_decode((string) $value, true) ?? $default),
+                'gallery'  => \Core\MetaGallery::normalize($value),
                 default    => (string) $value,
             };
         } catch (\Throwable $e) {
@@ -444,6 +445,7 @@ if (!function_exists('get_all_meta')) {
                     'number'   => is_numeric($value) ? ($value + 0) : $value,
                     'boolean', 'checkbox' => (bool) (int) $value,
                     'json'     => (json_decode((string) $value, true) ?? $value),
+                    'gallery'  => \Core\MetaGallery::normalize($value),
                     default    => (string) $value,
                 };
             }
@@ -453,6 +455,122 @@ if (!function_exists('get_all_meta')) {
         }
     }
 }
+
+/**
+ * Returns the predefined page type assigned to a document, including its
+ * default field definitions. Returns null for classic pages/posts.
+ *
+ * @return array<string,mixed>|null
+ */
+if (!function_exists('get_page_type')) {
+    function get_page_type(?int $pageId = null): ?array {
+        $pageId = $pageId ?? (int) (ThemeState::$currentPage['id'] ?? 0);
+        if ($pageId <= 0) {
+            return null;
+        }
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT page_type_id FROM pages WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => $pageId]);
+            $typeId = (int) $stmt->fetchColumn();
+            if ($typeId <= 0) {
+                return null;
+            }
+
+            return \Core\PageTypes::find($typeId);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+}
+
+/**
+ * Returns the slug of the document's page type, or an empty string.
+ */
+if (!function_exists('page_type_slug')) {
+    function page_type_slug(?int $pageId = null): string {
+        $type = get_page_type($pageId);
+
+        return (string) ($type['slug'] ?? '');
+    }
+}
+
+/**
+ * Checks whether the current (or given) document uses a page type slug.
+ */
+if (!function_exists('is_page_type')) {
+    function is_page_type(string $slug, ?int $pageId = null): bool {
+        $slug = trim($slug);
+        if ($slug === '') {
+            return false;
+        }
+
+        return page_type_slug($pageId) === $slug;
+    }
+}
+
+/**
+ * Returns a normalized custom-field gallery (items + options) for a page/post.
+ *
+ * @return array{
+ *     items: array<int,array{image:string,alt:string,caption:string,link:string}>,
+ *     options: array<string,string>
+ * }
+ */
+if (!function_exists('get_meta_gallery')) {
+    function get_meta_gallery(string $key, ?int $pageId = null): array {
+        $pageId = $pageId ?? (int) (ThemeState::$currentPage['id'] ?? 0);
+        if ($pageId <= 0 || $key === '') {
+            return ['items' => [], 'options' => \Core\MetaGallery::defaultOptions()];
+        }
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT meta_value FROM page_meta WHERE page_id = :pid AND meta_key = :k LIMIT 1");
+            $stmt->execute([':pid' => $pageId, ':k' => $key]);
+            $value = $stmt->fetchColumn();
+            return \Core\MetaGallery::normalize($value === false ? '' : $value);
+        } catch (\Throwable $e) {
+            return ['items' => [], 'options' => \Core\MetaGallery::defaultOptions()];
+        }
+    }
+}
+
+/**
+ * Renders a custom-field gallery as HTML. $args may override stored options,
+ * e.g. echo meta_gallery('galeria', ['columns' => 4, 'lightbox' => 0]);
+ *
+ * @param array<string,mixed> $args
+ */
+if (!function_exists('meta_gallery')) {
+    function meta_gallery(string $key, array $args = [], ?int $pageId = null): string {
+        $pageId = $pageId ?? (int) (ThemeState::$currentPage['id'] ?? 0);
+        if ($pageId <= 0 || $key === '') {
+            return '';
+        }
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT meta_value FROM page_meta WHERE page_id = :pid AND meta_key = :k LIMIT 1");
+            $stmt->execute([':pid' => $pageId, ':k' => $key]);
+            $value = $stmt->fetchColumn();
+            $uid = 'cf-' . substr(md5($pageId . ':' . $key), 0, 10);
+            return \Core\MetaGallery::render($value === false ? '' : $value, $args, $uid);
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+}
+
+/**
+ * Echoes a custom-field gallery.
+ *
+ * @param array<string,mixed> $args
+ */
+if (!function_exists('the_meta_gallery')) {
+    function the_meta_gallery(string $key, array $args = [], ?int $pageId = null): void {
+        echo meta_gallery($key, $args, $pageId);
+    }
+}
+
 
 /**
  * Resolves a reusable snippet (global HTML/text block) by its shortcode name.

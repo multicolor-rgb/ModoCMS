@@ -56,6 +56,7 @@ if (!class_exists('ModoGallery')) {
 
             if (defined('IN_ADMIN') && IN_ADMIN === true) {
                 self::handleAdminPost();
+                \Core\Hooks::addAction('admin_head', [self::class, 'renderAdminHeadAssets']);
                 \Core\Hooks::addAction('admin-edit-form', [self::class, 'renderEditorInsertScript']);
             } else {
                 \Core\Hooks::addFilter('the_content', [self::class, 'renderShortcode'], 20);
@@ -75,6 +76,19 @@ if (!class_exists('ModoGallery')) {
                 $base = rtrim(\Core\Router::getBaseSubdirectory(), '/');
             }
             return $base . '/plugins/' . self::PLUGIN_ID . '/assets';
+        }
+
+        /**
+         * Loads the admin-side styles used by the gallery picker modal.
+         */
+        public static function renderAdminHeadAssets(): void
+        {
+            $path = __DIR__ . '/assets/admin.css';
+            if (!is_file($path)) {
+                return;
+            }
+            $url = self::assetsUrl() . '/admin.css?v=' . (int)filemtime($path);
+            echo '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
         }
 
         private static function db(): ?\PDO
@@ -498,26 +512,10 @@ if (!class_exists('ModoGallery')) {
         /** @return array<int,array<string,string>> */
         private static function mediaItems(): array
         {
-            $dir  = dirname(__DIR__, 2) . '/uploads/';
-            $base = class_exists('\Core\Router') ? rtrim(\Core\Router::getBaseSubdirectory(), '/') : '';
-            $out  = [];
-            if (!is_dir($dir)) {
-                return $out;
+            if (!class_exists('\Core\MediaLibrary')) {
+                return [];
             }
-            $files = scandir($dir, SCANDIR_SORT_DESCENDING) ?: [];
-            foreach ($files as $file) {
-                if ($file === '.' || $file === '..') {
-                    continue;
-                }
-                if (!is_file($dir . $file)) {
-                    continue;
-                }
-                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif'], true)) {
-                    $out[] = ['name' => $file, 'url' => $base . '/uploads/' . $file];
-                }
-            }
-            return $out;
+            return \Core\MediaLibrary::listImages();
         }
 
         private static function itemRow(array $it, callable $esc): string
@@ -525,7 +523,7 @@ if (!class_exists('ModoGallery')) {
             $img = (string)($it['image'] ?? '');
             return '<div class="mg-item">'
                 . '<div class="mg-drag" draggable="true" title="' . $esc(__('mg_drag')) . '">&#9776;</div>'
-                . '<img src="' . $esc($img) . '" alt="">'
+                . '<img src="' . $esc($img) . '" alt="" loading="lazy" decoding="async">'
                 . '<div class="mg-fields">'
                 . '<input type="hidden" name="mg_item_image[]" value="' . $esc($img) . '">'
                 . '<button type="button" class="btn btn-secondary mg-choose" style="font-size:11px;padding:4px 8px;">' . $esc(__('mg_choose')) . '</button>'
@@ -650,14 +648,28 @@ if (!class_exists('ModoGallery')) {
             // Media picker
             $base  = class_exists('\Core\Router') ? rtrim(\Core\Router::getBaseSubdirectory(), '/') : '';
             $media = self::mediaItems();
+            $folders = class_exists('\Core\MediaLibrary') ? \Core\MediaLibrary::folders() : [];
             echo '<div class="mg-picker" id="mg-picker"><div class="mg-picker-inner">';
             echo '<div class="mg-picker-head"><span>' . $esc(__('mg_choose_media')) . '</span><button type="button" class="mg-btn-x" id="mg-picker-close">&times;</button></div>';
+            if (!empty($media)) {
+                echo '<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(148,163,184,.25);">';
+                echo '<label for="mg-folder-filter" style="font-size:12px;opacity:.8;">' . $esc(__('Folder')) . '</label>';
+                echo '<select id="mg-folder-filter" class="form-control" style="max-width:220px;padding:5px 8px;font-size:12px;">';
+                echo '<option value="__all__">' . $esc(__('All files')) . '</option>';
+                echo '<option value="">' . $esc(__('Root')) . '</option>';
+                foreach ($folders as $folder) {
+                    echo '<option value="' . $esc($folder['name']) . '">' . $esc($folder['name']) . ' (' . (int)$folder['count'] . ')</option>';
+                }
+                echo '</select></div>';
+            }
             echo '<div class="mg-picker-body" id="mg-picker-body">';
             if (empty($media)) {
                 echo '<div class="mg-empty">' . $esc(__('mg_no_media')) . '</div>';
             } else {
                 foreach ($media as $m) {
-                    echo '<div class="mg-pick-thumb" data-url="' . $esc($m['url']) . '"><img src="' . $esc($m['url']) . '" alt="' . $esc($m['name']) . '" loading="lazy"></div>';
+                    $thumb = \Core\MediaLibrary::thumbnailUrl((string) ($m['path'] ?? $m['url']), 160);
+                    $thumb2x = \Core\MediaLibrary::thumbnailUrl((string) ($m['path'] ?? $m['url']), 240);
+                    echo '<div class="mg-pick-thumb" data-url="' . $esc($m['url']) . '" data-folder="' . $esc((string)($m['folder'] ?? '')) . '"><img src="' . $esc($thumb) . '" srcset="' . $esc($thumb) . ' 1x, ' . $esc($thumb2x) . ' 2x" alt="' . $esc($m['name']) . '" loading="lazy" decoding="async"></div>';
                 }
             }
             echo '</div>';
@@ -680,9 +692,23 @@ if (!class_exists('ModoGallery')) {
                 var tplEl=document.getElementById("mg-tpl");
                 if(!picker||!itemsBox||!tplEl) return;
                 var mode="add", targetRow=null, dragEl=null;
+                var folderFilter=document.getElementById("mg-folder-filter");
+
+                function applyFolderFilter(){
+                    if(!folderFilter) return;
+                    var value=folderFilter.value;
+                    picker.querySelectorAll(".mg-pick-thumb").forEach(function(t){
+                        t.style.display=(value==="__all__"||(t.getAttribute("data-folder")||"")===value)?"":"none";
+                    });
+                }
+                if(folderFilter){ folderFilter.addEventListener("change",function(){ clearSel(); applyFolderFilter(); }); }
 
                 function clearSel(){ picker.querySelectorAll(".mg-pick-thumb.sel").forEach(function(t){t.classList.remove("sel");}); }
-                function open(m,t){ mode=m; targetRow=t||null; clearSel(); picker.classList.add("open"); }
+                function open(m,t){
+                    mode=m; targetRow=t||null; clearSel();
+                    if(folderFilter){ folderFilter.value="__all__"; applyFolderFilter(); }
+                    picker.classList.add("open");
+                }
                 function close(){ picker.classList.remove("open"); }
 
                 function addRow(url){
@@ -750,61 +776,300 @@ if (!class_exists('ModoGallery')) {
         }
 
         // ---------------------------------------------------------------------
-        // Przycisk wstawiania w edytorze TinyMCE (hook admin-edit-form)
+        // Wybor galerii w edytorze strony (TinyMCE / Editor.js)
         // ---------------------------------------------------------------------
+
+        /**
+         * Data used by the gallery picker modal.
+         *
+         * @return array<int,array<string,mixed>>
+         */
+        private static function galleryPickerItems(): array
+        {
+            $defaults = self::defaultOptions();
+            $out      = [];
+
+            foreach (self::allGalleries() as $g) {
+                $galleryItems = self::decodeItems($g['items'] ?? '[]');
+                $cover        = '';
+                foreach ($galleryItems as $it) {
+                    if ($it['image'] !== '') {
+                        $cover = self::mediaUrl($it['image']);
+                        break;
+                    }
+                }
+
+                $opts   = self::decodeOptions($g['options'] ?? '{}', $defaults);
+                $layout = in_array($opts['layout'], ['grid', 'masonry', 'justified'], true) ? $opts['layout'] : 'grid';
+
+                $out[] = [
+                    'id'     => (int)$g['id'],
+                    'name'   => (string)$g['name'],
+                    'slug'   => (string)$g['slug'],
+                    'count'  => count($galleryItems),
+                    'cover'  => $cover,
+                    'layout' => $layout,
+                ];
+            }
+
+            return $out;
+        }
 
         public static function renderEditorInsertScript(): void
         {
-            $items = [];
-            foreach (self::allGalleries() as $g) {
-                $items[] = ['id' => (int)$g['id'], 'name' => (string)$g['name']];
-            }
             $payload = [
-                'items'  => $items,
+                'items'  => self::galleryPickerItems(),
+                'manage' => 'plugins.php?id=' . self::PLUGIN_ID . '&mg_view=edit',
                 'labels' => [
-                    'title'  => __('mg_insert_gallery'),
-                    'button' => __('mg_gallery'),
-                    'none'   => __('mg_no_galleries'),
-                    'label'  => __('mg_gallery'),
-                    'insert' => __('Insert'),
-                    'cancel' => __('Cancel'),
+                    'title'     => __('mg_pick_title'),
+                    'subtitle'  => __('mg_pick_subtitle'),
+                    'button'    => __('mg_gallery'),
+                    'insert'    => __('mg_insert_gallery'),
+                    'cancel'    => __('mg_cancel'),
+                    'empty'     => __('mg_pick_empty'),
+                    'manage'    => __('mg_pick_manage'),
+                    'images'    => __('mg_items'),
+                    'grid'      => __('mg_layout_grid'),
+                    'masonry'   => __('mg_layout_masonry'),
+                    'justified' => __('mg_layout_justified'),
                 ],
             ];
+
+            // HEX flags keep a gallery name from closing the JSON script tag.
+            $json = json_encode(
+                $payload,
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+            );
             ?>
-            <script type="application/json" id="mg-editor-data"><?= json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
+            <script type="application/json" id="mg-editor-data"><?= $json ?: '{}' ?></script>
             <script>
             (function(){
+                "use strict";
+
                 var data=document.getElementById("mg-editor-data");
                 if(!data) return;
-                var cfg=JSON.parse(data.textContent||"{}");
-                function patch(){
-                    if(!window.tinymce||typeof window.tinymce.init!=="function"||window.tinymce.__modoGalleryPatched) return !!window.tinymce;
+
+                var cfg;
+                try { cfg=JSON.parse(data.textContent||"{}")||{}; } catch(e){ return; }
+
+                var labels=cfg.labels||{};
+                var galleries=Array.isArray(cfg.items)?cfg.items:[];
+                var picker=null, selectedId=0, pickCallback=null, lastFocus=null, cards=[];
+
+                function el(tag,cls,text){
+                    var node=document.createElement(tag);
+                    if(cls){ node.className=cls; }
+                    if(text!==undefined && text!==null){ node.textContent=String(text); }
+                    return node;
+                }
+
+                function iconSvg(){
+                    return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+                        +'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m21 15-5-5L5 21"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>';
+                }
+
+                function layoutLabel(layout){
+                    if(layout==="masonry"){ return labels.masonry||"Masonry"; }
+                    if(layout==="justified"){ return labels.justified||"Justified"; }
+                    return labels.grid||"Grid";
+                }
+
+                function placeholder(){
+                    var box=el("span","mg-gcard__placeholder");
+                    box.innerHTML=iconSvg();
+                    return box;
+                }
+
+                function buildCard(g){
+                    var card=el("button","mg-gcard");
+                    card.type="button";
+                    card.setAttribute("data-id",String(g.id));
+                    card.setAttribute("aria-pressed","false");
+
+                    var thumb=el("span","mg-gcard__thumb");
+                    if(g.cover){
+                        var img=el("img");
+                        img.src=String(g.cover);
+                        img.alt="";
+                        img.loading="lazy";
+                        img.addEventListener("error",function(){
+                            img.remove();
+                            thumb.appendChild(placeholder());
+                        });
+                        thumb.appendChild(img);
+                    } else {
+                        thumb.appendChild(placeholder());
+                    }
+
+                    var meta=el("span","mg-gcard__meta");
+                    meta.appendChild(el("span","mg-gcard__name",g.name||("#"+g.id)));
+                    var bits=["#"+g.id,(labels.images||"Images")+": "+(parseInt(g.count,10)||0),layoutLabel(g.layout)];
+                    meta.appendChild(el("span","mg-gcard__sub",bits.join(" \u00b7 ")));
+
+                    card.appendChild(thumb);
+                    card.appendChild(meta);
+                    card.addEventListener("click",function(){ select(g.id); });
+                    card.addEventListener("dblclick",function(){ select(g.id); submit(); });
+                    return card;
+                }
+
+                function buildPicker(){
+                    if(picker){ return picker; }
+
+                    var overlay=el("div","mg-gmodal");
+                    var box=el("div","mg-gmodal__box");
+                    box.setAttribute("role","dialog");
+                    box.setAttribute("aria-modal","true");
+                    box.setAttribute("aria-labelledby","mg-gmodal-title");
+
+                    var head=el("div","mg-gmodal__head");
+                    var titleWrap=el("div","mg-gmodal__title-wrap");
+                    var icon=el("span","mg-gmodal__icon");
+                    icon.innerHTML=iconSvg();
+                    var title=el("h3","mg-gmodal__title",labels.title||labels.button||"Insert gallery");
+                    title.id="mg-gmodal-title";
+                    titleWrap.appendChild(icon);
+                    titleWrap.appendChild(title);
+
+                    var closeBtn=el("button","mg-gmodal__close","\u00d7");
+                    closeBtn.type="button";
+                    closeBtn.setAttribute("aria-label",labels.cancel||"Cancel");
+                    closeBtn.addEventListener("click",close);
+
+                    head.appendChild(titleWrap);
+                    head.appendChild(closeBtn);
+
+                    var body=el("div","mg-gmodal__body");
+                    if(labels.subtitle){ body.appendChild(el("p","mg-gmodal__subtitle",labels.subtitle)); }
+
+                    var grid=el("div","mg-gmodal__grid");
+                    if(!galleries.length){
+                        var empty=el("div","mg-gmodal__empty");
+                        empty.appendChild(el("p",null,labels.empty||"No galleries yet."));
+                        if(labels.manage){
+                            var manage=el("a","btn btn-primary",labels.manage);
+                            manage.href=cfg.manage||"plugins.php?id=modo-gallery&mg_view=edit";
+                            empty.appendChild(manage);
+                        }
+                        grid.appendChild(empty);
+                    } else {
+                        galleries.forEach(function(g){
+                            var card=buildCard(g);
+                            cards.push(card);
+                            grid.appendChild(card);
+                        });
+                    }
+                    body.appendChild(grid);
+
+                    var foot=el("div","mg-gmodal__foot");
+                    var preview=el("div","mg-gmodal__preview");
+                    var actions=el("div","mg-gmodal__actions");
+
+                    var cancel=el("button","btn btn-secondary",labels.cancel||"Cancel");
+                    cancel.type="button";
+                    cancel.addEventListener("click",close);
+
+                    var insert=el("button","btn btn-primary",labels.insert||"Insert");
+                    insert.type="button";
+                    insert.disabled=true;
+                    insert.addEventListener("click",submit);
+
+                    actions.appendChild(cancel);
+                    actions.appendChild(insert);
+                    foot.appendChild(preview);
+                    foot.appendChild(actions);
+
+                    box.appendChild(head);
+                    box.appendChild(body);
+                    box.appendChild(foot);
+                    overlay.appendChild(box);
+                    overlay.addEventListener("mousedown",function(e){ if(e.target===overlay){ close(); } });
+                    document.body.appendChild(overlay);
+
+                    picker={overlay:overlay,insert:insert,preview:preview,closeBtn:closeBtn,firstCard:cards[0]||null};
+                    return picker;
+                }
+
+                function select(id){
+                    selectedId=parseInt(id,10)||0;
+                    cards.forEach(function(card){
+                        var on=card.getAttribute("data-id")===String(selectedId);
+                        card.classList.toggle("is-selected",on);
+                        card.setAttribute("aria-pressed",on?"true":"false");
+                    });
+                    if(picker){
+                        picker.insert.disabled=!selectedId;
+                        picker.preview.textContent=selectedId?('[modo_gallery id="'+selectedId+'"]'):"";
+                    }
+                }
+
+                function submit(){
+                    if(!selectedId||typeof pickCallback!=="function"){ return; }
+                    var id=selectedId;
+                    var cb=pickCallback;
+                    close(false);
+                    try { cb(id); } catch(e){
+                        if(window.console&&console.error){ console.error("[ModoGallery] insert failed:",e); }
+                    }
+                }
+
+                function close(restoreFocus){
+                    if(!picker){ return; }
+                    picker.overlay.classList.remove("is-open");
+                    document.documentElement.classList.remove("mg-modal-open");
+                    pickCallback=null;
+                    if(restoreFocus!==false&&lastFocus&&typeof lastFocus.focus==="function"){
+                        try { lastFocus.focus(); } catch(e){}
+                    }
+                    lastFocus=null;
+                }
+
+                function onKeydown(e){
+                    if(!picker||!picker.overlay.classList.contains("is-open")){ return; }
+                    if(e.key==="Escape"){ e.preventDefault(); close(); }
+                }
+                document.addEventListener("keydown",onKeydown,true);
+
+                function open(callback){
+                    picker=buildPicker();
+                    pickCallback=typeof callback==="function"?callback:null;
+                    lastFocus=document.activeElement;
+                    select(0);
+                    picker.overlay.classList.add("is-open");
+                    document.documentElement.classList.add("mg-modal-open");
+                    var focusTarget=picker.firstCard||picker.closeBtn;
+                    if(focusTarget){
+                        setTimeout(function(){ try { focusTarget.focus(); } catch(e){} },0);
+                    }
+                }
+
+                window.ModoGalleryPicker={open:open,close:close};
+
+                // TinyMCE: toolbar button opening the shared picker modal.
+                function patchTinyMce(){
+                    if(!window.tinymce||typeof window.tinymce.init!=="function"||window.tinymce.__modoGalleryPatched){
+                        return !!window.tinymce;
+                    }
                     window.tinymce.__modoGalleryPatched=true;
                     var orig=window.tinymce.init;
                     window.tinymce.init=function(c){
                         var conf=c||{};
-                        if(typeof conf.toolbar==="string" && conf.toolbar.indexOf("modo_gallery")===-1){
-                            conf.toolbar=conf.toolbar+" | modo_gallery";
+                        if(typeof conf.toolbar==="string"){
+                            if(conf.toolbar.indexOf("modo_gallery")===-1){
+                                conf.toolbar=conf.toolbar.trim()?conf.toolbar+" | modo_gallery":"modo_gallery";
+                            }
+                        } else if(Array.isArray(conf.toolbar)&&conf.toolbar.indexOf("modo_gallery")===-1){
+                            conf.toolbar=conf.toolbar.concat("modo_gallery");
                         }
-                        var os=conf.setup;
+                        var setup=conf.setup;
                         conf.setup=function(editor){
-                            if(typeof os==="function"){ os(editor); }
+                            if(typeof setup==="function"){ setup(editor); }
                             editor.ui.registry.addButton("modo_gallery",{
-                                icon:"image",
-                                tooltip:cfg.labels.title,
+                                icon:"gallery",
+                                tooltip:labels.button||labels.title||"Gallery",
                                 onAction:function(){
-                                    var list=cfg.items||[];
-                                    if(!list.length){ editor.notificationManager.open({text:cfg.labels.none,type:"info"}); return; }
-                                    editor.windowManager.open({
-                                        title:cfg.labels.title,
-                                        body:{type:"panel",items:[{type:"selectbox",name:"gid",label:cfg.labels.label,
-                                            items:list.map(function(g){return {text:g.name+" (#"+g.id+")",value:String(g.id)};})}]},
-                                        buttons:[{type:"cancel",text:cfg.labels.cancel},{type:"submit",text:cfg.labels.insert,primary:true}],
-                                        onSubmit:function(api){
-                                            var d=api.getData();
-                                            editor.insertContent('[modo_gallery id="'+d.gid+'"]');
-                                            api.close();
-                                        }
+                                    window.ModoGalleryPicker.open(function(id){
+                                        editor.insertContent('[modo_gallery id="'+id+'"]');
                                     });
                                 }
                             });
@@ -813,38 +1078,91 @@ if (!class_exists('ModoGallery')) {
                     };
                     return true;
                 }
-                if(!patch()){
+
+                if(!patchTinyMce()){
                     var tries=0;
-                    var iv=setInterval(function(){ tries++; if(patch()||tries>60){ clearInterval(iv); } },100);
+                    var iv=setInterval(function(){
+                        tries++;
+                        if(patchTinyMce()||tries>60){ clearInterval(iv); }
+                    },100);
                 }
-            })();
-            </script>
-            <script>
-            // Editor.js (Settings → Content): same picker through the editor bridge.
-            (function(){
-                if(!window.ModoEditor||typeof window.ModoEditor.registerButton!=="function") return;
-                window.ModoEditor.registerButton({
-                    id:"modo_gallery",
-                    label:cfg.labels.button||cfg.labels.title,
-                    icon:"<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"m21 15-5-5L5 21\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/></svg>",
-                    insert:function(api){
-                        var list=cfg.items||[];
-                        api.pickFromList({
-                            title:cfg.labels.title,
-                            label:cfg.labels.label,
-                            items:list.map(function(g){return {text:g.name+" (#"+g.id+")",value:String(g.id)};}),
-                            submitText:cfg.labels.insert,
-                            cancelText:cfg.labels.cancel,
-                            emptyText:cfg.labels.none
-                        },function(gid){
-                            if(!gid){ return; }
-                            api.insertShortcode('[modo_gallery id="'+gid+'"]');
-                        });
+
+                // Editor.js: the same picker through the editor bridge.
+                function registerEditorJs(){
+                    if(!window.ModoEditor||typeof window.ModoEditor.registerButton!=="function"){ return false; }
+                    window.ModoEditor.registerButton({
+                        id:"modo_gallery",
+                        label:labels.button||labels.title||"Gallery",
+                        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m21 15-5-5L5 21"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>',
+                        insert:function(api){
+                            window.ModoGalleryPicker.open(function(id){
+                                api.insertShortcode('[modo_gallery id="'+id+'"]');
+                            });
+                        }
+                    });
+                    return true;
+                }
+
+                function whenReady(fn){
+                    if(document.readyState==="loading"){
+                        document.addEventListener("DOMContentLoaded",fn,{once:true});
+                    } else {
+                        fn();
                     }
+                }
+
+                whenReady(function(){
+                    if(registerEditorJs()){ return; }
+                    var tries=0;
+                    var iv=setInterval(function(){
+                        tries++;
+                        if(registerEditorJs()||tries>60){ clearInterval(iv); }
+                    },100);
                 });
             })();
             </script>
             <?php
+        }
+
+        /**
+         * Renders a gallery from inline custom-field data (page_meta "gallery").
+         *
+         * @param array<int,array<string,mixed>> $items
+         * @param array<string,mixed>            $options
+         */
+        public static function renderInlineGallery(array $items, array $options = [], string $uid = ''): string
+        {
+            $normalized = self::decodeItems((string) json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            if (empty($normalized)) {
+                return '';
+            }
+
+            $defaults = self::defaultOptions();
+            $resolved = $defaults;
+            foreach ($options as $key => $value) {
+                if (array_key_exists((string) $key, $defaults) && is_scalar($value)) {
+                    $resolved[(string) $key] = (string) $value;
+                }
+            }
+
+            $uid = trim((string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $uid), '-');
+            if ($uid === '') {
+                $uid = 'cf-' . substr(md5((string) json_encode($normalized)), 0, 10);
+            }
+
+            $gallery = [
+                'id'      => $uid,
+                'name'    => '',
+                'items'   => (string) json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'options' => (string) json_encode($resolved, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ];
+
+            $html = self::renderOne($gallery);
+            if ($html !== '') {
+                self::enqueueAssets();
+            }
+
+            return $html;
         }
 
         // ---------------------------------------------------------------------
@@ -921,12 +1239,16 @@ if (!class_exists('ModoGallery')) {
                 return '';
             }
 
-            $id       = (int)$g['id'];
+            $id       = trim((string) preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($g['id'] ?? '0')), '-');
+            if ($id === '') {
+                $id = '0';
+            }
             $layout   = in_array($opts['layout'], ['grid', 'masonry', 'justified'], true) ? $opts['layout'] : 'grid';
             $columns  = max(1, min(6, (int)$opts['columns']));
             $gap      = max(0, min(60, (int)$opts['gap']));
             $radius   = max(0, min(40, (int)$opts['radius']));
             $ratio    = (string)$opts['ratio'];
+            $autoRatio = $ratio === 'auto';
             $hover    = in_array($opts['hover'], ['zoom', 'fade', 'overlay', 'none'], true) ? $opts['hover'] : 'zoom';
             $theme    = in_array($opts['theme'], ['auto', 'light', 'dark'], true) ? $opts['theme'] : 'auto';
             $showCaps = $opts['captions'] === '1';
@@ -947,7 +1269,8 @@ if (!class_exists('ModoGallery')) {
             $esc = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 
             $html = '<div class="modo-gallery modo-gallery--' . $layout . ' modo-gallery--' . $theme
-                . ' modo-gallery--hover-' . $hover . ($showCaps ? '' : ' modo-gallery--nocaps') . '"'
+                . ' modo-gallery--hover-' . $hover . ($autoRatio ? ' modo-gallery--ratio-auto' : '')
+                . ($showCaps ? '' : ' modo-gallery--nocaps') . '"'
                 . ' id="modo-gallery-' . $id . '" data-lightbox="' . ($lightbox ? '1' : '0') . '"'
                 . ' data-lb="' . $esc((string)json_encode($lbOpts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '"'
                 . ' style="' . $style . '">';

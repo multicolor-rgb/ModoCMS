@@ -24,6 +24,7 @@
 | Hooki (akcje i filtry) | [docs/en/hooks.md](docs/en/hooks.md) | [docs/pl/hooki.md](docs/pl/hooki.md) |
 | Typy stron | [docs/en/page-types.md](docs/en/page-types.md) | [docs/pl/typy-stron.md](docs/pl/typy-stron.md) |
 | Przykłady | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
+| Styl motywu w edytorze | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
 | Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
@@ -39,6 +40,18 @@
 * **Wybór edytora treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) albo edytor blokowy (Editor.js 2.31.7) — oba dołączone lokalnie. Treść zachowuje format, w jakim została zapisana, więc edytor można zmienić w każdej chwili bez utraty istniejących stron.
 * **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
+
+---
+
+## 🆕 Co nowego w 3.0.2
+
+* **Opcjonalne style motywu w edytorze treści:** motyw może dostarczyć plik `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE i Editor.js. Plik jest wykrywany automatycznie — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie. W `theme.json` można opcjonalnie dodać `editor.body_class` i `editor.content_style`. Zobacz [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md).
+
+---
+
+## 🆕 Co nowego w 3.0.1
+
+* **Panel ustawień szablonu:** sekcje są domyślnie zwinięte, a rozwinięte podczas edycji pozostają otwarte po przeładowaniu podglądu; pisanie w polach tekstowych nie odświeża już strony (podgląd aktualizuje się po zakończeniu edycji), a szkic jest zapisywany przed każdym przeładowaniem. **Publikuj** i **Reset** nie odtwarzają już szkicu.
 
 ---
 
@@ -211,7 +224,7 @@ php -S localhost:8000
 
 Panel w backendzie: **Wygląd → Customizer** (`/admin/customize.php`) służy **wyłącznie do zarządzania ustawieniami** (builder sekcji i pól zapisywany w bazie). Nie zawiera podglądu szablonu ani edycji wartości — te czynności wykonuje się na froncie.
 
-Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu”** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie.
+Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu”** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem dopiero po zakończeniu edycji (po wyjściu z pola tekstowego lub przełączeniu kontrolki), więc pisanie nie wywołuje przeładowania. Sekcje ustawień są domyślnie zwinięte, a te rozwinięte podczas edycji pozostają otwarte po tych przeładowaniach. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie.
 
 ### Typy pól
 

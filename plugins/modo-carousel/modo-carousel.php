@@ -513,26 +513,10 @@ if (!class_exists('ModoCarousel')) {
         /** @return array<int,array<string,string>> */
         private static function mediaItems(): array
         {
-            $dir  = dirname(__DIR__, 2) . '/uploads/';
-            $base = class_exists('\Core\Router') ? rtrim(\Core\Router::getBaseSubdirectory(), '/') : '';
-            $out  = [];
-            if (!is_dir($dir)) {
-                return $out;
+            if (!class_exists('\Core\MediaLibrary')) {
+                return [];
             }
-            $files = scandir($dir, SCANDIR_SORT_DESCENDING) ?: [];
-            foreach ($files as $file) {
-                if ($file === '.' || $file === '..') {
-                    continue;
-                }
-                if (!is_file($dir . $file)) {
-                    continue;
-                }
-                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif'], true)) {
-                    $out[] = ['name' => $file, 'url' => $base . '/uploads/' . $file];
-                }
-            }
-            return $out;
+            return \Core\MediaLibrary::listImages();
         }
 
         private static function itemRow(array $it, callable $esc): string
@@ -540,7 +524,7 @@ if (!class_exists('ModoCarousel')) {
             $img = (string)($it['image'] ?? '');
             return '<div class="mc-item">'
                 . '<div class="mc-drag" draggable="true" title="' . $esc(__('mc_drag')) . '">&#9776;</div>'
-                . '<img src="' . $esc($img) . '" alt="">'
+                . '<img src="' . $esc($img) . '" alt="" loading="lazy" decoding="async">'
                 . '<div class="mc-fields">'
                 . '<input type="hidden" name="mc_item_image[]" value="' . $esc($img) . '">'
                 . '<button type="button" class="btn btn-secondary mc-choose" style="font-size:11px;padding:4px 8px;">' . $esc(__('mc_choose')) . '</button>'
@@ -681,14 +665,28 @@ if (!class_exists('ModoCarousel')) {
             // Media picker
             $base  = class_exists('\Core\Router') ? rtrim(\Core\Router::getBaseSubdirectory(), '/') : '';
             $media = self::mediaItems();
+            $folders = class_exists('\Core\MediaLibrary') ? \Core\MediaLibrary::folders() : [];
             echo '<div class="mc-picker" id="mc-picker"><div class="mc-picker-inner">';
             echo '<div class="mc-picker-head"><span>' . $esc(__('mc_choose_media')) . '</span><button type="button" class="mc-btn-x" id="mc-picker-close">&times;</button></div>';
+            if (!empty($media)) {
+                echo '<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(148,163,184,.25);">';
+                echo '<label for="mc-folder-filter" style="font-size:12px;opacity:.8;">' . $esc(__('Folder')) . '</label>';
+                echo '<select id="mc-folder-filter" class="form-control" style="max-width:220px;padding:5px 8px;font-size:12px;">';
+                echo '<option value="__all__">' . $esc(__('All files')) . '</option>';
+                echo '<option value="">' . $esc(__('Root')) . '</option>';
+                foreach ($folders as $folder) {
+                    echo '<option value="' . $esc($folder['name']) . '">' . $esc($folder['name']) . ' (' . (int)$folder['count'] . ')</option>';
+                }
+                echo '</select></div>';
+            }
             echo '<div class="mc-picker-body" id="mc-picker-body">';
             if (empty($media)) {
                 echo '<div class="mc-empty">' . $esc(__('mc_no_media')) . '</div>';
             } else {
                 foreach ($media as $m) {
-                    echo '<div class="mc-pick-thumb" data-url="' . $esc($m['url']) . '"><img src="' . $esc($m['url']) . '" alt="' . $esc($m['name']) . '" loading="lazy"></div>';
+                    $thumb = \Core\MediaLibrary::thumbnailUrl((string) ($m['path'] ?? $m['url']), 160);
+                    $thumb2x = \Core\MediaLibrary::thumbnailUrl((string) ($m['path'] ?? $m['url']), 240);
+                    echo '<div class="mc-pick-thumb" data-url="' . $esc($m['url']) . '" data-folder="' . $esc((string)($m['folder'] ?? '')) . '"><img src="' . $esc($thumb) . '" srcset="' . $esc($thumb) . ' 1x, ' . $esc($thumb2x) . ' 2x" alt="' . $esc($m['name']) . '" loading="lazy" decoding="async"></div>';
                 }
             }
             echo '</div>';
@@ -711,9 +709,23 @@ if (!class_exists('ModoCarousel')) {
                 var tplEl=document.getElementById("mc-tpl");
                 if(!picker||!itemsBox||!tplEl) return;
                 var mode="add", targetRow=null, dragEl=null;
+                var folderFilter=document.getElementById("mc-folder-filter");
+
+                function applyFolderFilter(){
+                    if(!folderFilter) return;
+                    var value=folderFilter.value;
+                    picker.querySelectorAll(".mc-pick-thumb").forEach(function(t){
+                        t.style.display=(value==="__all__"||(t.getAttribute("data-folder")||"")===value)?"":"none";
+                    });
+                }
+                if(folderFilter){ folderFilter.addEventListener("change",function(){ clearSel(); applyFolderFilter(); }); }
 
                 function clearSel(){ picker.querySelectorAll(".mc-pick-thumb.sel").forEach(function(t){t.classList.remove("sel");}); }
-                function open(m,t){ mode=m; targetRow=t||null; clearSel(); picker.classList.add("open"); }
+                function open(m,t){
+                    mode=m; targetRow=t||null; clearSel();
+                    if(folderFilter){ folderFilter.value="__all__"; applyFolderFilter(); }
+                    picker.classList.add("open");
+                }
                 function close(){ picker.classList.remove("open"); }
 
                 function addRow(url){

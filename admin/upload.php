@@ -6,7 +6,7 @@ require_once __DIR__ . '/../core/bootstrap.php';
 
 use Core\Auth;
 use Core\Database;
-use Core\Router;
+use Core\MediaLibrary;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -66,23 +66,36 @@ $extMap = [
 $ext = $extMap[$mime] ?? 'bin';
 $safeName = bin2hex(random_bytes(16)) . '.' . $ext;
 
-$uploadDir = __DIR__ . '/../uploads/';
+$uploadDir = MediaLibrary::rootPath();
 if (!is_dir($uploadDir)) {
     @mkdir($uploadDir, 0775, true);
 }
 
-if (move_uploaded_file($file['tmp_name'], $uploadDir . $safeName)) {
-    // Dynamically resolve base subdirectory (e.g. /cleancms) for public URL
-    $basePrefix = class_exists('Core\Router') ? Router::getBaseSubdirectory() : '';
-    $publicUrl = $basePrefix . '/uploads/' . $safeName;
-    $storagePath = '/uploads/' . $safeName;
+// Optional destination folder selected in the media library. "root" (or an
+// empty value) means the uploads directory itself.
+$folder = (string)($_POST['folder'] ?? '');
+$folderDir = null;
+$folderSegment = '';
+if ($folder !== '' && $folder !== 'root') {
+    $folderDir = MediaLibrary::resolveFolder($folder);
+    if ($folderDir === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid destination folder']);
+        exit;
+    }
+    $folderSegment = basename($folderDir);
+}
+
+if (move_uploaded_file($file['tmp_name'], ($folderDir ?? $uploadDir) . '/' . $safeName)) {
+    $storagePath = '/uploads/' . ($folderSegment !== '' ? $folderSegment . '/' : '') . $safeName;
+    $publicUrl = MediaLibrary::urlForStoredPath($storagePath);
 
     // Automatic WebP conversion (Settings → Media & Images).
     $webpPath = null;
     if (\Core\ImageOptimizer::isEnabled() && \Core\ImageOptimizer::isSupported()) {
-        $converted = \Core\ImageOptimizer::convertToWebp($uploadDir . $safeName);
+        $converted = \Core\ImageOptimizer::convertToWebp(($folderDir ?? $uploadDir) . '/' . $safeName);
         if ($converted !== null) {
-            $webpPath = '/uploads/' . basename($converted);
+            $webpPath = '/uploads/' . ($folderSegment !== '' ? $folderSegment . '/' : '') . basename($converted);
         }
     }
 
@@ -100,6 +113,14 @@ if (move_uploaded_file($file['tmp_name'], $uploadDir . $safeName)) {
         ':w' => $webpPath,
         ':u' => Auth::id()
     ]);
+
+    // Warm every picker size so the media modal does not have to resize the
+    // original on first view. No-op when no image backend is available.
+    try {
+        MediaLibrary::ensureThumbnails($storagePath, MediaLibrary::THUMBNAIL_PREVIEW_WIDTHS);
+    } catch (\Throwable $e) {
+        // The upload itself succeeded; a missing thumbnail is not fatal.
+    }
 
     // Return URL compatible with TinyMCE and file pickers
     echo json_encode([

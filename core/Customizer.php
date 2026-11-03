@@ -766,10 +766,12 @@ final class Customizer
     // ---------------------------------------------------------------------
 
     /**
-     * Builds a <style> block exposing values of controls that map to a CSS
-     * custom property (via the "css_var" key). Used by customizer_css().
+     * Returns the raw CSS custom property declarations ("--x: y;") for a
+     * theme, built from controls that declare a "css_var".
+     *
+     * @return array<int,string>
      */
-    public static function renderCssVars(string $theme = ''): string
+    public static function cssVariables(string $theme = ''): array
     {
         $theme = $theme !== '' ? $theme : self::activeTheme();
         $schema = self::getSchema($theme);
@@ -799,6 +801,16 @@ final class Customizer
             }
         }
 
+        return $declarations;
+    }
+
+    /**
+     * Builds a <style> block exposing values of controls that map to a CSS
+     * custom property (via the "css_var" key). Used by customizer_css().
+     */
+    public static function renderCssVars(string $theme = ''): string
+    {
+        $declarations = self::cssVariables($theme);
         if (empty($declarations)) {
             return '';
         }

@@ -1,0 +1,126 @@
+/* Modo Editorial — content editor typography.
+   Loaded only inside the TinyMCE / Editor.js canvas when this file exists. */
+
+body {
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: var(--modo-base-font-size, 16px);
+    line-height: 1.75;
+    color: var(--modo-text-color, #1f2937);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0 0 .65em;
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+    color: inherit;
+}
+
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.9rem; }
+h3 { font-size: 1.55rem; }
+h4 { font-size: 1.3rem; }
+h5 { font-size: 1.1rem; }
+h6 {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: .9rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--modo-muted-color, #6b7280);
+}
+
+p {
+    margin: 0 0 1.1rem;
+}
+
+ul,
+ol {
+    margin: 0 0 1.1rem;
+    padding-left: 1.5rem;
+}
+
+li + li {
+    margin-top: .3rem;
+}
+
+a {
+    color: var(--modo-accent, #dc3545);
+    text-decoration: underline;
+    text-underline-offset: .15em;
+}
+
+strong,
+b {
+    font-weight: 700;
+}
+
+blockquote {
+    margin: 1.75rem 0;
+    padding: .35rem 1.25rem;
+    border-left: 4px solid var(--modo-accent, #dc3545);
+    color: var(--modo-muted-color, #4b5563);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.15rem;
+    font-style: italic;
+}
+
+hr {
+    margin: 2.25rem 0;
+    border: 0;
+    border-top: 1px solid var(--modo-border-color, #e5e7eb);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+figure {
+    margin: 1.75rem 0;
+}
+
+figcaption {
+    margin-top: .5rem;
+    font-size: .85rem;
+    color: var(--modo-muted-color, #6b7280);
+}
+
+table {
+    width: 100%;
+    margin: 1.75rem 0;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: .55rem .8rem;
+    border: 1px solid var(--modo-border-color, #e5e7eb);
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: var(--modo-surface-color, #f9fafb);
+    font-family: "Inter", system-ui, sans-serif;
+    font-weight: 700;
+}
+
+.lead {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    line-height: 1.55;
+}
+
+.hl {
+    padding: .1em .25em;
+    background: var(--modo-highlight, #fee2e2);
+    border-radius: .2em;
+}

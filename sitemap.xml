@@ -1,27 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>http://localhost/modocms/</loc>
-    <lastmod>2026-10-16</lastmod>
+    <loc>http://localhost:8002/</loc>
+    <lastmod>2026-11-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>http://localhost/modocms/blog</loc>
-    <lastmod>2026-10-16</lastmod>
+    <loc>http://localhost:8002/blog</loc>
+    <lastmod>2026-11-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://localhost/modocms/blog/first-post</loc>
-    <lastmod>2026-10-16</lastmod>
+    <loc>http://localhost:8002/blog/first-post</loc>
+    <lastmod>2026-11-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>http://localhost/modocms/blog/category/technologia</loc>
-    <lastmod>2026-10-16</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
   </url>
 </urlset>

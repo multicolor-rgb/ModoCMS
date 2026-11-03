@@ -1,3 +1,4 @@
+# Release notes for Modo CMS 3.0.2.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -10,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release (e.g. v3.0.0)'
+        description: 'Existing tag to release (e.g. v2.0.0)'
         required: true
 
 permissions:
@@ -51,6 +52,24 @@ jobs:
           files: ModoCMS-*.zip
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
+
+            ### What's new in 3.0.2
+            - **Optional theme editor styles:** a theme can ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE and Editor.js canvas only.
+            - **Automatic opt-in:** the file is detected by its existence — no new setting, no fallback to `style.css`, and no frontend changes.
+            - **Theme metadata:** optional `editor.body_class` and `editor.content_style` keys in `theme.json`.
+            - **Editor.js scoping:** relative URLs and `@import` are rewritten to theme URLs, while Customizer variables override defaults from `editor.css`.
+            - **Bundled examples:** `editor.css` files for the `default`, `default2` and `editorial` themes.
+            - **No database changes:** updating from 3.0.1 requires no migration — replacing the files is enough.
+
+            ### Najważniejsze zmiany w 3.0.2
+            - **Opcjonalne style motywu w edytorze:** motyw może dostarczyć `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE i Editor.js.
+            - **Automatyczne włączanie:** plik jest wykrywany po istnieniu — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie.
+            - **Metadane motywu:** opcjonalne klucze `editor.body_class` i `editor.content_style` w `theme.json`.
+            - **Scopowanie Editor.js:** względne URL-e i `@import` są zamieniane na URL-e motywu, a zmienne Customizera nadpisują wartości domyślne z `editor.css`.
+            - **Przykłady w motywach:** pliki `editor.css` dla motywów `default`, `default2` i `editorial`.
+            - **Bez zmian w bazie:** aktualizacja z 3.0.1 nie wymaga migracji — wystarczy podmienić pliki.
+
+            Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
             ### Install
             1. Extract the archive into your web root (or a subdirectory).

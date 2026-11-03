@@ -90,7 +90,7 @@ final class Revisions
 
         $hash = sha1(
             $fields['title'] . "\x00" . $fields['content'] . "\x00" . $fields['slug'] . "\x00"
-            . $fields['status'] . "\x00" . $metaJson . "\x00" . $tags
+            . $fields['status'] . "\x00" . $fields['page_type_id'] . "\x00" . $metaJson . "\x00" . $tags
         );
 
         if ($dedupe) {
@@ -106,11 +106,11 @@ final class Revisions
 
         $stmt = self::db()->prepare("
             INSERT INTO page_revisions (
-                page_id, title, slug, content, type, status, parent_id, lang,
+                page_id, title, slug, content, type, page_type_id, status, parent_id, lang,
                 translation_group, featured_image, meta_title, meta_description,
                 meta_json, tags, author_id, source, note, content_hash
             ) VALUES (
-                :page_id, :title, :slug, :content, :type, :status, :parent_id, :lang,
+                :page_id, :title, :slug, :content, :type, :page_type_id, :status, :parent_id, :lang,
                 :translation_group, :featured_image, :meta_title, :meta_description,
                 :meta_json, :tags, :author_id, :source, :note, :content_hash
             )
@@ -121,6 +121,7 @@ final class Revisions
             ':slug'              => $fields['slug'],
             ':content'           => $fields['content'],
             ':type'              => $fields['type'],
+            ':page_type_id'      => $fields['page_type_id'],
             ':status'            => $fields['status'],
             ':parent_id'         => $fields['parent_id'],
             ':lang'              => $fields['lang'],
@@ -212,6 +213,7 @@ final class Revisions
         $update = $db->prepare("
             UPDATE pages SET
                 title = :title, slug = :slug, content = :content, type = :type, status = :status,
+                page_type_id = :page_type_id,
                 parent_id = :parent_id, lang = :lang, translation_group = :translation_group,
                 featured_image = :featured_image, meta_title = :meta_title, meta_description = :meta_description,
                 updated_at = CURRENT_TIMESTAMP
@@ -219,9 +221,10 @@ final class Revisions
         ");
         $update->execute([
             ':title'             => (string) $rev['title'],
-            ':slug'              => (string) $rev['slug'],
+            ':slug'              => \Core\PageSlug::unique((string) $rev['slug'], (string) $rev['lang'], $pageId),
             ':content'           => (string) $rev['content'],
             ':type'              => in_array($rev['type'] ?? '', ['post', 'page'], true) ? $rev['type'] : 'page',
+            ':page_type_id'      => (int) ($rev['page_type_id'] ?? 0) ?: null,
             ':status'            => (string) ($rev['status'] ?: 'published'),
             ':parent_id'         => (int) $rev['parent_id'],
             ':lang'              => (string) $rev['lang'],
@@ -236,7 +239,7 @@ final class Revisions
         $db->prepare("DELETE FROM page_meta WHERE page_id = :pid")->execute([':pid' => $pageId]);
         $metaFields = json_decode((string) $rev['meta_json'], true);
         if (is_array($metaFields)) {
-            $metaInsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type) VALUES (:pid, :k, :v, :t)");
+            $metaInsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label) VALUES (:pid, :k, :v, :t, :l)");
             $seen = [];
             foreach ($metaFields as $m) {
                 $metaKey = strtolower(trim((string) preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) ($m['key'] ?? '')), '_'));
@@ -249,6 +252,7 @@ final class Revisions
                     ':k'   => $metaKey,
                     ':v'   => (string) ($m['value'] ?? ''),
                     ':t'   => (string) ($m['type'] ?? 'text'),
+                    ':l'   => (string) ($m['label'] ?? ($metaKey)),
                 ]);
             }
         }
@@ -322,6 +326,7 @@ final class Revisions
             'slug'              => (string) ($row['slug'] ?? ''),
             'content'           => (string) ($row['content'] ?? ''),
             'type'              => (string) ($row['type'] ?? 'page'),
+            'page_type_id'      => (int) ($row['page_type_id'] ?? 0),
             'status'            => (string) ($row['status'] ?? 'published'),
             'parent_id'         => (int) ($row['parent_id'] ?? 0),
             'lang'              => (string) ($row['lang'] ?? ''),
@@ -336,7 +341,7 @@ final class Revisions
     /** Serializes the document's custom fields into a JSON snapshot. */
     private static function collectMeta(int $pageId): string
     {
-        $stmt = self::db()->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+        $stmt = self::db()->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
         $stmt->execute([':pid' => $pageId]);
 
         $fields = [];
@@ -345,6 +350,7 @@ final class Revisions
                 'key'   => (string) $m['meta_key'],
                 'value' => (string) $m['meta_value'],
                 'type'  => (string) $m['meta_type'],
+                'label' => (string) ($m['meta_label'] ?? ''),
             ];
         }
 

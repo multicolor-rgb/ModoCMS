@@ -272,8 +272,7 @@ final class CssFramework
      * element instead of leaking into the surrounding admin UI.
      *
      * Editor.js renders inline (no iframe like TinyMCE), hence the need for
-     * this scoped variant. Only "@media" at-rules occur in the bundled
-     * stylesheets, which the selector prefixing below handles correctly.
+     * this scoped variant.
      *
      * @param string $scope CSS selector, e.g. "#editorjs".
      */
@@ -307,25 +306,294 @@ final class CssFramework
             return '';
         }
 
-        // Prefixes every innermost rule with the scope. At-rule headers
-        // ("@media …{") contain braces and therefore never match.
-        $scoped = preg_replace_callback(
-            '#([^{}]+)\{([^{}]*)\}#s',
-            static function (array $match) use ($scope): string {
-                $selectors = [];
-                foreach (explode(',', (string) $match[1]) as $selector) {
-                    $selector = trim($selector);
-                    if ($selector === '' || str_starts_with($selector, '@')) {
-                        return $match[0];
-                    }
-                    $selectors[] = $scope . ' ' . $selector;
-                }
-                return implode(',', $selectors) . '{' . $match[2] . '}';
-            },
-            $css
-        );
+        return self::scopeCss($css, $scope);
+    }
 
-        return $scoped ?? '';
+    /**
+     * Scopes every style rule under a selector.
+     *
+     * Root-level selectors (:root, html, body) map directly onto the scope,
+     * while their descendants become "$scope X". Conditional at-rules such as
+     * @media are processed recursively; @keyframes and @font-face are left
+     * untouched so their inner selectors stay valid.
+     *
+     * @param string $css   Stylesheet contents.
+     * @param string $scope CSS selector, e.g. "#editorjs".
+     */
+    public static function scopeCss(string $css, string $scope): string
+    {
+        $scope = trim($scope);
+        if ($scope === '' || trim($css) === '') {
+            return '';
+        }
+
+        $css = self::stripCssComments($css);
+
+        return trim(self::scopeCssRules($css, $scope));
+    }
+
+    /**
+     * Recursively walks top-level rules and scopes their selectors.
+     */
+    private static function scopeCssRules(string $css, string $scope): string
+    {
+        $output = '';
+        $length = strlen($css);
+        $offset = 0;
+
+        while ($offset < $length) {
+            $delimiter = self::nextTopLevelDelimiter($css, $offset);
+            if ($delimiter === null) {
+                $output .= substr($css, $offset);
+                break;
+            }
+
+            [$position, $character] = $delimiter;
+            $prelude = trim(substr($css, $offset, $position - $offset));
+
+            if ($character === ';') {
+                $output .= $prelude !== '' ? $prelude . ';' : ';';
+                $offset = $position + 1;
+                continue;
+            }
+
+            $close = self::findMatchingBrace($css, $position);
+            if ($close === null) {
+                $output .= substr($css, $offset);
+                break;
+            }
+
+            $block = substr($css, $position + 1, $close - $position - 1);
+
+            if ($prelude === '') {
+                $output .= '{' . $block . '}';
+            } elseif (str_starts_with($prelude, '@')) {
+                $output .= self::isScopableAtRule($prelude)
+                    ? $prelude . '{' . self::scopeCssRules($block, $scope) . '}'
+                    : $prelude . '{' . $block . '}';
+            } else {
+                $output .= self::scopeCssSelectorList($prelude, $scope) . '{' . $block . '}';
+            }
+
+            $offset = $close + 1;
+        }
+
+        return $output;
+    }
+
+    /**
+     * Finds the next top-level "{" or ";" outside strings, parentheses and
+     * attribute selectors.
+     *
+     * @return array{0:int,1:string}|null
+     */
+    private static function nextTopLevelDelimiter(string $css, int $offset): ?array
+    {
+        $length = strlen($css);
+        $quote = '';
+        $escaped = false;
+        $parentheses = 0;
+        $brackets = 0;
+
+        for ($i = $offset; $i < $length; $i++) {
+            $character = $css[$i];
+
+            if ($quote !== '') {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($character === '\\') {
+                    $escaped = true;
+                } elseif ($character === $quote) {
+                    $quote = '';
+                }
+                continue;
+            }
+
+            if ($character === '"' || $character === "'") {
+                $quote = $character;
+                continue;
+            }
+            if ($character === '(') {
+                $parentheses++;
+                continue;
+            }
+            if ($character === ')') {
+                $parentheses = max(0, $parentheses - 1);
+                continue;
+            }
+            if ($character === '[') {
+                $brackets++;
+                continue;
+            }
+            if ($character === ']') {
+                $brackets = max(0, $brackets - 1);
+                continue;
+            }
+            if ($parentheses === 0 && $brackets === 0 && ($character === '{' || $character === ';')) {
+                return [$i, $character];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the index of the "}" matching the "{" at $open.
+     */
+    private static function findMatchingBrace(string $css, int $open): ?int
+    {
+        $length = strlen($css);
+        $depth = 0;
+        $quote = '';
+        $escaped = false;
+
+        for ($i = $open; $i < $length; $i++) {
+            $character = $css[$i];
+
+            if ($quote !== '') {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($character === '\\') {
+                    $escaped = true;
+                } elseif ($character === $quote) {
+                    $quote = '';
+                }
+                continue;
+            }
+
+            if ($character === '"' || $character === "'") {
+                $quote = $character;
+                continue;
+            }
+            if ($character === '{') {
+                $depth++;
+                continue;
+            }
+            if ($character === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return $i;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether an at-rule contains regular style rules that must be scoped.
+     */
+    private static function isScopableAtRule(string $prelude): bool
+    {
+        return preg_match(
+            '/^@(?:media|supports|container|layer|document|-moz-document|scope|starting-style)\b/i',
+            $prelude
+        ) === 1;
+    }
+
+    /**
+     * Scopes a comma separated selector list.
+     */
+    private static function scopeCssSelectorList(string $selectors, string $scope): string
+    {
+        $mapped = [];
+        foreach (self::splitTopLevelSelectors($selectors) as $selector) {
+            $selector = trim($selector);
+            if ($selector === '') {
+                continue;
+            }
+            $mapped[] = self::scopeCssSelector($selector, $scope);
+        }
+
+        return implode(', ', $mapped);
+    }
+
+    /**
+     * Splits a selector list without breaking commas inside :is(), :where()
+     * or attribute values.
+     *
+     * @return array<int,string>
+     */
+    private static function splitTopLevelSelectors(string $selectors): array
+    {
+        $result = [];
+        $buffer = '';
+        $length = strlen($selectors);
+        $quote = '';
+        $escaped = false;
+        $parentheses = 0;
+        $brackets = 0;
+
+        for ($i = 0; $i < $length; $i++) {
+            $character = $selectors[$i];
+
+            if ($quote !== '') {
+                $buffer .= $character;
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($character === '\\') {
+                    $escaped = true;
+                } elseif ($character === $quote) {
+                    $quote = '';
+                }
+                continue;
+            }
+
+            if ($character === '"' || $character === "'") {
+                $quote = $character;
+                $buffer .= $character;
+                continue;
+            }
+            if ($character === '(') {
+                $parentheses++;
+            } elseif ($character === ')') {
+                $parentheses = max(0, $parentheses - 1);
+            } elseif ($character === '[') {
+                $brackets++;
+            } elseif ($character === ']') {
+                $brackets = max(0, $brackets - 1);
+            }
+
+            if ($character === ',' && $parentheses === 0 && $brackets === 0) {
+                $result[] = $buffer;
+                $buffer = '';
+                continue;
+            }
+
+            $buffer .= $character;
+        }
+
+        $result[] = $buffer;
+
+        return $result;
+    }
+
+    /**
+     * Maps one selector onto the scope.
+     */
+    private static function scopeCssSelector(string $selector, string $scope): string
+    {
+        if (in_array(strtolower($selector), [':root', 'html', 'body'], true)) {
+            return $scope;
+        }
+
+        if (preg_match('/^(?::root|html|body)([\s>+~].*)$/is', $selector, $match) === 1) {
+            return $scope . $match[1];
+        }
+
+        if (preg_match('/^(?::root|html|body)([.#\[\]:].*)$/is', $selector, $match) === 1) {
+            return $scope . $match[1];
+        }
+
+        return $scope . ' ' . $selector;
+    }
+
+    /**
+     * Removes CSS comments before parsing.
+     */
+    private static function stripCssComments(string $css): string
+    {
+        return preg_replace('#/\*.*?\*/#s', '', $css) ?? $css;
     }
 
     // ---------------------------------------------------------------------

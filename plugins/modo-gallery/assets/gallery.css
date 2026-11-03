@@ -43,6 +43,10 @@
 .modo-gallery__item:focus .modo-gallery__caption{opacity:1;transform:none;}
 .modo-gallery--nocaps .modo-gallery__caption{display:none;}
 
+/* Preserve the original image ratio */
+.modo-gallery--ratio-auto .modo-gallery__item{aspect-ratio:auto;}
+.modo-gallery--ratio-auto .modo-gallery__item img{height:auto;}
+
 /* Hover: zoom */
 .modo-gallery--hover-zoom .modo-gallery__item:hover img{transform:scale(1.07);}
 /* Hover: fade */

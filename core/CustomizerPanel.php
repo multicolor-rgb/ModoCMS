@@ -11,9 +11,11 @@ namespace Core;
  * theme's settings while looking at the real page instead of an admin iframe.
  *
  * The whole page acts as the live preview: controls mapped to a CSS custom
- * property (via the "css_var" key) update a <style> block instantly, while all
- * other changes reload the page with the session draft overlaid on top of the
- * published values (see Customizer::activatePreview()).
+ * property (via the "css_var" key) update a <style> block instantly, while the
+ * remaining ones reload the page with the session draft overlaid on top of the
+ * published values (see Customizer::activatePreview()). The reload happens only
+ * after editing is committed (field blur, switch/select change), and the
+ * settings sections — collapsed by default — keep their expanded state.
  *
  * Scope: value editing only (the schema builder "Manage settings" stays in the
  * admin at /admin/customize.php). It never renders inside the admin area and
@@ -90,6 +92,36 @@ final class CustomizerPanel
     }
 
     /**
+     * Resolves an admin asset URL and appends a cache-busting version so panel
+     * updates are picked up without a hard refresh.
+     */
+    private static function assetUrl(string $path): string
+    {
+        $url = self::adminUrl($path);
+        $file = dirname(__DIR__) . '/admin/' . ltrim($path, '/');
+        $mtime = is_file($file) ? (int) filemtime($file) : 0;
+        return $mtime > 0 ? $url . '?v=' . $mtime : $url;
+    }
+
+    /**
+     * Lists image files available in the media library (uploads directory).
+     *
+     * @return array<int,array{name:string,url:string,path:string,folder:string}>
+     */
+    private static function mediaItems(): array
+    {
+        return array_map(
+            static fn (array $item): array => [
+                'name'   => $item['name'],
+                'url'    => $item['url'],
+                'path'   => $item['path'],
+                'folder' => $item['folder'],
+            ],
+            MediaLibrary::listImages()
+        );
+    }
+
+    /**
      * Outputs the panel stylesheet (runs in <head>).
      */
     public static function renderHead(): void
@@ -99,7 +131,7 @@ final class CustomizerPanel
         }
         self::$printedHead = true;
         ?>
-<link rel="stylesheet" href="<?= htmlspecialchars(self::adminUrl('assets/css/customizer-panel.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(self::assetUrl('assets/css/customizer-panel.css'), ENT_QUOTES, 'UTF-8') ?>">
         <?php
     }
 
@@ -131,6 +163,8 @@ final class CustomizerPanel
         }
 
         $token = self::ensurePreviewToken();
+        $mediaItems = self::mediaItems();
+        $mediaFolders = MediaLibrary::folders();
         ?>
 <div id="modo-cz-panel" class="modo-cz-panel-root" role="dialog" aria-label="<?= _e('Edit template settings') ?>">
     <header class="modo-czp-topbar">
@@ -146,6 +180,47 @@ final class CustomizerPanel
         <?php require __DIR__ . '/../admin/views/customize-panel.php'; ?>
     </div>
 </div>
+
+<div id="modo-cz-media-modal" class="modo-cz-media-modal" hidden>
+    <div class="modo-cz-media-dialog" role="dialog" aria-modal="true" aria-labelledby="modo-cz-media-title">
+        <header class="modo-cz-media-head">
+            <h3 id="modo-cz-media-title"><?= _e('Select Media from Library') ?></h3>
+            <button type="button" class="modo-cz-media-close" data-media-close aria-label="<?= _e('Close') ?>">&times;</button>
+        </header>
+        <div class="modo-cz-media-body">
+            <?php if (!empty($mediaItems)): ?>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
+                    <label for="modo-cz-media-folder-filter" style="font-size: 12px; color: var(--text-muted);"><?= _e('Folder') ?></label>
+                    <select id="modo-cz-media-folder-filter" class="form-control" style="max-width: 240px; padding: 6px 10px; font-size: 13px;">
+                        <option value="__all__"><?= _e('All files') ?></option>
+                        <option value=""><?= _e('Root') ?></option>
+                        <?php foreach ($mediaFolders as $folder): ?>
+                            <option value="<?= htmlspecialchars((string) $folder['name'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) $folder['name'], ENT_QUOTES, 'UTF-8') ?> (<?= (int) $folder['count'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+            <div class="modo-cz-media-grid" id="modo-cz-media-grid">
+                <?php foreach ($mediaItems as $media): ?>
+                    <button type="button" class="modo-cz-media-item" data-media-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" data-folder="<?= htmlspecialchars((string) ($media['folder'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                        <img src="<?= htmlspecialchars(\Core\MediaLibrary::thumbnailUrl((string) $media['path'], 160), ENT_QUOTES, 'UTF-8') ?>" srcset="<?= htmlspecialchars(\Core\MediaLibrary::thumbnailUrl((string) $media['path'], 160), ENT_QUOTES, 'UTF-8') ?> 1x, <?= htmlspecialchars(\Core\MediaLibrary::thumbnailUrl((string) $media['path'], 240), ENT_QUOTES, 'UTF-8') ?> 2x" alt="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" loading="lazy" decoding="async">
+                        <span class="modo-cz-media-name"><?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+            <p class="modo-cz-media-empty" id="modo-cz-media-empty"<?= empty($mediaItems) ? '' : ' hidden' ?>>
+                <?= _e('No uploaded images found in the library.') ?>
+            </p>
+        </div>
+        <footer class="modo-cz-media-foot">
+            <button type="button" class="modo-czp-btn" data-media-upload><?= _e('Upload') ?></button>
+            <button type="button" class="modo-czp-btn" data-media-close><?= _e('Close') ?></button>
+        </footer>
+    </div>
+</div>
+
 <button type="button" id="modo-czp-reopen" class="modo-czp-reopen" title="<?= _e('Edit template settings') ?>" aria-label="<?= _e('Edit template settings') ?>">&#9881;</button>
 <script>
     window.MODO_CUSTOMIZER = {
@@ -161,11 +236,12 @@ final class CustomizerPanel
             'reset' => __('Reset to defaults'),
             'error' => __('Something went wrong'),
             'uploadFailed' => __('File upload failed.'),
+            'uploading' => __('Uploading...'),
             'confirmReset' => __('Reset all customizer values to defaults?'),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
     };
 </script>
-<script src="<?= htmlspecialchars(self::adminUrl('assets/js/customizer-panel.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(self::assetUrl('assets/js/customizer-panel.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
         <?php
     }
 }

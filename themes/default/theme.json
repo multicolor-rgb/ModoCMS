@@ -59,6 +59,14 @@
                         "label": "Tekst w stopce",
                         "default": "Zbudowano na Modo CMS",
                         "priority": 20
+                    },
+                    
+                     {
+                        "id": "modo_footer_text",
+                        "type": "image",
+                        "label": "Tekst w stopce",
+                        "default": "Zbudowano na Modo CMS",
+                        "priority": 30
                     }
                 ]
             }

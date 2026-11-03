@@ -4,6 +4,57 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.2] — 2026-11-03
+
+### Dodane
+
+- **Opcjonalne style motywu w edytorze treści**:
+  - motyw może dostarczyć `themes/<motyw>/assets/css/editor.css`, który jest
+    wykrywany wyłącznie po istnieniu pliku,
+  - styl trafia do kanwy TinyMCE (`content_css`, `content_style`, opcjonalny
+    `body_class`) oraz do inline'owego Editor.js (CSS scopowany do `#editorjs`
+    i `#snippet-editorjs`),
+  - względne `url(...)` i `@import` są zamieniane na bezwzględne URL-e motywu,
+    a `@import` pozostaje pierwszą regułą bloku `<style>`,
+  - zmienne Customizera są dodawane na końcu, więc nadpisują wartości domyślne
+    z `editor.css`,
+  - opcjonalny blok `editor` w `theme.json` obsługuje `body_class` oraz
+    `content_style`,
+  - brak pliku oznacza zero zmian w edytorach; nie ma fallbacku na `style.css`,
+    nowego ustawienia w Settings ani zmian na frontendzie.
+- Nowa klasa `Core\ThemeEditorStyles` oraz nowe metody
+  `Core\Customizer::cssVariables()` i `Core\CssFramework::scopeCss()`.
+- Przykładowe pliki `editor.css` w motywach `default`, `default2` i `editorial`.
+- Dokumentacja [PL](docs/pl/styl-motywu-w-edytorze.md) /
+  [EN](docs/en/theme-editor-styles.md) oraz linki w README.
+
+### Poprawione
+
+- `CssFramework::editorScopedCss()` korzysta teraz ze wspólnego parsera
+  `scopeCss()`, który poprawnie obsługuje `@media`, `:root`/`html`/`body`,
+  komentarze oraz pozostawia `@keyframes` i `@font-face` bez zmian.
+
+### Bez zmian w bazie
+
+- Brak migracji — aktualizacja z 3.0.1 wymaga jedynie podmiany plików.
+
+## [3.0.1] — 2026-11-03
+
+### Poprawione
+
+- **Panel „Edytuj ustawienia szablonu”**:
+  - sekcje ustawień są domyślnie zwinięte, a te rozwinięte podczas edycji
+    pozostają otwarte po przeładowaniu podglądu (stan zapamiętywany per motyw),
+  - pisanie w polach tekstowych nie przeładowuje już strony — podgląd odświeża
+    się dopiero po zakończeniu edycji (wyjście z pola, zmiana przełącznika,
+    wybór opcji, puszczenie suwaka) i tylko gdy wartość faktycznie się zmieniła,
+  - szkic jest zapisywany przed przeładowaniem, więc podgląd pokazuje aktualną
+    wartość (usunięty wyścig zapis/reload),
+  - pozycja przewinięcia panelu jest przywracana po odświeżeniu,
+  - **Publikuj** i **Reset** nie odtwarzają już szkicu po wykonaniu akcji.
+- Bez zmian w schemacie bazy danych — aktualizacja z 3.0.0 nie wymaga migracji,
+  wystarczy podmienić pliki.
+
 ## [3.0.0] — 2026-11-02
 
 ### Dodane

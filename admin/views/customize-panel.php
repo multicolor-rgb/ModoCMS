@@ -91,11 +91,26 @@ if (!function_exists('modo_render_control')) {
                 return;
 
             case 'image':
-                echo '<div class="modo-media-wrap">';
-                echo '<input type="text" class="form-control modo-control" name="' . $name . '" value="'
-                    . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '" ' . $dataAttr . '>';
-                echo '<button type="button" class="btn btn-secondary modo-media-btn">' . _e('Select') . '</button>';
-                echo '<input type="file" class="modo-media-picker" accept="image/*" style="display:none;">';
+                $hasImage = trim($value) !== '';
+                echo '<div class="modo-media-field">';
+                echo '<div class="modo-media-preview' . ($hasImage ? ' has-image' : '') . '" data-media-preview>';
+                echo '<img' . ($hasImage ? ' src="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '"' : '')
+                    . ' alt="" data-media-preview-img' . ($hasImage ? '' : ' hidden') . '>';
+                echo '<span class="modo-media-placeholder" data-media-placeholder' . ($hasImage ? ' hidden' : '') . '>'
+                    . htmlspecialchars(__('No image selected'), ENT_QUOTES, 'UTF-8') . '</span>';
+                echo '</div>';
+                echo '<div class="modo-media-actions">';
+                echo '<button type="button" class="btn modo-media-library">'
+                    . htmlspecialchars(__('Choose from Library'), ENT_QUOTES, 'UTF-8') . '</button>';
+                echo '<button type="button" class="btn modo-media-upload">'
+                    . htmlspecialchars(__('Upload'), ENT_QUOTES, 'UTF-8') . '</button>';
+                echo '<button type="button" class="btn modo-media-remove"' . ($hasImage ? '' : ' hidden') . '>'
+                    . htmlspecialchars(__('Remove'), ENT_QUOTES, 'UTF-8') . '</button>';
+                echo '</div>';
+                echo '<input type="text" class="form-control modo-control modo-media-url" name="' . $name . '" value="'
+                    . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '" placeholder="'
+                    . htmlspecialchars(__('Image URL'), ENT_QUOTES, 'UTF-8') . '" ' . $dataAttr . '>';
+                echo '<input type="file" class="modo-media-picker" accept="image/*" hidden>';
                 echo '</div>';
                 return;
 
@@ -117,7 +132,7 @@ if (!function_exists('modo_render_control')) {
 
 <?php foreach ($schema['sections'] as $section): ?>
     <?php if (empty($section['controls'])) { continue; } ?>
-    <details class="modo-cz-section" open>
+    <details class="modo-cz-section" data-section-id="<?= htmlspecialchars($section['id'], ENT_QUOTES, 'UTF-8') ?>">
         <summary>
             <span><?= htmlspecialchars($section['title'], ENT_QUOTES, 'UTF-8') ?></span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>

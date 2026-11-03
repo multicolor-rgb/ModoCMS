@@ -6,6 +6,9 @@ use Core\Database;
 use Core\Security;
 use Core\Auth;
 use Core\I18n;
+use Core\MediaLibrary;
+use Core\PageSlug;
+use Core\PageTypes;
 use Core\Router;
 use Core\Sitemap;
 
@@ -17,11 +20,21 @@ $item = [
     'id' => 0,
     'title' => '', 'slug' => '', 'content' => '',
     'type' => $_GET['type'] ?? 'post', 'status' => 'published',
+    'page_type_id' => 0,
     'parent_id' => 0,
     'lang' => $_GET['lang'] ?? I18n::getDefaultLocale(),
     'translation_group' => $_GET['group'] ?? bin2hex(random_bytes(8)),
     'featured_image' => '', 'meta_title' => '', 'meta_description' => ''
 ];
+
+// Pre-select a type when the editor is opened from a page type quick link.
+if ($id === 0 && !empty($_GET['page_type'])) {
+    $requestedType = PageTypes::findBySlug((string) $_GET['page_type']);
+    if ($requestedType) {
+        $item['page_type_id'] = (int) $requestedType['id'];
+        $item['type'] = (string) $requestedType['base_type'];
+    }
+}
 
 $existingTags = '';
 $assignedCategoryIds = [];
@@ -59,9 +72,12 @@ if ($id > 0) {
 // Load custom fields (page_meta) attached to this record.
 $customFields = [];
 if ($id > 0) {
-    $metaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+    $metaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
     $metaStmt->execute([':pid' => $id]);
     $customFields = $metaStmt->fetchAll();
+} elseif ((int) ($item['page_type_id'] ?? 0) > 0) {
+    // New document: pre-fill the editor with the preset's default fields.
+    $customFields = PageTypes::defaultFieldsFor((int) $item['page_type_id']);
 }
 
 // Build the list of other pages/posts that already have custom fields, so their
@@ -78,7 +94,7 @@ try {
     ");
     $srcStmt->execute([':cur' => $id]);
     $srcRows = $srcStmt->fetchAll();
-    $srcMetaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+    $srcMetaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
     foreach ($srcRows as $srcRow) {
         $srcMetaStmt->execute([':pid' => $srcRow['id']]);
         $fields = [];
@@ -87,6 +103,7 @@ try {
                 'key'   => (string) $m['meta_key'],
                 'value' => (string) $m['meta_value'],
                 'type'  => (string) $m['meta_type'],
+                'label' => (string) ($m['meta_label'] ?? ''),
             ];
         }
         $cfSources[] = [
@@ -98,6 +115,18 @@ try {
     }
 } catch (\Throwable $e) {
     $cfSources = [];
+}
+
+// Page type presets are needed by the sidebar selector and the field editor JS.
+$pageTypesForBase = PageTypes::forBaseType((string) ($item['type'] ?? 'page'));
+$pageTypesAll = PageTypes::all(true);
+
+$currentTypeLabel = $item['type'] === 'post' ? __('Blog Post') : __('Static Page');
+if ((int) ($item['page_type_id'] ?? 0) > 0) {
+    $currentPreset = PageTypes::find((int) $item['page_type_id']);
+    if ($currentPreset) {
+        $currentTypeLabel = (string) $currentPreset['name'];
+    }
 }
 
 /**
@@ -112,6 +141,8 @@ function renderCustomFieldRow(array $cf = []): string
         'text'     => 'Text',
         'textarea' => 'Textarea',
         'richtext' => 'Rich Text',
+        'tinymce'  => 'TinyMCE (WYSIWYG)',
+        'gallery'  => 'Gallery',
         'image'    => 'Image',
         'checkbox' => 'Checkbox',
         'number'   => 'Number',
@@ -130,6 +161,11 @@ function renderCustomFieldRow(array $cf = []): string
     if (!isset($types[$type])) {
         $type = 'text';
     }
+    $fieldLabel = trim((string) ($cf['meta_label'] ?? ''));
+    if ($fieldLabel === '') {
+        $fieldLabel = (string) ($cf['meta_key'] ?? '');
+    }
+    $fieldLabelE = htmlspecialchars($fieldLabel, ENT_QUOTES, 'UTF-8');
 
     $opts = '';
     foreach ($types as $tv => $tl) {
@@ -142,9 +178,29 @@ function renderCustomFieldRow(array $cf = []): string
 
     $lUpload   = htmlspecialchars(__('Upload'), ENT_QUOTES, 'UTF-8');
     $lImageUrl = htmlspecialchars(__('Image URL'), ENT_QUOTES, 'UTF-8');
+    $lChooseLibrary = htmlspecialchars(__('Choose from library'), ENT_QUOTES, 'UTF-8');
     $lEnabled  = htmlspecialchars(__('Enabled'), ENT_QUOTES, 'UTF-8');
     $lRemove   = htmlspecialchars(__('Remove'), ENT_QUOTES, 'UTF-8');
     $lValue    = htmlspecialchars(__('Field Value'), ENT_QUOTES, 'UTF-8');
+    $lAddImages    = htmlspecialchars(__('Add images'), ENT_QUOTES, 'UTF-8');
+    $lUploadImages = htmlspecialchars(__('Upload images'), ENT_QUOTES, 'UTF-8');
+    $lColumns      = htmlspecialchars(__('Columns'), ENT_QUOTES, 'UTF-8');
+    $lGap          = htmlspecialchars(__('Gap (px)'), ENT_QUOTES, 'UTF-8');
+    $lRatio        = htmlspecialchars(__('Aspect ratio'), ENT_QUOTES, 'UTF-8');
+    $lLightbox     = htmlspecialchars(__('Lightbox'), ENT_QUOTES, 'UTF-8');
+    $lCaptions     = htmlspecialchars(__('Show captions'), ENT_QUOTES, 'UTF-8');
+    $lNoImages     = htmlspecialchars(__('No images selected yet.'), ENT_QUOTES, 'UTF-8');
+    $lAuto         = htmlspecialchars(__('Auto'), ENT_QUOTES, 'UTF-8');
+
+    $galleryColumnOpts = '';
+    foreach (range(1, 6) as $column) {
+        $galleryColumnOpts .= '<option value="' . $column . '">' . $column . '</option>';
+    }
+    $galleryRatioOpts = '<option value="1">1:1</option>'
+        . '<option value="1.3333">4:3</option>'
+        . '<option value="1.5">3:2</option>'
+        . '<option value="1.7778">16:9</option>'
+        . '<option value="auto">' . $lAuto . '</option>';
 
     return <<<HTML
 <div class="custom-field-row" data-type="{$type}" style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
@@ -154,7 +210,8 @@ function renderCustomFieldRow(array $cf = []): string
         <button type="button" class="btn btn-danger-ghost remove-custom-field" title="{$lRemove}" style="flex: 0 0 auto; font-size: 16px; padding: 4px 12px; line-height: 1;">&times;</button>
     </div>
     <div class="cf-value-part" style="display: flex; flex-direction: column; gap: 6px;">
-        <label class="cf-field-label" style="font-size: 12px; font-weight: 600; color: var(--text-muted); font-family: monospace;">{$key}</label>
+        <label class="cf-field-label" style="font-size: 12px; font-weight: 600; color: var(--text-muted); font-family: monospace;">{$fieldLabelE}</label>
+        <input type="hidden" class="cf-label" name="custom_field_label[]" value="{$fieldLabelE}">
         <input type="hidden" class="cf-value" name="custom_field_value[]" value="{$valE}">
         <input type="text" class="form-control cf-widget cf-w-text" value="{$valE}" placeholder="{$lValue}" style="font-size: 13px; display: none;">
         <textarea class="form-control cf-widget cf-w-textarea" rows="3" style="font-size: 13px; display: none;">{$valE}</textarea>
@@ -167,11 +224,38 @@ function renderCustomFieldRow(array $cf = []): string
         <div class="cf-widget cf-w-image" style="display: none;">
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 <input type="text" class="form-control cf-image-url" value="{$valE}" placeholder="{$lImageUrl}" style="flex: 1 1 160px; font-size: 13px;">
+                <button type="button" class="btn btn-secondary cf-image-library" style="font-size: 12px;">{$lChooseLibrary}</button>
                 <button type="button" class="btn btn-secondary cf-image-upload" style="font-size: 12px;">{$lUpload}</button>
                 <button type="button" class="btn btn-danger-ghost cf-image-clear" style="font-size: 14px;">&times;</button>
                 <input type="file" class="cf-image-file" accept="image/*" style="display: none;">
             </div>
             <img class="cf-image-preview" src="{$valE}" alt="" style="max-height: 90px; margin-top: 8px; border-radius: 6px; display: {$imgShow};">
+        </div>
+        <div class="cf-widget cf-w-gallery" style="display: none;">
+            <div class="cf-gallery-options" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 10px;">
+                <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600;">{$lColumns}
+                    <select class="form-control cf-gallery-columns" style="font-size: 12px;">{$galleryColumnOpts}</select>
+                </label>
+                <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600;">{$lGap}
+                    <input class="form-control cf-gallery-gap" type="number" min="0" max="60" step="1" value="14" style="font-size: 12px;">
+                </label>
+                <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600;">{$lRatio}
+                    <select class="form-control cf-gallery-ratio" style="font-size: 12px;">{$galleryRatioOpts}</select>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; margin-top: 16px;">
+                    <input type="checkbox" class="cf-gallery-lightbox"> {$lLightbox}
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; margin-top: 16px;">
+                    <input type="checkbox" class="cf-gallery-captions"> {$lCaptions}
+                </label>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                <button type="button" class="btn btn-secondary cf-gallery-add" style="font-size: 12px; padding: 4px 10px;">+ {$lAddImages}</button>
+                <button type="button" class="btn btn-secondary cf-gallery-upload" style="font-size: 12px; padding: 4px 10px;">{$lUploadImages}</button>
+                <input type="file" class="cf-gallery-file" accept="image/*" multiple style="display: none;">
+            </div>
+            <div class="cf-gallery-items" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            <p class="cf-gallery-empty" style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0;">{$lNoImages}</p>
         </div>
     </div>
 </div>
@@ -190,6 +274,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $slug = trim($_POST['slug'] ?? '');
     $content = $_POST['content'] ?? '';
     $type = in_array($_POST['type'] ?? '', ['post', 'page'], true) ? $_POST['type'] : 'post';
+    $pageTypeId = (int) ($_POST['page_type_id'] ?? 0);
+    if ($pageTypeId > 0) {
+        $postedPageType = PageTypes::find($pageTypeId);
+        if (!$postedPageType || (string) $postedPageType['base_type'] !== $type) {
+            $pageTypeId = 0;
+        }
+    }
+    $isNewDocument = ($id === 0);
     $status = $_POST['status'] ?? 'published';
     $lang = trim($_POST['lang'] ?? I18n::getDefaultLocale());
     $parentId = ($type === 'page') ? (int)($_POST['parent_id'] ?? 0) : 0;
@@ -203,11 +295,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $parentId = 0;
     }
 
-    if ($slug === '') {
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $title), '-'));
-    } else {
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $slug), '-'));
-    }
+    // Normalize the requested slug, or derive it from the title when empty.
+    $slug = PageSlug::slugify($slug !== '' ? $slug : $title);
+
+    // The database enforces a unique (slug, lang) pair. Instead of letting the
+    // save fail, keep the requested slug and append -1, -2, ... when needed.
+    $requestedSlug = $slug;
+    $slug = PageSlug::unique($slug, $lang, $id);
+    $slugAdjusted = ($slug !== $requestedSlug);
 
     // Capture pre-save public paths so slug / parent changes can create 301s.
     $oldPublicPath = '';
@@ -229,14 +324,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($id > 0) {
         $stmt = $db->prepare("
             UPDATE pages 
-            SET title = :t, slug = :s, content = :c, type = :tp, status = :st, 
-                parent_id = :p, lang = :lg, translation_group = :tg, 
+            SET title = :t, slug = :s, content = :c, type = :tp, page_type_id = :ptid, status = :st,
+                parent_id = :p, lang = :lg, translation_group = :tg,
                 featured_image = :img, meta_title = :mt, meta_description = :md, 
                 updated_at = CURRENT_TIMESTAMP 
             WHERE id = :id
         ");
         $stmt->execute([
-            ':t' => $title, ':s' => $slug, ':c' => $content, ':tp' => $type, ':st' => $status,
+            ':t' => $title, ':s' => $slug, ':c' => $content, ':tp' => $type,
+            ':ptid' => $pageTypeId > 0 ? $pageTypeId : null, ':st' => $status,
             ':p' => $parentId, ':lg' => $lang, ':tg' => $translation_group, 
             ':img' => $featured_image, ':mt' => $meta_title, ':md' => $meta_description, 
             ':id' => $id
@@ -244,14 +340,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $stmt = $db->prepare("
             INSERT INTO pages (
-                title, slug, content, type, status, parent_id, lang, 
+                title, slug, content, type, page_type_id, status, parent_id, lang,
                 translation_group, featured_image, meta_title, meta_description, author_id
             ) VALUES (
-                :t, :s, :c, :tp, :st, :p, :lg, :tg, :img, :mt, :md, :aid
+                :t, :s, :c, :tp, :ptid, :st, :p, :lg, :tg, :img, :mt, :md, :aid
             )
         ");
         $stmt->execute([
-            ':t' => $title, ':s' => $slug, ':c' => $content, ':tp' => $type, ':st' => $status,
+            ':t' => $title, ':s' => $slug, ':c' => $content, ':tp' => $type,
+            ':ptid' => $pageTypeId > 0 ? $pageTypeId : null, ':st' => $status,
             ':p' => $parentId, ':lg' => $lang, ':tg' => $translation_group, 
             ':img' => $featured_image, ':mt' => $meta_title, ':md' => $meta_description, 
             ':aid' => Auth::id()
@@ -313,9 +410,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (is_array($postedKeys)) {
         $postedValues = $_POST['custom_field_value'] ?? [];
         $postedTypes = $_POST['custom_field_type'] ?? [];
-        $allowedTypes = ['text', 'textarea', 'richtext', 'image', 'checkbox', 'number', 'html', 'php', 'js', 'css', 'json', 'code'];
+        $postedLabels = $_POST['custom_field_label'] ?? [];
+        $allowedTypes = ['text', 'textarea', 'richtext', 'tinymce', 'gallery', 'image', 'checkbox', 'number', 'html', 'php', 'js', 'css', 'json', 'code'];
         $keptKeys = [];
-        $metaUpsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type) VALUES (:pid, :k, :v, :t)");
+        $metaUpsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label) VALUES (:pid, :k, :v, :t, :l)");
 
         foreach (array_values($postedKeys) as $i => $rawKey) {
             $metaKey = strtolower(trim((string) preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) $rawKey), '_'));
@@ -329,11 +427,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $metaType = 'text';
             }
 
+            $metaValue = (string) ($postedValues[$i] ?? '');
+            if ($metaType === \Core\MetaGallery::TYPE) {
+                $metaValue = \Core\MetaGallery::toJson($metaValue);
+            }
+
+            $metaLabel = trim((string) ($postedLabels[$i] ?? ''));
+            if ($metaLabel === '') {
+                $metaLabel = $metaKey;
+            }
+
             $metaUpsert->execute([
                 ':pid' => $id,
                 ':k'   => $metaKey,
-                ':v'   => (string) ($postedValues[$i] ?? ''),
+                ':v'   => $metaValue,
                 ':t'   => $metaType,
+                ':l'   => $metaLabel,
             ]);
         }
 
@@ -344,6 +453,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $delMeta = $db->prepare("DELETE FROM page_meta WHERE page_id = ? AND meta_key NOT IN ($placeholders)");
             $delMeta->execute(array_merge([$id], $keptKeys));
         }
+    }
+
+    // Safety net: seed defaults when JavaScript did not initialise the field
+    // editor (e.g. no-JS form submission) or when an explicit bulk apply was
+    // requested. Existing values are never overwritten.
+    if ($pageTypeId > 0 && (
+        ($isNewDocument && (string) ($_POST['cf_initialized'] ?? '0') !== '1')
+        || (!$isNewDocument && (string) ($_POST['apply_type_defaults'] ?? '0') === '1')
+    )) {
+        PageTypes::applyDefaults($id, $pageTypeId);
     }
 
     // Automatic permanent redirects when the slug or parent hierarchy changed.
@@ -379,7 +498,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    header('Location: page-edit.php?id=' . $id . '&saved=1');
+    $redirect = 'page-edit.php?id=' . $id . '&saved=1';
+    if ($slugAdjusted) {
+        $redirect .= '&slug_adjusted=1';
+    }
+
+    header('Location: ' . $redirect);
     exit;
 }
 
@@ -411,27 +535,10 @@ function resolveParentPath(int $parentId, array $lookup): string {
 }
 
 // Uploads lookup
-$uploadsDir = dirname(__DIR__) . '/uploads/';
 $basePrefix = class_exists('Core\Router') ? Router::getBaseSubdirectory() : '';
-$existingMedia = [];
-
-if (is_dir($uploadsDir)) {
-    $files = scandir($uploadsDir, SCANDIR_SORT_DESCENDING) ?: [];
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') continue;
-        $filePath = $uploadsDir . $file;
-        if (!is_file($filePath)) continue;
-
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif'], true)) {
-            $webPath = ($basePrefix !== '' ? rtrim($basePrefix, '/') : '') . '/uploads/' . $file;
-            $existingMedia[] = [
-                'name' => $file,
-                'url'  => $webPath
-            ];
-        }
-    }
-}
+$existingMedia = MediaLibrary::listImages();
+$mediaFolders = MediaLibrary::folders();
+$thumbMissing = MediaLibrary::thumbnailSupported() ? MediaLibrary::missingThumbnailCount() : 0;
 
 $tinymcePreset = Router::getOption('tinymce_preset', 'standard');
 $tinymceCustom = Router::getOption('tinymce_custom_toolbar', '');
@@ -602,14 +709,20 @@ require_once __DIR__ . '/views/header.php';
     window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_CSS = <?= json_encode(\Core\ThemeEditorStyles::contentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_STYLE = <?= json_encode(\Core\ThemeEditorStyles::contentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_BODY_CLASS = <?= json_encode(\Core\ThemeEditorStyles::bodyClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     <?php if ($useEditorJs): ?>
     window.MODO_EDITORJS = <?= json_encode($editorJsConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     <?php endif; ?>
 </script>
 <?php if ($useEditorJs): ?>
 <style>
-    /* The Editor.js canvas is inline, so the grid CSS is scoped to it instead
-       of leaking into the admin UI. Customised block skins follow below. */
+    /* The Editor.js canvas is inline, so both the theme typography and the
+       grid CSS are scoped to it instead of leaking into the admin UI. The
+       theme block comes first: an @import from editor.css must stay the first
+       rule in this <style> element. Customised block skins follow below. */
+    <?= \Core\ThemeEditorStyles::scopedCss('#editorjs') ?>
     <?= \Core\CssFramework::editorScopedCss('#editorjs') ?>
     #editorjs {
         padding: 24px 20px 40px;
@@ -642,6 +755,78 @@ require_once __DIR__ . '/views/header.php';
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm, 8px);
     font-size: 13px;
+}
+/* TinyMCE can collapse its edit area when the field was sized while hidden. */
+#custom-fields-list .custom-field-row[data-type="tinymce"] .tox-tinymce {
+    min-height: 340px;
+}
+#custom-fields-list .custom-field-row[data-type="tinymce"] .tox-edit-area {
+    min-height: 300px;
+}
+#custom-fields-list .custom-field-row[data-type="tinymce"] .tox-edit-area iframe {
+    min-height: 300px !important;
+}
+.cf-gallery-item {
+    display: grid;
+    grid-template-columns: 22px 72px minmax(0, 1fr) 28px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm, 8px);
+    background: var(--bg-surface, #1e293b);
+}
+.cf-gallery-item.is-dragging {
+    opacity: .55;
+}
+.cf-gallery-thumb {
+    width: 72px;
+    height: 54px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .08);
+    display: block;
+}
+.cf-gallery-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    min-width: 0;
+}
+.cf-gallery-fields .cf-gallery-link {
+    grid-column: 1 / -1;
+}
+.cf-gallery-drag {
+    cursor: grab;
+    color: var(--text-muted);
+    text-align: center;
+    font-size: 16px;
+    line-height: 1;
+    user-select: none;
+}
+.cf-gallery-remove {
+    border: none;
+    background: transparent;
+    color: #dc2626;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+@media (max-width: 720px) {
+    .cf-gallery-item {
+        grid-template-columns: 22px 56px minmax(0, 1fr) 28px;
+    }
+    .cf-gallery-thumb {
+        width: 56px;
+        height: 42px;
+    }
+    .cf-gallery-fields {
+        grid-template-columns: 1fr;
+    }
+    .cf-gallery-fields .cf-gallery-link {
+        grid-column: auto;
+    }
 }
 #custom-fields-card .cf-tab {
     background: none;
@@ -676,6 +861,10 @@ require_once __DIR__ . '/views/header.php';
 #custom-fields-card:not([data-tab="copy"]) .cf-copy {
     display: none !important;
 }
+.media-pick-item.selected {
+    border-color: var(--primary, #3b82f6) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, .35) !important;
+}
 </style>
 
 <div class="page-header" style="margin-bottom: 24px;">
@@ -683,7 +872,7 @@ require_once __DIR__ . '/views/header.php';
         <h1 class="page-title" style="display: flex; align-items: center; gap: 10px;">
             <span><?= $id > 0 ? _e('Edit') . ': ' . Security::sanitize($item['title']) : _e('New Document') ?></span>
             <span class="badge" style="font-size: 12px; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); color: var(--accent, #60a5fa); text-transform: uppercase;">
-                <?= $item['type'] === 'post' ? _e('Blog Post') : _e('Static Page') ?>
+                <?= Security::sanitize($currentTypeLabel) ?>
             </span>
         </h1>
         <p style="color: var(--text-muted); font-size: 13px; margin: 4px 0 0;"><?= _e('Manage page content, parent hierarchy, and SEO meta tags') ?></p>
@@ -702,6 +891,12 @@ require_once __DIR__ . '/views/header.php';
     </div>
 <?php endif; ?>
 
+<?php if (isset($_GET['slug_adjusted'])): ?>
+    <div class="card" style="border-left: 4px solid var(--warning, #f59e0b); background: rgba(245, 158, 11, 0.08); padding: 14px 18px; margin-bottom: 24px; border-radius: var(--radius-sm); color: #fbbf24; font-weight: 500;">
+        <?= sprintf(__('The slug was already in use, so it was changed to: %s'), '<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: var(--accent, #60a5fa);">/' . Security::sanitize((string) $item['slug']) . '</code>') ?>
+    </div>
+<?php endif; ?>
+
 <?php if (isset($_GET['restored'])): ?>
     <div class="card" style="border-left: 4px solid var(--primary, #3b82f6); background: rgba(59, 130, 246, 0.08); padding: 14px 18px; margin-bottom: 24px; border-radius: var(--radius-sm); color: #60a5fa; font-weight: 500;">
         <?= _e('A previous version has been restored. Review the content and save again if needed.') ?>
@@ -710,6 +905,8 @@ require_once __DIR__ . '/views/header.php';
 
 <form method="POST" action="">
     <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+    <input type="hidden" name="cf_initialized" id="cf-initialized" value="0">
+    <input type="hidden" name="apply_type_defaults" id="apply-type-defaults" value="0">
 
     <div class="editor-layout">
         
@@ -799,6 +996,19 @@ require_once __DIR__ . '/views/header.php';
 
                 <template id="custom-field-template">
                     <?php echo renderCustomFieldRow(); ?>
+                </template>
+
+                <template id="cf-gallery-item-template">
+                    <div class="cf-gallery-item">
+                        <span class="cf-gallery-drag" draggable="true" title="<?= _e('Drag to reorder') ?>">&#8942;&#8942;</span>
+                        <img class="cf-gallery-thumb" src="" alt="">
+                        <div class="cf-gallery-fields">
+                            <input class="form-control cf-gallery-alt" type="text" placeholder="<?= _e('Alt text') ?>" style="font-size: 12px;">
+                            <input class="form-control cf-gallery-caption" type="text" placeholder="<?= _e('Caption') ?>" style="font-size: 12px;">
+                            <input class="form-control cf-gallery-link" type="text" placeholder="<?= _e('Link (optional)') ?>" style="font-size: 12px;">
+                        </div>
+                        <button type="button" class="cf-gallery-remove" title="<?= _e('Remove') ?>">&times;</button>
+                    </div>
                 </template>
             </div>
 
@@ -898,6 +1108,24 @@ require_once __DIR__ . '/views/header.php';
                         <option value="post" <?= $item['type'] === 'post' ? 'selected' : '' ?>><?= _e('Blog Post') ?></option>
                         <option value="page" <?= $item['type'] === 'page' ? 'selected' : '' ?>><?= _e('Static Page') ?></option>
                     </select>
+                </div>
+
+                <div class="form-group" id="page-type-group" style="<?= empty($pageTypesForBase) ? 'display: none;' : '' ?>; margin-bottom: 14px;">
+                    <label class="form-label" for="page_type_id" style="font-size: 12px; font-weight: 600;"><?= _e('Page Type') ?></label>
+                    <select class="form-control" name="page_type_id" id="page_type_id">
+                        <option value="0">&mdash; <?= _e('None') ?> &mdash;</option>
+                        <?php foreach ($pageTypesForBase as $preset): ?>
+                            <option value="<?= (int) $preset['id'] ?>" <?= (int) $item['page_type_id'] === (int) $preset['id'] ? 'selected' : '' ?>>
+                                <?= Security::sanitize((string) $preset['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+                        <?= _e('A preset adds its default custom fields to this document. Existing values are not overwritten.') ?>
+                    </small>
+                    <button type="button" id="apply-page-type-defaults" class="btn btn-secondary" style="margin-top: 8px; padding: 5px 10px; font-size: 11px;">
+                        <?= _e('Apply type defaults') ?>
+                    </button>
                 </div>
 
                 <div class="form-group" id="parent-page-group" style="<?= $item['type'] === 'page' ? '' : 'display: none;' ?>; margin-bottom: 14px;">
@@ -1021,28 +1249,62 @@ require_once __DIR__ . '/views/header.php';
             <button type="button" id="close-modal-btn" style="background: transparent; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--text-muted);">&times;</button>
         </div>
         <div style="padding: 24px; overflow-y: auto; flex: 1;">
+            <?php if ($thumbMissing > 0): ?>
+                <div id="media-thumb-status" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface, #1e293b);">
+                    <span style="font-size: 12px; color: var(--text-muted);">
+                        <?= htmlspecialchars(sprintf(__('Missing thumbnails: %d'), $thumbMissing), ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                    <button type="button" id="media-thumb-backfill-btn" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;"
+                            data-csrf="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
+                        <?= _e('Generate missing thumbnails') ?>
+                    </button>
+                </div>
+            <?php endif; ?>
             <?php if (empty($existingMedia)): ?>
                 <div style="text-align: center; padding: 48px; color: var(--text-muted);">
                     <p style="font-size: 14px; margin: 0;"><?= _e('No uploaded images found in the library.') ?></p>
                 </div>
             <?php else: ?>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <label for="media-folder-filter" style="font-size: 12px; color: var(--text-muted);"><?= _e('Folder') ?></label>
+                    <select id="media-folder-filter" class="form-control" style="max-width: 240px; padding: 6px 10px; font-size: 13px;">
+                        <option value="__all__"><?= _e('All files') ?></option>
+                        <option value=""><?= _e('Root') ?></option>
+                        <?php foreach ($mediaFolders as $folder): ?>
+                            <option value="<?= htmlspecialchars((string) $folder['name'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= Security::sanitize((string) $folder['name']) ?> (<?= (int) $folder['count'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div id="media-picker-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 16px;">
                     <?php foreach ($existingMedia as $media): ?>
-                        <div class="media-pick-item" data-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" style="cursor: pointer; border: 2px solid transparent; border-radius: var(--radius-sm, 8px); overflow: hidden; background: var(--bg-surface, #1e293b); transition: all 0.2s ease;">
-                            <img src="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" style="width: 100%; height: 110px; object-fit: cover; display: block;">
+                        <div class="media-pick-item" data-url="<?= htmlspecialchars($media['url'], ENT_QUOTES, 'UTF-8') ?>" data-folder="<?= htmlspecialchars((string) ($media['folder'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="cursor: pointer; border: 2px solid transparent; border-radius: var(--radius-sm, 8px); overflow: hidden; background: var(--bg-surface, #1e293b); transition: all 0.2s ease;">
+                            <img src="<?= htmlspecialchars(MediaLibrary::thumbnailUrl((string) $media['path'], 160), ENT_QUOTES, 'UTF-8') ?>" srcset="<?= htmlspecialchars(MediaLibrary::thumbnailUrl((string) $media['path'], 160), ENT_QUOTES, 'UTF-8') ?> 1x, <?= htmlspecialchars(MediaLibrary::thumbnailUrl((string) $media['path'], 240), ENT_QUOTES, 'UTF-8') ?> 2x" alt="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($media['name'], ENT_QUOTES, 'UTF-8') ?>" width="160" height="110" loading="lazy" decoding="async" style="width: 100%; height: 110px; object-fit: cover; display: block;">
                             <div style="font-size: 11px; padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; color: var(--text-muted);">
                                 <?= Security::sanitize($media['name']) ?>
+                                <span style="display: block; font-size: 10px; opacity: 0.8;">
+                                    <?= ($media['folder'] ?? '') !== '' ? Security::sanitize((string) $media['folder']) : _e('Root') ?>
+                                </span>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
+                <div style="display: flex; justify-content: center; margin-top: 16px;">
+                    <button type="button" id="media-load-more" class="btn btn-secondary" style="font-size: 12px; display: none;">
+                        <?= _e('Load more') ?>
+                    </button>
+                </div>
             <?php endif; ?>
         </div>
-        <div style="padding: 14px 24px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end; background: var(--bg-surface, #1e293b);">
+        <div style="padding: 14px 24px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-surface, #1e293b);">
+            <button type="button" id="insert-media-btn" class="btn btn-primary" style="font-size: 13px; display: none;"><?= _e('Insert selected') ?></button>
             <button type="button" id="cancel-modal-btn" class="btn btn-secondary" style="font-size: 13px;"><?= _e('Close') ?></button>
         </div>
     </div>
 </div>
+
+<script type="application/json" id="page-types-data"><?= json_encode($pageTypesAll, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
 
 <script>
 const siteBaseUrl = <?= json_encode($baseUrl) ?>;
@@ -1054,9 +1316,50 @@ const parentPrefixSpan = document.getElementById('parent-slug-prefix');
 const liveOpenBtn = document.getElementById('live-open-btn');
 const successLiveLink = document.getElementById('success-live-link');
 const typeSelect = document.getElementById('type');
+const pageTypeSelect = document.getElementById('page_type_id');
+const pageTypeGroup = document.getElementById('page-type-group');
 const parentGroup = document.getElementById('parent-page-group');
 const tagsGroup = document.getElementById('tags-group');
 const categoriesGroup = document.getElementById('categories-group');
+
+let pageTypesData = [];
+try {
+    const pageTypesEl = document.getElementById('page-types-data');
+    pageTypesData = JSON.parse(pageTypesEl ? pageTypesEl.textContent : '[]') || [];
+} catch (err) {
+    pageTypesData = [];
+}
+
+/**
+ * Rebuilds the page-type selector for the selected base type (page/post).
+ */
+function refreshPageTypeOptions(baseType, selectedId) {
+    if (!pageTypeSelect) return '0';
+    const current = (selectedId === undefined || selectedId === null) ? pageTypeSelect.value : String(selectedId);
+    const presets = pageTypesData.filter((t) => String(t.base_type) === String(baseType));
+
+    pageTypeSelect.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '0';
+    none.textContent = <?= json_encode('— ' . __('None') . ' —', JSON_UNESCAPED_UNICODE) ?>;
+    pageTypeSelect.appendChild(none);
+
+    presets.forEach((preset) => {
+        const option = document.createElement('option');
+        option.value = String(preset.id);
+        option.textContent = String(preset.name || preset.slug || '');
+        pageTypeSelect.appendChild(option);
+    });
+
+    if (pageTypeGroup) pageTypeGroup.style.display = presets.length ? 'block' : 'none';
+
+    const valid = presets.some((preset) => String(preset.id) === String(current));
+    pageTypeSelect.value = valid ? String(current) : '0';
+
+    return pageTypeSelect.value;
+}
+
+refreshPageTypeOptions(typeSelect ? typeSelect.value : 'post', <?= (int) ($_POST['page_type_id'] ?? $item['page_type_id'] ?? 0) ?>);
 
 function updateHierarchicalSlugPreview() {
     let parentPath = '';
@@ -1134,7 +1437,19 @@ if (typeSelect) {
             if (tagsGroup) tagsGroup.style.display = 'block';
             if (categoriesGroup) categoriesGroup.style.display = 'block';
         }
+        const nextPageType = refreshPageTypeOptions(typeSelect.value);
+        if (window.ModoPageTypes && typeof window.ModoPageTypes.onBaseTypeChange === 'function') {
+            window.ModoPageTypes.onBaseTypeChange(typeSelect.value, nextPageType);
+        }
         updateHierarchicalSlugPreview();
+    });
+}
+
+if (pageTypeSelect) {
+    pageTypeSelect.addEventListener('change', () => {
+        if (window.ModoPageTypes && typeof window.ModoPageTypes.onPageTypeChange === 'function') {
+            window.ModoPageTypes.onPageTypeChange(parseInt(pageTypeSelect.value, 10) || 0);
+        }
     });
 }
 
@@ -1169,7 +1484,9 @@ function initCleanTinyMCE() {
     const isDark = isDarkActive();
     const gridCss = (window.MODO_GRID_CSS || []).slice();
     const gridStyle = window.MODO_GRID_STYLE || '';
-    const contentCss = [(isDark ? 'dark' : 'default')].concat(gridCss);
+    const themeCss = (window.MODO_THEME_CSS || []).slice();
+    const themeStyle = window.MODO_THEME_STYLE || '';
+    const contentCss = [(isDark ? 'dark' : 'default')].concat(gridCss, themeCss);
 
     tinymce.init({
         selector: '#editor',
@@ -1179,7 +1496,8 @@ function initCleanTinyMCE() {
         toolbar: <?= json_encode($resolvedToolbar) ?>,
         skin: isDark ? 'oxide-dark' : 'oxide',
         content_css: contentCss,
-        content_style: gridStyle,
+        content_style: themeStyle + gridStyle,
+        body_class: window.MODO_THEME_BODY_CLASS || '',
         images_upload_url: 'upload.php',
         automatic_uploads: true,
         relative_urls: false,
@@ -1246,15 +1564,110 @@ const removeBtn = document.getElementById('remove-image-btn');
 const modal = document.getElementById('media-modal');
 const closeModalBtn = document.getElementById('close-modal-btn');
 const cancelModalBtn = document.getElementById('cancel-modal-btn');
+const insertMediaBtn = document.getElementById('insert-media-btn');
 const mediaItems = document.querySelectorAll('.media-pick-item');
+const mediaLoadMore = document.getElementById('media-load-more');
 
-const openModal = () => { if (modal) modal.style.display = 'flex'; };
+const MEDIA_PAGE_SIZE = 24;
+let mediaPageSize = MEDIA_PAGE_SIZE;
+
+let mediaPickerMultiple = false;
+let mediaPickerCallback = null;
+const mediaPickerSelected = new Set();
+
+const setMediaItemSelected = (item, selected) => {
+    if (!item) return;
+    item.classList.toggle('selected', selected);
+    item.style.borderColor = selected ? 'var(--primary, #3b82f6)' : 'transparent';
+    item.style.boxShadow = selected ? '0 0 0 2px rgba(59, 130, 246, .35)' : 'none';
+};
+
+const resetMediaSelection = () => {
+    mediaPickerSelected.clear();
+    mediaItems.forEach((item) => setMediaItemSelected(item, false));
+};
+
+const mediaFolderFilter = document.getElementById('media-folder-filter');
+const applyMediaFolderFilter = () => {
+    const value = mediaFolderFilter ? mediaFolderFilter.value : '__all__';
+    let matching = 0;
+    let shown = 0;
+
+    mediaItems.forEach((item) => {
+        const matches = value === '__all__' || (item.getAttribute('data-folder') || '') === value;
+        if (matches) {
+            matching++;
+        }
+        const visible = matches && shown < mediaPageSize;
+        item.style.display = visible ? '' : 'none';
+        if (visible) {
+            shown++;
+        }
+    });
+
+    if (mediaLoadMore) {
+        const remaining = matching - shown;
+        mediaLoadMore.style.display = remaining > 0 ? 'inline-flex' : 'none';
+        mediaLoadMore.textContent = <?= json_encode(__('Load more')) ?> + ' (' + remaining + ')';
+    }
+};
+
+if (mediaLoadMore) {
+    mediaLoadMore.addEventListener('click', () => {
+        mediaPageSize += MEDIA_PAGE_SIZE;
+        applyMediaFolderFilter();
+    });
+}
+
+if (mediaFolderFilter) {
+    mediaFolderFilter.addEventListener('change', () => {
+        mediaPageSize = MEDIA_PAGE_SIZE;
+        resetMediaSelection();
+        applyMediaFolderFilter();
+    });
+}
+
+const openModal = () => {
+    if (modal) modal.style.display = 'flex';
+    mediaPageSize = MEDIA_PAGE_SIZE;
+    if (mediaFolderFilter) {
+        mediaFolderFilter.value = '__all__';
+    }
+    applyMediaFolderFilter();
+};
 const hideModal = () => {
     if (modal) modal.style.display = 'none';
     tinymceFilePickerCallback = null;
     window.__modoMediaCallback = null;
     currentMediaTarget = 'featured';
+    mediaPickerMultiple = false;
+    mediaPickerCallback = null;
+    resetMediaSelection();
+    if (insertMediaBtn) insertMediaBtn.style.display = 'none';
 };
+
+// Shared picker API for custom-field galleries (multi-select). Existing single
+// select flows (featured image / TinyMCE) keep using currentMediaTarget.
+window.ModoMediaPicker = {
+    open(options) {
+        options = options || {};
+        mediaPickerMultiple = !!options.multiple;
+        mediaPickerCallback = typeof options.onSelect === 'function' ? options.onSelect : null;
+        resetMediaSelection();
+        if (insertMediaBtn) insertMediaBtn.style.display = mediaPickerMultiple ? 'inline-flex' : 'none';
+        currentMediaTarget = 'callback';
+        openModal();
+    }
+};
+
+if (insertMediaBtn) {
+    insertMediaBtn.addEventListener('click', () => {
+        const urls = Array.from(mediaPickerSelected);
+        const callback = mediaPickerCallback;
+        hideModal();
+        if (callback && urls.length) callback(urls);
+    });
+}
 
 const triggerFileUpload = () => fileInput && fileInput.click();
 if (uploadBtn) uploadBtn.addEventListener('click', triggerFileUpload);
@@ -1324,13 +1737,32 @@ mediaItems.forEach(item => {
         item.style.boxShadow = '0 6px 12px rgba(0,0,0,0.2)';
     });
     item.addEventListener('mouseleave', () => {
-        item.style.borderColor = 'transparent';
+        const selected = item.classList.contains('selected');
+        item.style.borderColor = selected ? 'var(--primary, #3b82f6)' : 'transparent';
         item.style.transform = 'translateY(0)';
-        item.style.boxShadow = 'none';
+        item.style.boxShadow = selected ? '0 0 0 2px rgba(59, 130, 246, .35)' : 'none';
     });
     item.addEventListener('click', () => {
         const selectedUrl = item.getAttribute('data-url');
         const altText = item.querySelector('img')?.getAttribute('alt') || '';
+
+        if (mediaPickerMultiple) {
+            if (mediaPickerSelected.has(selectedUrl)) {
+                mediaPickerSelected.delete(selectedUrl);
+                setMediaItemSelected(item, false);
+            } else {
+                mediaPickerSelected.add(selectedUrl);
+                setMediaItemSelected(item, true);
+            }
+            return;
+        }
+
+        if (currentMediaTarget === 'callback' && typeof mediaPickerCallback === 'function') {
+            const callback = mediaPickerCallback;
+            hideModal();
+            callback([selectedUrl]);
+            return;
+        }
 
         if (currentMediaTarget === 'featured') {
             hiddenInput.value = selectedUrl;
@@ -1374,6 +1806,8 @@ mediaItems.forEach(item => {
     };
     const cmMap = new Map();
     const tmMap = new Map();
+    const tmPending = new Set();
+    let editorsReady = false;
 
     const cfCard = document.getElementById('custom-fields-card');
     if (cfCard) {
@@ -1382,7 +1816,19 @@ mediaItems.forEach(item => {
             cfCard.querySelectorAll('.cf-tab').forEach((b) => b.classList.toggle('active', b.getAttribute('data-tab') === name));
             if (name === 'fields') {
                 cfList.querySelectorAll('.cf-w-code').forEach((ta) => { const cm = cmMap.get(ta); if (cm) cm.refresh(); });
-                setTimeout(() => window.dispatchEvent(new Event('resize')), 20);
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                    if (!editorsReady) return;
+                    // Editors created while the value panel was hidden need a
+                    // visible container before TinyMCE can size their iframe.
+                    cfList.querySelectorAll('.custom-field-row').forEach((row) => {
+                        const type = currentType(row);
+                        if (!isTinyMceType(type)) return;
+                        const ta = q(row, '.cf-w-richtext');
+                        if (ta && !tmMap.has(ta) && !tmPending.has(ta)) ensureEditor(row, type);
+                    });
+                    tmMap.forEach((editor) => ensureTinyMceHeight(editor));
+                }, 80);
             }
         };
         cfCard.querySelectorAll('.cf-tab').forEach((btn) => {
@@ -1395,6 +1841,281 @@ mediaItems.forEach(item => {
     const hidden = (row) => q(row, '.cf-value');
     const currentType = (row) => { const s = q(row, '.cf-type'); return s ? s.value : 'text'; };
 
+    const galleryItemTemplate = document.getElementById('cf-gallery-item-template');
+    const galleryDefaults = {
+        columns: '3',
+        gap: '14',
+        ratio: '1',
+        lightbox: '1',
+        captions: '1'
+    };
+    const isTinyMceType = (type) => type === 'richtext' || type === 'tinymce';
+
+    function applyImageValue(row, url) {
+        const value = url ? String(url) : '';
+        const urlInput = q(row, '.cf-image-url');
+        if (urlInput) urlInput.value = value;
+        const preview = q(row, '.cf-image-preview');
+        if (preview) {
+            preview.src = value;
+            preview.style.display = value ? 'block' : 'none';
+        }
+        const h = hidden(row);
+        if (h) h.value = value;
+    }
+
+    function normalizeGalleryValue(raw) {
+        let data = raw;
+        if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            if (trimmed === '') {
+                data = null;
+            } else {
+                try { data = JSON.parse(trimmed); } catch (err) { data = null; }
+            }
+        }
+        if (!data || typeof data !== 'object') data = {};
+
+        const itemsRaw = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+        const items = itemsRaw
+            .filter((item) => item && typeof item === 'object' && String(item.image || '').trim() !== '')
+            .map((item) => ({
+                image: String(item.image || '').trim(),
+                alt: String(item.alt || '').trim(),
+                caption: String(item.caption || '').trim(),
+                link: String(item.link || '').trim()
+            }));
+
+        const optionsRaw = (data.options && typeof data.options === 'object') ? data.options : {};
+        const options = Object.assign({}, galleryDefaults);
+        if (optionsRaw.columns !== undefined) {
+            options.columns = String(Math.max(1, Math.min(6, parseInt(optionsRaw.columns, 10) || 3)));
+        }
+        if (optionsRaw.gap !== undefined) {
+            options.gap = String(Math.max(0, Math.min(60, parseInt(optionsRaw.gap, 10) || 0)));
+        }
+        if (optionsRaw.ratio !== undefined) {
+            const ratio = String(optionsRaw.ratio);
+            options.ratio = ['1', '1.3333', '1.5', '1.7778', 'auto'].indexOf(ratio) !== -1 ? ratio : '1';
+        }
+        ['lightbox', 'captions'].forEach((flag) => {
+            if (optionsRaw[flag] !== undefined) {
+                const value = optionsRaw[flag];
+                options[flag] = (value === false || value === null || value === '' || value === '0' || value === 0) ? '0' : '1';
+            }
+        });
+
+        return { items, options };
+    }
+
+    function galleryState(row) {
+        if (!row.__cfGallery) {
+            const h = hidden(row);
+            row.__cfGallery = normalizeGalleryValue(h ? h.value : '');
+        }
+        return row.__cfGallery;
+    }
+
+    function writeGallery(row) {
+        const h = hidden(row);
+        if (!h) return;
+        const state = galleryState(row);
+        h.value = JSON.stringify({ items: state.items, options: state.options });
+    }
+
+    function applyGalleryOptions(row, state) {
+        const columns = q(row, '.cf-gallery-columns');
+        if (columns) columns.value = state.options.columns;
+        const gap = q(row, '.cf-gallery-gap');
+        if (gap) gap.value = state.options.gap;
+        const ratio = q(row, '.cf-gallery-ratio');
+        if (ratio) ratio.value = state.options.ratio;
+        const lightbox = q(row, '.cf-gallery-lightbox');
+        if (lightbox) lightbox.checked = state.options.lightbox === '1';
+        const captions = q(row, '.cf-gallery-captions');
+        if (captions) captions.checked = state.options.captions === '1';
+    }
+
+    function renderGallery(row) {
+        const state = galleryState(row);
+        applyGalleryOptions(row, state);
+
+        const itemsBox = q(row, '.cf-gallery-items');
+        if (!itemsBox) return;
+        itemsBox.innerHTML = '';
+
+        if (galleryItemTemplate && galleryItemTemplate.content && galleryItemTemplate.content.firstElementChild) {
+            state.items.forEach((item, index) => {
+                const node = galleryItemTemplate.content.firstElementChild.cloneNode(true);
+                node.setAttribute('data-index', String(index));
+
+                const img = q(node, 'img');
+                if (img) img.src = item.image;
+
+                const alt = q(node, '.cf-gallery-alt');
+                if (alt) {
+                    alt.value = item.alt;
+                    alt.addEventListener('input', () => {
+                        state.items[index].alt = alt.value;
+                        writeGallery(row);
+                    });
+                }
+
+                const caption = q(node, '.cf-gallery-caption');
+                if (caption) {
+                    caption.value = item.caption;
+                    caption.addEventListener('input', () => {
+                        state.items[index].caption = caption.value;
+                        writeGallery(row);
+                    });
+                }
+
+                const link = q(node, '.cf-gallery-link');
+                if (link) {
+                    link.value = item.link;
+                    link.addEventListener('input', () => {
+                        state.items[index].link = link.value;
+                        writeGallery(row);
+                    });
+                }
+
+                const remove = q(node, '.cf-gallery-remove');
+                if (remove) {
+                    remove.addEventListener('click', () => {
+                        state.items.splice(index, 1);
+                        writeGallery(row);
+                        renderGallery(row);
+                    });
+                }
+
+                itemsBox.appendChild(node);
+            });
+        }
+
+        const empty = q(row, '.cf-gallery-empty');
+        if (empty) empty.style.display = state.items.length ? 'none' : 'block';
+    }
+
+    function ensureGallery(row) {
+        const wrap = q(row, '.cf-w-gallery');
+        if (!wrap) return;
+
+        if (!wrap.__cfGalleryBound) {
+            wrap.__cfGalleryBound = true;
+
+            const addBtn = q(row, '.cf-gallery-add');
+            if (addBtn) {
+                addBtn.addEventListener('click', () => {
+                    if (!window.ModoMediaPicker || typeof window.ModoMediaPicker.open !== 'function') return;
+                    window.ModoMediaPicker.open({
+                        multiple: true,
+                        onSelect: (urls) => {
+                            const state = galleryState(row);
+                            (urls || []).forEach((url) => {
+                                if (url) state.items.push({ image: url, alt: '', caption: '', link: '' });
+                            });
+                            writeGallery(row);
+                            renderGallery(row);
+                        }
+                    });
+                });
+            }
+
+            const uploadBtn = q(row, '.cf-gallery-upload');
+            const fileIn = q(row, '.cf-gallery-file');
+            if (uploadBtn && fileIn) uploadBtn.addEventListener('click', () => fileIn.click());
+            if (fileIn) {
+                fileIn.addEventListener('change', () => {
+                    const files = Array.from(fileIn.files || []);
+                    if (!files.length) return;
+
+                    Promise.all(files.map((file) => {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        return fetch('upload.php', { method: 'POST', body: fd })
+                            .then((response) => response.json())
+                            .then((data) => (data && data.location) ? data.location : '')
+                            .catch(() => '');
+                    })).then((urls) => {
+                        const state = galleryState(row);
+                        urls.filter(Boolean).forEach((url) => {
+                            state.items.push({ image: url, alt: '', caption: '', link: '' });
+                        });
+                        writeGallery(row);
+                        renderGallery(row);
+                    });
+
+                    fileIn.value = '';
+                });
+            }
+
+            const itemsBox = q(row, '.cf-gallery-items');
+            if (itemsBox) {
+                let dragItem = null;
+
+                itemsBox.addEventListener('dragstart', (event) => {
+                    const handle = event.target.closest('.cf-gallery-drag');
+                    if (!handle) {
+                        event.preventDefault();
+                        return;
+                    }
+                    dragItem = handle.closest('.cf-gallery-item');
+                    if (dragItem) {
+                        dragItem.classList.add('is-dragging');
+                        event.dataTransfer.effectAllowed = 'move';
+                    }
+                });
+
+                itemsBox.addEventListener('dragend', () => {
+                    if (!dragItem) return;
+                    dragItem.classList.remove('is-dragging');
+                    const order = Array.from(itemsBox.querySelectorAll('.cf-gallery-item'))
+                        .map((node) => parseInt(node.getAttribute('data-index'), 10))
+                        .filter((index) => !isNaN(index));
+                    const state = galleryState(row);
+                    state.items = order.map((index) => state.items[index]).filter(Boolean);
+                    dragItem = null;
+                    writeGallery(row);
+                    renderGallery(row);
+                });
+
+                itemsBox.addEventListener('dragover', (event) => {
+                    event.preventDefault();
+                    if (!dragItem) return;
+                    const target = event.target.closest('.cf-gallery-item');
+                    if (!target || target === dragItem) return;
+                    const rect = target.getBoundingClientRect();
+                    const after = (event.clientY - rect.top) > rect.height / 2;
+                    itemsBox.insertBefore(dragItem, after ? target.nextSibling : target);
+                });
+            }
+
+            [['.cf-gallery-columns', 'columns'], ['.cf-gallery-gap', 'gap'], ['.cf-gallery-ratio', 'ratio']].forEach(([selector, key]) => {
+                const el = q(row, selector);
+                if (!el) return;
+                const sync = () => {
+                    const state = galleryState(row);
+                    state.options[key] = el.value;
+                    writeGallery(row);
+                };
+                el.addEventListener('input', sync);
+                el.addEventListener('change', sync);
+            });
+
+            [['.cf-gallery-lightbox', 'lightbox'], ['.cf-gallery-captions', 'captions']].forEach(([selector, key]) => {
+                const el = q(row, selector);
+                if (!el) return;
+                el.addEventListener('change', () => {
+                    const state = galleryState(row);
+                    state.options[key] = el.checked ? '1' : '0';
+                    writeGallery(row);
+                });
+            });
+        }
+
+        renderGallery(row);
+    }
+
     function commit(row) {
         const type = currentType(row);
         const h = hidden(row);
@@ -1402,9 +2123,11 @@ mediaItems.forEach(item => {
         if (codeTypes[type]) {
             const cm = cmMap.get(q(row, '.cf-w-code'));
             if (cm) h.value = cm.getValue();
-        } else if (type === 'richtext') {
+        } else if (isTinyMceType(type)) {
             const ed = tmMap.get(q(row, '.cf-w-richtext'));
             if (ed) h.value = ed.getContent();
+        } else if (type === 'gallery') {
+            writeGallery(row);
         } else if (type === 'checkbox') {
             const cb = q(row, '.cf-check-input');
             if (cb) h.value = cb.checked ? '1' : '0';
@@ -1423,29 +2146,71 @@ mediaItems.forEach(item => {
         }
     }
 
+    /**
+     * TinyMCE can end up with a collapsed edit area when the field was sized
+     * while hidden (or when a second init raced the first one). Resize it once
+     * more after layout and enforce a usable height as a last resort.
+     */
+    function ensureTinyMceHeight(editor) {
+        if (!editor || !editor.initialized) return;
+        const container = editor.getContainer();
+        if (!container) return;
+        const area = container.querySelector('.tox-edit-area');
+        const iframe = container.querySelector('.tox-edit-area iframe');
+        if (!area || !iframe) return;
+
+        try {
+            editor.dispatch('ResizeWindow');
+            editor.dispatch('ResizeEditor');
+        } catch (err) {}
+
+        requestAnimationFrame(() => {
+            if (iframe.offsetHeight >= 40) return;
+            iframe.style.minHeight = '300px';
+            area.style.minHeight = '300px';
+            container.style.minHeight = '340px';
+        });
+    }
+
     function ensureEditor(row, type) {
-        if (type === 'richtext') {
+        if (isTinyMceType(type)) {
             const ta = q(row, '.cf-w-richtext');
-            if (!ta || tmMap.has(ta) || typeof tinymce === 'undefined') return;
+            if (!ta || tmMap.has(ta) || tmPending.has(ta) || typeof tinymce === 'undefined') return;
+            // Defer init while the "Settings" tab hides the value panel; the
+            // tab switch triggers ensureEditor() again once the field is visible.
+            if (!ta.offsetParent) return;
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            tinymce.init({
+            tmPending.add(ta);
+            const initPromise = tinymce.init({
                 target: ta,
                 height: 300,
                 menubar: false,
                 plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
                 toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
                 skin: isDark ? 'oxide-dark' : 'oxide',
-                content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || []),
-                content_style: window.MODO_GRID_STYLE || '',
+                content_css: [(isDark ? 'dark' : 'default')].concat(
+                    window.MODO_GRID_CSS || [],
+                    window.MODO_THEME_CSS || []
+                ),
+                content_style: (window.MODO_THEME_STYLE || '') + (window.MODO_GRID_STYLE || ''),
+                body_class: window.MODO_THEME_BODY_CLASS || '',
                 relative_urls: false,
                 remove_script_host: false,
                 images_upload_url: 'upload.php',
                 automatic_uploads: true,
                 setup: (editor) => {
-                    editor.on('init', () => tmMap.set(ta, editor));
+                    editor.on('init', () => {
+                        tmPending.delete(ta);
+                        tmMap.set(ta, editor);
+                        ensureTinyMceHeight(editor);
+                        setTimeout(() => ensureTinyMceHeight(editor), 250);
+                    });
                     editor.on('change', () => { const h = hidden(row); if (h) h.value = editor.getContent(); });
                 }
             });
+            if (initPromise && typeof initPromise.catch === 'function') {
+                initPromise.catch(() => tmPending.delete(ta));
+            }
         } else if (codeTypes[type]) {
             const ta = q(row, '.cf-w-code');
             if (!ta || cmMap.has(ta) || typeof CodeMirror === 'undefined') return;
@@ -1460,17 +2225,28 @@ mediaItems.forEach(item => {
 
     function showWidget(row, type) {
         row.setAttribute('data-type', type);
+        const richTa = q(row, '.cf-w-richtext');
+        const richEditor = richTa ? tmMap.get(richTa) : null;
+        if (richEditor) richEditor.getContainer().style.display = 'none';
         row.querySelectorAll('.cf-widget').forEach((w) => { w.style.display = 'none'; });
         let sel = '.cf-w-text';
         if (type === 'textarea') sel = '.cf-w-textarea';
-        else if (type === 'richtext') sel = '.cf-w-richtext';
+        else if (isTinyMceType(type)) sel = '.cf-w-richtext';
         else if (type === 'image') sel = '.cf-w-image';
+        else if (type === 'gallery') sel = '.cf-w-gallery';
         else if (type === 'checkbox') sel = '.cf-w-checkbox';
         else if (type === 'number') sel = '.cf-w-number';
         else if (codeTypes[type]) sel = '.cf-w-code';
         const w = q(row, sel);
         if (w) w.style.display = (type === 'checkbox') ? 'flex' : 'block';
         ensureEditor(row, type);
+        if (isTinyMceType(type) && richEditor) {
+            richEditor.getContainer().style.display = 'block';
+            setTimeout(() => ensureTinyMceHeight(richEditor), 30);
+        }
+        if (type === 'gallery') {
+            ensureGallery(row);
+        }
         if (codeTypes[type]) {
             const cm = cmMap.get(q(row, '.cf-w-code'));
             if (cm) setTimeout(() => cm.refresh(), 40);
@@ -1497,13 +2273,35 @@ mediaItems.forEach(item => {
             const el = q(row, s);
             if (el) el.addEventListener('input', () => { if (h) h.value = el.value; });
         });
+        const richFallback = q(row, '.cf-w-richtext');
+        if (richFallback) richFallback.addEventListener('input', () => { if (h) h.value = richFallback.value; });
         const cbx = q(row, '.cf-check-input');
         if (cbx) cbx.addEventListener('change', () => { if (h) h.value = cbx.checked ? '1' : '0'; });
 
         const keyInput = q(row, '.cf-key');
         const labelEl = q(row, '.cf-field-label');
+        const labelHidden = q(row, '.cf-label');
         if (keyInput && labelEl) {
-            keyInput.addEventListener('input', () => { labelEl.textContent = keyInput.value; });
+            keyInput.addEventListener('input', () => {
+                labelEl.textContent = keyInput.value;
+                if (labelHidden && !labelHidden.value.trim()) {
+                    labelHidden.value = keyInput.value;
+                }
+            });
+        }
+
+        const libBtn = q(row, '.cf-image-library');
+        if (libBtn) {
+            libBtn.addEventListener('click', () => {
+                if (!window.ModoMediaPicker || typeof window.ModoMediaPicker.open !== 'function') return;
+                window.ModoMediaPicker.open({
+                    multiple: false,
+                    onSelect: (urls) => {
+                        const url = Array.isArray(urls) ? urls[0] : urls;
+                        if (url) applyImageValue(row, url);
+                    }
+                });
+            });
         }
 
         const fileIn = q(row, '.cf-image-file');
@@ -1517,18 +2315,14 @@ mediaItems.forEach(item => {
                 .then((r) => r.json())
                 .then((data) => {
                     if (data.location) {
-                        const u = q(row, '.cf-image-url'); if (u) u.value = data.location;
-                        const p = q(row, '.cf-image-preview'); if (p) { p.src = data.location; p.style.display = 'block'; }
-                        if (h) h.value = data.location;
+                        applyImageValue(row, data.location);
                     }
                 }).catch(() => {});
             fileIn.value = '';
         });
         const clr = q(row, '.cf-image-clear');
         if (clr) clr.addEventListener('click', () => {
-            const u = q(row, '.cf-image-url'); if (u) u.value = '';
-            const p = q(row, '.cf-image-preview'); if (p) { p.src = ''; p.style.display = 'none'; }
-            if (h) h.value = '';
+            applyImageValue(row, '');
         });
 
         const sel = q(row, '.cf-type');
@@ -1550,6 +2344,12 @@ mediaItems.forEach(item => {
         const rted = tmMap.get(rt); if (rted) rted.setContent(v);
         const cd = q(row, '.cf-w-code'); if (cd) cd.value = v;
         const cm = cmMap.get(cd); if (cm) cm.setValue(v);
+
+        if (currentType(row) === 'gallery') {
+            row.__cfGallery = normalizeGalleryValue(v);
+            writeGallery(row);
+            ensureGallery(row);
+        }
     }
 
     function onTypeChange(row) {
@@ -1619,7 +2419,8 @@ mediaItems.forEach(item => {
                         row = addRow();
                         if (!row) return;
                         const ki = q(row, '.cf-key'); if (ki) ki.value = f.key;
-                        const lbl = q(row, '.cf-field-label'); if (lbl) lbl.textContent = f.key;
+                        const lbl = q(row, '.cf-field-label'); if (lbl) lbl.textContent = f.label || f.key;
+                        const lh = q(row, '.cf-label'); if (lh) lh.value = f.label || f.key;
                     }
                     const sel = q(row, '.cf-type');
                     if (doSettings && sel) sel.value = f.type;
@@ -1646,6 +2447,7 @@ mediaItems.forEach(item => {
     }
 
     cfList.querySelectorAll('.custom-field-row').forEach(wireRow);
+    editorsReady = true;
 
     cfAddBtn.addEventListener('click', () => addRow());
 
@@ -1665,6 +2467,163 @@ mediaItems.forEach(item => {
     if (ownerForm) ownerForm.addEventListener('submit', () => {
         cfList.querySelectorAll('.custom-field-row').forEach(commit);
     });
+
+    // ------------------------------------------------------------------
+    // Page type presets: add default fields without overwriting content.
+    // ------------------------------------------------------------------
+    const pageTypeSelect = document.getElementById('page_type_id');
+    const applyTypeBtn = document.getElementById('apply-page-type-defaults');
+    const cfInitializedInput = document.getElementById('cf-initialized');
+    const IS_NEW_PAGE = <?= $id === 0 ? 'true' : 'false' ?>;
+    let pageTypePresets = [];
+    try {
+        const presetsEl = document.getElementById('page-types-data');
+        pageTypePresets = JSON.parse(presetsEl ? presetsEl.textContent : '[]') || [];
+    } catch (err) {
+        pageTypePresets = [];
+    }
+
+    function markInitialized() {
+        if (cfInitializedInput) cfInitializedInput.value = '1';
+    }
+
+    function hasAnyFields() {
+        return cfList.querySelectorAll('.custom-field-row').length > 0;
+    }
+
+    function findPreset(typeId) {
+        return pageTypePresets.find((preset) => String(preset.id) === String(typeId)) || null;
+    }
+
+    function setRowLabel(row, label) {
+        const text = String(label || '').trim();
+        if (text === '') return;
+        const hiddenLabel = q(row, '.cf-label');
+        if (hiddenLabel) hiddenLabel.value = text;
+        const labelEl = q(row, '.cf-field-label');
+        if (labelEl) labelEl.textContent = text;
+    }
+
+    function missingDefaultKeys(typeId) {
+        const preset = findPreset(typeId);
+        if (!preset || !Array.isArray(preset.fields)) return [];
+        return preset.fields.filter((field) => !findRowByKey(field.field_key));
+    }
+
+    function applyTypeDefaults(typeId, options) {
+        const opts = options || {};
+        const preset = findPreset(typeId);
+        if (!preset || !Array.isArray(preset.fields)) return 0;
+
+        let added = 0;
+        preset.fields.forEach((field) => {
+            let row = findRowByKey(field.field_key);
+            if (row) {
+                if (opts.refreshTypes) {
+                    const select = q(row, '.cf-type');
+                    if (select) select.value = field.field_type;
+                }
+                setRowLabel(row, field.label || field.field_key);
+                if (opts.overwriteValues) {
+                    setRowValue(row, field.default_value);
+                }
+                showWidget(row, currentType(row));
+                return;
+            }
+
+            row = addRow();
+            if (!row) return;
+            const keyInput = q(row, '.cf-key');
+            if (keyInput) keyInput.value = field.field_key;
+            setRowLabel(row, field.label || field.field_key);
+            const typeInput = q(row, '.cf-type');
+            if (typeInput) typeInput.value = field.field_type;
+            setRowValue(row, field.default_value);
+            showWidget(row, field.field_type);
+            added++;
+        });
+
+        markInitialized();
+        return added;
+    }
+
+    function onPageTypeChange(typeId) {
+        if (!typeId) return;
+        const missing = missingDefaultKeys(typeId);
+        if (missing.length === 0) return;
+
+        if (!hasAnyFields()) {
+            applyTypeDefaults(typeId);
+            return;
+        }
+
+        const title = <?= json_encode(__('Apply page type defaults'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const message = <?= json_encode(__('This page type has %s field(s) that are not on this document yet. Add them with their default values? Existing fields and values will not be changed.'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>.replace('%s', String(missing.length));
+
+        const run = () => {
+            const added = applyTypeDefaults(typeId);
+            if (window.UI) {
+                UI.alert({
+                    title: title,
+                    message: added > 0
+                        ? <?= json_encode(__('Added fields: %s'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>.replace('%s', String(added))
+                        : <?= json_encode(__('All default fields are already present.'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                });
+            }
+        };
+
+        if (window.UI && UI.confirm) {
+            UI.confirm({
+                title: title,
+                message: message,
+                okText: <?= json_encode(__('Add fields'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+                cancelText: <?= json_encode(__('Cancel'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+            }).then((ok) => { if (ok) run(); });
+        } else if (window.confirm(message)) {
+            run();
+        }
+    }
+
+    function onBaseTypeChange(baseType, typeId) {
+        if (IS_NEW_PAGE && typeId > 0 && !hasAnyFields()) {
+            applyTypeDefaults(typeId);
+        }
+    }
+
+    window.ModoPageTypes = {
+        applyTypeDefaults: applyTypeDefaults,
+        onPageTypeChange: onPageTypeChange,
+        onBaseTypeChange: onBaseTypeChange,
+        hasAnyFields: hasAnyFields
+    };
+
+    if (applyTypeBtn) {
+        applyTypeBtn.addEventListener('click', () => {
+            const typeId = pageTypeSelect ? (parseInt(pageTypeSelect.value, 10) || 0) : 0;
+            const title = <?= json_encode(__('Apply page type defaults'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            if (!typeId) {
+                if (window.UI) {
+                    UI.alert({ title: title, message: <?= json_encode(__('Select a page type first.'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> });
+                }
+                return;
+            }
+            const applyDefaultsInput = document.getElementById('apply-type-defaults');
+            if (applyDefaultsInput) applyDefaultsInput.value = '1';
+            const added = applyTypeDefaults(typeId);
+            if (window.UI) {
+                UI.alert({
+                    title: title,
+                    message: added > 0
+                        ? <?= json_encode(__('Added fields: %s'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>.replace('%s', String(added))
+                        : <?= json_encode(__('All default fields are already present.'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+                });
+            }
+        });
+    }
+
+    // JavaScript handled the initial preset rendering, so the server does not
+    // need to seed defaults again on submit.
+    if (IS_NEW_PAGE) markInitialized();
 })();
 
 </script>
@@ -1924,6 +2883,64 @@ mediaItems.forEach(item => {
         currentMediaTarget = 'editorjs';
         openModal();
     };
+
+    // Generate missing preview thumbnails in small batches. The page is not
+    // reloaded so unsaved document changes are preserved.
+    (function () {
+        const btn = document.getElementById('media-thumb-backfill-btn');
+        if (!btn) return;
+
+        const status = document.getElementById('media-thumb-status');
+        const csrf = btn.getAttribute('data-csrf') || '';
+
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = <?= json_encode(__('Generating thumbnails...')) ?>;
+
+            let offset = 0;
+            let done = false;
+            while (!done) {
+                const body = new URLSearchParams();
+                body.set('csrf', csrf);
+                body.set('offset', String(offset));
+                body.set('limit', '5');
+
+                try {
+                    const response = await fetch('thumbs-backfill.php', { method: 'POST', body });
+                    const data = await response.json();
+                    if (!data.ok) throw new Error(data.error || 'failed');
+
+                    offset = Number(data.next) || 0;
+                    done = !!data.done;
+                    btn.textContent = offset + ' / ' + data.total;
+                } catch (error) {
+                    btn.disabled = false;
+                    btn.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
+                    return;
+                }
+            }
+
+            btn.textContent = <?= json_encode(__('Thumbnails generated.')) ?>;
+            if (status) {
+                window.setTimeout(() => { status.style.display = 'none'; }, 1500);
+            }
+        });
+
+        // Build the preview cache in the background so the media modal is fast
+        // on this and every later visit. Runs only when some thumbs are missing.
+        try {
+            const lockKey = 'modoThumbBackfillAt';
+            const lastRun = parseInt(window.localStorage.getItem(lockKey) || '0', 10);
+            if (Date.now() - lastRun > 10 * 60 * 1000) {
+                window.localStorage.setItem(lockKey, String(Date.now()));
+                window.setTimeout(() => {
+                    if (!btn.disabled) btn.click();
+                }, 2000);
+            }
+        } catch (error) {
+            // Private mode / disabled storage: the button still works manually.
+        }
+    })();
 </script>
 <?php if ($useEditorJs): ?>
 <script src="assets/js/editorjs-init.js"></script>

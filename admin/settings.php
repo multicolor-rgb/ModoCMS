@@ -11,6 +11,7 @@ use Core\Sitemap;
 use Core\DomainMigration;
 use Core\Setup;
 use Core\Config;
+use Core\Analytics;
 
 Auth::requireCapability('manage_settings');
 
@@ -160,6 +161,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: settings.php?cache_purged=1');
         exit;
+    } elseif (($_POST['action'] ?? '') === 'analytics_reset') {
+        $_SESSION['analytics_reset_report'] = Analytics::reset();
+        header('Location: settings.php?tab=analytics&analytics_reset=1');
+        exit;
     } elseif (($_POST['action'] ?? '') === 'clear_redirects') {
         if (class_exists(\Core\Redirects::class)) {
             \Core\Redirects::clear();
@@ -233,7 +238,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'mail_smtp_timeout'            => (string)max(1, (int)($_POST['mail_smtp_timeout'] ?? 15)),
             'revisions_enabled'            => isset($_POST['revisions_enabled']) ? '1' : '0',
             'revisions_max'                => (string)max(1, min(500, (int)($_POST['revisions_max'] ?? 30))),
-            'autosave_interval'            => (string)max(15, min(3600, (int)($_POST['autosave_interval'] ?? 60)))
+            'autosave_interval'            => (string)max(15, min(3600, (int)($_POST['autosave_interval'] ?? 60))),
+            'analytics_mode'               => in_array($_POST['analytics_mode'] ?? '', ['both', 'unique', 'all'], true) ? (string)$_POST['analytics_mode'] : 'both',
+            'analytics_chart_type'         => in_array($_POST['analytics_chart_type'] ?? '', ['bar', 'line', 'area'], true) ? (string)$_POST['analytics_chart_type'] : 'bar',
+            'analytics_chart_palette'      => (($analyticsPalette = is_string($_POST['analytics_chart_palette'] ?? null) ? $_POST['analytics_chart_palette'] : 'primary') === 'custom' || array_key_exists($analyticsPalette, Analytics::palettes())) ? $analyticsPalette : 'primary',
+            'analytics_chart_custom_color' => preg_match('/^#[0-9a-fA-F]{6}$/', ($analyticsColor = is_string($_POST['analytics_chart_custom_color'] ?? null) ? trim($_POST['analytics_chart_custom_color']) : '')) === 1 ? strtolower($analyticsColor) : '#6366f1',
+            'analytics_chart_height'       => (string)max(80, min(260, (int)($_POST['analytics_chart_height'] ?? 110))),
+            'analytics_chart_period'       => in_array((int)($_POST['analytics_chart_period'] ?? 7), [7, 14, 30], true) ? (string)(int)$_POST['analytics_chart_period'] : '7',
+            'analytics_chart_show_values'  => isset($_POST['analytics_chart_show_values']) ? '1' : '0',
+            'analytics_chart_show_legend'  => isset($_POST['analytics_chart_show_legend']) ? '1' : '0',
+            'analytics_chart_show_grid'    => isset($_POST['analytics_chart_show_grid']) ? '1' : '0',
         ];
 
         $stmt = $db->prepare("
@@ -316,8 +330,11 @@ $configReport = $_SESSION['config_report'] ?? null;
 unset($_SESSION['config_report']);
 
 // Tab the admin asked for through the URL (e.g. after the repair redirect).
-$settingsTabs = ['general', 'content', 'seo', 'security', 'performance', 'email', 'tools', 'system'];
+$settingsTabs = ['general', 'content', 'seo', 'security', 'performance', 'email', 'analytics', 'tools', 'system'];
 $requestedTab = in_array($_GET['tab'] ?? '', $settingsTabs, true) ? (string)$_GET['tab'] : '';
+
+$analyticsResetReport = $_SESSION['analytics_reset_report'] ?? null;
+unset($_SESSION['analytics_reset_report']);
 
 $themes = array_filter(glob(__DIR__ . '/../themes/*'), 'is_dir');
 $basePrefix = class_exists('Core\Router') ? Router::getBaseSubdirectory() : '';
@@ -364,6 +381,11 @@ require_once __DIR__ . '/views/header.php';
         <?= _e('Redirect removed.') ?>
     </div>
 <?php endif; ?>
+<?php if (isset($_GET['analytics_reset']) && $analyticsResetReport !== null): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); background: rgba(16, 185, 129, 0.08); padding: 12px 16px; margin-bottom: 24px; color: #34d399; font-weight: 500;">
+        <?= sprintf(__('Statistics reset successfully. Removed %d record(s).'), (int)$analyticsResetReport) ?>
+    </div>
+<?php endif; ?>
 
 <div class="settings-wrap" id="settings-wrap">
 <div class="settings-tabs">
@@ -373,6 +395,7 @@ require_once __DIR__ . '/views/header.php';
     <button type="button" class="settings-tab" data-tab="security"><?= _e('Security') ?></button>
     <button type="button" class="settings-tab" data-tab="performance"><?= _e('Performance') ?></button>
     <button type="button" class="settings-tab" data-tab="email"><?= _e('Email') ?></button>
+    <button type="button" class="settings-tab" data-tab="analytics"><?= _e('Statistics') ?></button>
     <button type="button" class="settings-tab" data-tab="tools"><?= _e('Tools') ?></button>
     <button type="button" class="settings-tab" data-tab="system"><?= _e('System') ?></button>
 </div>
@@ -1042,6 +1065,115 @@ require_once __DIR__ . '/views/header.php';
             <div class="form-group" style="margin: 14px 0 0 0; max-width: 260px;">
                 <label class="form-label" for="mail_smtp_timeout"><?= _e('Connection timeout (seconds)') ?></label>
                 <input class="form-control" type="number" min="1" id="mail_smtp_timeout" name="mail_smtp_timeout" value="<?= (int)Router::getOption('mail_smtp_timeout', '15') ?>">
+            </div>
+        </div>
+
+        <!-- 8. Internal statistics -->
+        <div class="card settings-panel" data-tab="analytics">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Statistics') ?>
+            </h3>
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: -4px 0 16px 0;">
+                <?= _e('Configure how internal visit statistics are counted and how the traffic chart on the Dashboard looks. All views and unique visitors are collected from the same anonymous data set.') ?>
+            </p>
+
+            <?php if (!Analytics::isEnabled()): ?>
+                <div class="card" style="border-left: 4px solid var(--warning, #f59e0b); background: rgba(245, 158, 11, 0.08); padding: 12px 16px; margin-bottom: 16px; color: #fbbf24; font-size: 13px;">
+                    <?= _e('Statistics collection is disabled in the configuration file (analytics_enabled). The chart keeps showing previously collected data.') ?>
+                </div>
+            <?php endif; ?>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label class="form-label" for="analytics_mode"><?= _e('Counting mode') ?></label>
+                    <select class="form-control" name="analytics_mode" id="analytics_mode">
+                        <option value="both" <?= Analytics::mode() === 'both' ? 'selected' : '' ?>><?= _e('Unique + all views') ?></option>
+                        <option value="unique" <?= Analytics::mode() === 'unique' ? 'selected' : '' ?>><?= _e('Unique views only') ?></option>
+                        <option value="all" <?= Analytics::mode() === 'all' ? 'selected' : '' ?>><?= _e('All views only') ?></option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="analytics_chart_type"><?= _e('Chart type') ?></label>
+                    <select class="form-control" name="analytics_chart_type" id="analytics_chart_type">
+                        <option value="bar" <?= Analytics::chartType() === 'bar' ? 'selected' : '' ?>><?= _e('Bars') ?></option>
+                        <option value="line" <?= Analytics::chartType() === 'line' ? 'selected' : '' ?>><?= _e('Line') ?></option>
+                        <option value="area" <?= Analytics::chartType() === 'area' ? 'selected' : '' ?>><?= _e('Area') ?></option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label class="form-label" for="analytics_chart_palette"><?= _e('Color palette') ?></label>
+                    <select class="form-control" name="analytics_chart_palette" id="analytics_chart_palette">
+                        <?php foreach (Analytics::palettes() as $paletteId => $paletteLabel): ?>
+                            <option value="<?= htmlspecialchars($paletteId, ENT_QUOTES, 'UTF-8') ?>" <?= Analytics::palette() === $paletteId ? 'selected' : '' ?>>
+                                <?= _e($paletteLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <option value="custom" <?= Analytics::palette() === 'custom' ? 'selected' : '' ?>><?= _e('Custom') ?></option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="analytics_chart_custom_color"><?= _e('Custom color') ?></label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="color" id="analytics_chart_custom_color_picker" value="<?= htmlspecialchars(Analytics::customColor() ?: '#6366f1', ENT_QUOTES, 'UTF-8') ?>" style="width: 44px; height: 38px; padding: 3px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); cursor: pointer;" onchange="document.getElementById('analytics_chart_custom_color').value = this.value">
+                        <input class="form-control" type="text" id="analytics_chart_custom_color" name="analytics_chart_custom_color" value="<?= htmlspecialchars(Analytics::customColor() ?: '#6366f1', ENT_QUOTES, 'UTF-8') ?>" pattern="^#[0-9a-fA-F]{6}$" placeholder="#6366f1" onchange="document.getElementById('analytics_chart_custom_color_picker').value = this.value">
+                    </div>
+                    <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px;">
+                        <?= _e('Used when the "Custom" palette is selected.') ?>
+                    </small>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label class="form-label" for="analytics_chart_height"><?= _e('Chart height (px)') ?></label>
+                    <input class="form-control" type="number" id="analytics_chart_height" name="analytics_chart_height" min="80" max="260" value="<?= Analytics::chartHeight() ?>">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="analytics_chart_period"><?= _e('Chart period') ?></label>
+                    <select class="form-control" name="analytics_chart_period" id="analytics_chart_period">
+                        <option value="7" <?= Analytics::period() === 7 ? 'selected' : '' ?>><?= _e('Last 7 days') ?></option>
+                        <option value="14" <?= Analytics::period() === 14 ? 'selected' : '' ?>><?= _e('Last 14 days') ?></option>
+                        <option value="30" <?= Analytics::period() === 30 ? 'selected' : '' ?>><?= _e('Last 30 days') ?></option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 22px; flex-wrap: wrap; padding: 14px 16px; background: var(--bg-surface, #1e293b); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-top: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-main);">
+                    <input type="checkbox" name="analytics_chart_show_values" value="1" <?= Analytics::showValues() ? 'checked' : '' ?>>
+                    <?= _e('Show values') ?>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-main);">
+                    <input type="checkbox" name="analytics_chart_show_legend" value="1" <?= Analytics::showLegend() ? 'checked' : '' ?>>
+                    <?= _e('Show legend') ?>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-main);">
+                    <input type="checkbox" name="analytics_chart_show_grid" value="1" <?= Analytics::showGrid() ? 'checked' : '' ?>>
+                    <?= _e('Show grid') ?>
+                </label>
+            </div>
+
+            <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface, #1e293b);">
+                <strong style="display: block; font-size: 13px; color: var(--text-main); margin-bottom: 4px;"><?= _e('Reset statistics') ?></strong>
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 10px 0;">
+                    <?= _e('Deletes every collected visit and starts counting from zero. This action cannot be undone.') ?>
+                    <?php $lastReset = Analytics::lastReset(); ?>
+                    <?= $lastReset !== '' ? ' ' . sprintf(__('Last reset: %s.'), date('d.m.Y H:i', strtotime($lastReset))) : '' ?>
+                </p>
+                <button type="submit" name="action" value="analytics_reset" formnovalidate class="btn btn-danger-ghost"
+                        data-confirm
+                        data-confirm-title="<?= _e('Reset statistics') ?>"
+                        data-confirm-message="<?= _e('This permanently deletes all collected visit data. Continue?') ?>"
+                        data-confirm-ok="<?= _e('Reset') ?>"
+                        data-confirm-danger>
+                    <?= _e('Reset statistics') ?>
+                </button>
             </div>
         </div>
 

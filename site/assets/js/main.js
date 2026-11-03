@@ -75,7 +75,7 @@
       'download.step3.desc': 'Otwórz /install.php, przejdź przez kreator i usuń plik instalatora.',
       'download.docs': 'Instrukcja instalacji',
       'docs.all': 'Cała dokumentacja',
-      'docs.allDesc': 'Instalacja, wtyczki, motywy, hooki, typy stron i przykłady.',
+      'docs.allDesc': 'Instalacja, wtyczki, motywy, hooki, typy stron, style edytora i przykłady.',
 
       'hero.badge': '100% open source · licencja MIT',
       'hero.title': 'Postaw stronę',
@@ -126,6 +126,8 @@
       'f8.desc': 'Zalogowani widzą na froncie pasek z szybkimi akcjami: edycja bieżącej strony, dodanie nowej treści i edycja ustawień motywu.',
       'f9.title': 'Bezpieczeństwo',
       'f9.desc': 'PDO Prepared Statements, tokeny CSRF, weryfikacja uprawnień i sanityzacja wyjścia — bezpieczne wzorce od pierwszej linii kodu.',
+      'f10.title': 'Style motywu w edytorze',
+      'f10.desc': 'Motyw może dostarczyć editor.css, który stylizuje wyłącznie kanwę TinyMCE i Editor.js — bez zmian na frontendzie i bez nowego ustawienia.',
 
       'how.eyebrow': 'Jak to działa',
       'how.title': 'Rdzeń zostaje czysty — resztę dopinasz hookami',
@@ -169,6 +171,8 @@
       'doc6.desc': 'Gotowe wtyczki i fragmenty motywu do skopiowania.',
       'doc7.title': 'Typy stron',
       'doc7.desc': 'Gotowe presety treści z domyślnymi polami niestandardowymi.',
+      'doc8.title': 'Styl motywu w edytorze',
+      'doc8.desc': 'Opcjonalna typografia TinyMCE i Editor.js z pliku editor.css.',
 
       'cta.title': 'Gotowy zbudować coś lekkiego?',
       'cta.sub': 'Pobierz Modo CMS, przeczytaj dokumentację i postaw własną witrynę na PHP 8 i SQLite3 — bez bazy do konfiguracji i bez zewnętrznych zależności.',
@@ -247,7 +251,7 @@
       'download.step3.desc': 'Open /install.php, follow the wizard and delete the installer.',
       'download.docs': 'Installation guide',
       'docs.all': 'All documentation',
-      'docs.allDesc': 'Installation, plugins, themes, hooks, page types and examples.',
+      'docs.allDesc': 'Installation, plugins, themes, hooks, page types, editor styles and examples.',
 
       'hero.badge': '100% open source · MIT licensed',
       'hero.title': 'Ship your site',
@@ -298,6 +302,8 @@
       'f8.desc': 'Logged-in users get a frontend bar with quick actions: edit the current page, add new content and edit theme settings.',
       'f9.title': 'Security',
       'f9.desc': 'PDO prepared statements, CSRF tokens, permission checks and output sanitisation — safe patterns from the first line of code.',
+      'f10.title': 'Theme styles in the editor',
+      'f10.desc': 'A theme can ship editor.css that styles only the TinyMCE and Editor.js canvas — no frontend changes and no new setting.',
 
       'how.eyebrow': 'How it works',
       'how.title': 'The core stays clean — the rest plugs in through hooks',
@@ -341,6 +347,8 @@
       'doc6.desc': 'Ready-to-copy plugins and theme snippets.',
       'doc7.title': 'Page types',
       'doc7.desc': 'Reusable content presets with default custom fields.',
+      'doc8.title': 'Theme styles in the editor',
+      'doc8.desc': 'Optional TinyMCE and Editor.js typography from editor.css.',
 
       'cta.title': 'Ready to build something lightweight?',
       'cta.sub': 'Download Modo CMS, read the docs and launch your own site on PHP 8 and SQLite3 — with no database to configure and no external dependencies.',

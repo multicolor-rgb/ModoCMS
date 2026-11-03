@@ -62,4 +62,61 @@ class PluginLoader {
         // Trigger post-load hook
         Hooks::doAction('plugins_loaded');
     }
+
+    /**
+     * Reads plugin metadata from the file header comment without executing it.
+     *
+     * Useful for plugins that are installed but disabled: their
+     * register_plugin() call never runs, so the runtime registry stays empty.
+     *
+     * @return array{name?: string, version?: string, author?: string, url?: string, desc?: string}
+     */
+    public static function readMetadata(string $entryFile): array
+    {
+        if (!is_file($entryFile) || !is_readable($entryFile)) {
+            return [];
+        }
+
+        $header = (string) @file_get_contents($entryFile, false, null, 0, 16384);
+        if ($header === '') {
+            return [];
+        }
+
+        // Metadata lives in the opening header comment; ignore the rest of the file.
+        $commentEnd = strpos($header, '*/');
+        if ($commentEnd !== false) {
+            $header = substr($header, 0, $commentEnd);
+        }
+
+        $fields = [
+            'name'    => 'Plugin Name',
+            'version' => 'Version',
+            'author'  => 'Author',
+            'url'     => 'Author URI',
+            'desc'    => 'Description',
+        ];
+
+        $meta = [];
+        foreach ($fields as $key => $label) {
+            $pattern = '/^\s*[*#\/\s]*' . preg_quote($label, '/') . '\s*:\s*(.+)$/mi';
+            if (preg_match($pattern, $header, $match)) {
+                $value = trim($match[1]);
+                if ($value !== '') {
+                    $meta[$key] = $value;
+                }
+            }
+        }
+
+        // GetSimple plugin headers may use "Plugin URI" instead of "Author URI".
+        if (empty($meta['url'])) {
+            if (preg_match('/^\s*[*#\/\s]*Plugin URI\s*:\s*(.+)$/mi', $header, $match)) {
+                $value = trim($match[1]);
+                if ($value !== '') {
+                    $meta['url'] = $value;
+                }
+            }
+        }
+
+        return $meta;
+    }
 }
