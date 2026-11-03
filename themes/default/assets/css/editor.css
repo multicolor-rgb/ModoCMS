@@ -1,0 +1,123 @@
+/* Modo Bootstrap Light — content editor typography.
+   Loaded only inside the TinyMCE / Editor.js canvas when this file exists. */
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: var(--modo-base-font-size, 16px);
+    line-height: 1.65;
+    color: var(--modo-text-color, #212529);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0 0 .75em;
+    font-weight: 700;
+    line-height: 1.25;
+    color: inherit;
+}
+
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.875rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.1rem; }
+h6 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--modo-muted-color, #6c757d);
+}
+
+p {
+    margin: 0 0 1rem;
+}
+
+ul,
+ol {
+    margin: 0 0 1rem;
+    padding-left: 1.5rem;
+}
+
+li + li {
+    margin-top: .25rem;
+}
+
+a {
+    color: var(--modo-primary, #0d6efd);
+    text-decoration: underline;
+    text-underline-offset: .15em;
+}
+
+a:hover {
+    text-decoration-thickness: .12em;
+}
+
+strong,
+b {
+    font-weight: 700;
+}
+
+blockquote {
+    margin: 1.5rem 0;
+    padding: .35rem 1rem;
+    border-left: 4px solid var(--modo-primary, #0d6efd);
+    color: var(--modo-muted-color, #495057);
+    font-style: italic;
+}
+
+hr {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid var(--modo-border-color, #dee2e6);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+figure {
+    margin: 1.5rem 0;
+}
+
+figcaption {
+    margin-top: .5rem;
+    font-size: .875rem;
+    color: var(--modo-muted-color, #6c757d);
+}
+
+table {
+    width: 100%;
+    margin: 1.5rem 0;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: .5rem .75rem;
+    border: 1px solid var(--modo-border-color, #dee2e6);
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: var(--modo-surface-color, #f8f9fa);
+    font-weight: 600;
+}
+
+.lead {
+    font-size: 1.25rem;
+    font-weight: 300;
+    line-height: 1.5;
+}
+
+.hl {
+    padding: .1em .25em;
+    background: var(--modo-highlight, #fff3cd);
+    border-radius: .2em;
+}

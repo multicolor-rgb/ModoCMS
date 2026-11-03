@@ -275,13 +275,19 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
     window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_CSS = <?= json_encode(\Core\ThemeEditorStyles::contentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_STYLE = <?= json_encode(\Core\ThemeEditorStyles::contentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_BODY_CLASS = <?= json_encode(\Core\ThemeEditorStyles::bodyClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     <?php if ($useEditorJs): ?>
     window.MODO_EDITORJS = <?= json_encode($editorJsConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     <?php endif; ?>
 </script>
 <?php if ($useEditorJs): ?>
 <style>
-    /* Scoped grid CSS + block skin for the inline Editor.js canvas. */
+    /* Scoped theme typography + grid CSS + block skin for the inline
+       Editor.js canvas. The theme block comes first so an @import from
+       editor.css stays the first rule in this <style> element. */
+    <?= \Core\ThemeEditorStyles::scopedCss('#snippet-editorjs') ?>
     <?= \Core\CssFramework::editorScopedCss('#snippet-editorjs') ?>
     #snippet-editorjs {
         padding: 20px 16px 20px;
@@ -309,8 +315,12 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
         plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
         toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | code fullscreen',
         skin: isDark ? 'oxide-dark' : 'oxide',
-        content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || []),
-        content_style: window.MODO_GRID_STYLE || '',
+        content_css: [(isDark ? 'dark' : 'default')].concat(
+            window.MODO_GRID_CSS || [],
+            window.MODO_THEME_CSS || []
+        ),
+        content_style: (window.MODO_THEME_STYLE || '') + (window.MODO_GRID_STYLE || ''),
+        body_class: window.MODO_THEME_BODY_CLASS || '',
         relative_urls: false,
         remove_script_host: false,
         images_upload_url: 'upload.php',

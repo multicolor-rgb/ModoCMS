@@ -4,6 +4,42 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.2] — 2026-11-03
+
+### Added
+
+- **Optional theme styles in the content editor**:
+  - a theme can ship `themes/<theme>/assets/css/editor.css`, detected solely by
+    the existence of that file,
+  - styles are applied to the TinyMCE canvas (`content_css`, `content_style`,
+    optional `body_class`) and to the inline Editor.js canvas (CSS scoped to
+    `#editorjs` and `#snippet-editorjs`),
+  - relative `url(...)` references and `@import` rules are rewritten to
+    absolute theme URLs, while `@import` stays the first rule in the `<style>`
+    block,
+  - Customizer variables are appended last, so they override the defaults from
+    `editor.css`,
+  - an optional `editor` block in `theme.json` supports `body_class` and
+    `content_style`,
+  - no file means no editor changes; there is no fallback to `style.css`, no new
+    setting in Settings and no frontend change.
+- New `Core\ThemeEditorStyles` class and new
+  `Core\Customizer::cssVariables()` / `Core\CssFramework::scopeCss()` methods.
+- Example `editor.css` files for the `default`, `default2` and `editorial`
+  themes.
+- [PL](docs/pl/styl-motywu-w-edytorze.md) /
+  [EN](docs/en/theme-editor-styles.md) documentation and README links.
+
+### Fixed
+
+- `CssFramework::editorScopedCss()` now uses the shared `scopeCss()` parser,
+  which correctly handles `@media`, `:root`/`html`/`body`, comments, and leaves
+  `@keyframes` / `@font-face` untouched.
+
+### No database changes
+
+- No migration — updating from 3.0.1 only requires replacing the files.
+
 ## [3.0.1] — 2026-11-03
 
 ### Fixed

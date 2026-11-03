@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.1.
+# Release notes for Modo CMS 3.0.2.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,17 +53,21 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.1
-            - **Template settings panel:** settings sections are collapsed by default and expanded ones stay open across preview reloads (remembered per theme).
-            - **No refreshes while typing:** the live preview reloads only after editing is committed (field blur, switch/option change, range release) and only when the value actually changed.
-            - **Reliable preview:** the draft is saved before every reload, the panel scroll position is restored, and **Publish** / **Reset** no longer recreate the draft.
-            - **No database changes:** updating from 3.0.0 requires no migration — replacing the files is enough.
+            ### What's new in 3.0.2
+            - **Optional theme editor styles:** a theme can ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE and Editor.js canvas only.
+            - **Automatic opt-in:** the file is detected by its existence — no new setting, no fallback to `style.css`, and no frontend changes.
+            - **Theme metadata:** optional `editor.body_class` and `editor.content_style` keys in `theme.json`.
+            - **Editor.js scoping:** relative URLs and `@import` are rewritten to theme URLs, while Customizer variables override defaults from `editor.css`.
+            - **Bundled examples:** `editor.css` files for the `default`, `default2` and `editorial` themes.
+            - **No database changes:** updating from 3.0.1 requires no migration — replacing the files is enough.
 
-            ### Najważniejsze zmiany w 3.0.1
-            - **Panel ustawień szablonu:** sekcje są domyślnie zwinięte, a rozwinięte podczas edycji pozostają otwarte po przeładowaniu podglądu (stan pamiętany per motyw).
-            - **Bez odświeżania podczas pisania:** podgląd przeładowuje się dopiero po zakończeniu edycji (wyjście z pola, zmiana przełącznika/opcji, puszczenie suwaka) i tylko gdy wartość faktycznie się zmieniła.
-            - **Stabilny podgląd:** szkic jest zapisywany przed każdym przeładowaniem, pozycja przewinięcia panelu jest przywracana, a **Publikuj** / **Reset** nie odtwarzają już szkicu.
-            - **Bez zmian w bazie:** aktualizacja z 3.0.0 nie wymaga migracji — wystarczy podmienić pliki.
+            ### Najważniejsze zmiany w 3.0.2
+            - **Opcjonalne style motywu w edytorze:** motyw może dostarczyć `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE i Editor.js.
+            - **Automatyczne włączanie:** plik jest wykrywany po istnieniu — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie.
+            - **Metadane motywu:** opcjonalne klucze `editor.body_class` i `editor.content_style` w `theme.json`.
+            - **Scopowanie Editor.js:** względne URL-e i `@import` są zamieniane na URL-e motywu, a zmienne Customizera nadpisują wartości domyślne z `editor.css`.
+            - **Przykłady w motywach:** pliki `editor.css` dla motywów `default`, `default2` i `editorial`.
+            - **Bez zmian w bazie:** aktualizacja z 3.0.1 nie wymaga migracji — wystarczy podmienić pliki.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

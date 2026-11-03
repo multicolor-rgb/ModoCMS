@@ -709,14 +709,20 @@ require_once __DIR__ . '/views/header.php';
     window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_CSS = <?= json_encode(\Core\ThemeEditorStyles::contentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_STYLE = <?= json_encode(\Core\ThemeEditorStyles::contentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_THEME_BODY_CLASS = <?= json_encode(\Core\ThemeEditorStyles::bodyClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     <?php if ($useEditorJs): ?>
     window.MODO_EDITORJS = <?= json_encode($editorJsConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     <?php endif; ?>
 </script>
 <?php if ($useEditorJs): ?>
 <style>
-    /* The Editor.js canvas is inline, so the grid CSS is scoped to it instead
-       of leaking into the admin UI. Customised block skins follow below. */
+    /* The Editor.js canvas is inline, so both the theme typography and the
+       grid CSS are scoped to it instead of leaking into the admin UI. The
+       theme block comes first: an @import from editor.css must stay the first
+       rule in this <style> element. Customised block skins follow below. */
+    <?= \Core\ThemeEditorStyles::scopedCss('#editorjs') ?>
     <?= \Core\CssFramework::editorScopedCss('#editorjs') ?>
     #editorjs {
         padding: 24px 20px 40px;
@@ -1478,7 +1484,9 @@ function initCleanTinyMCE() {
     const isDark = isDarkActive();
     const gridCss = (window.MODO_GRID_CSS || []).slice();
     const gridStyle = window.MODO_GRID_STYLE || '';
-    const contentCss = [(isDark ? 'dark' : 'default')].concat(gridCss);
+    const themeCss = (window.MODO_THEME_CSS || []).slice();
+    const themeStyle = window.MODO_THEME_STYLE || '';
+    const contentCss = [(isDark ? 'dark' : 'default')].concat(gridCss, themeCss);
 
     tinymce.init({
         selector: '#editor',
@@ -1488,7 +1496,8 @@ function initCleanTinyMCE() {
         toolbar: <?= json_encode($resolvedToolbar) ?>,
         skin: isDark ? 'oxide-dark' : 'oxide',
         content_css: contentCss,
-        content_style: gridStyle,
+        content_style: themeStyle + gridStyle,
+        body_class: window.MODO_THEME_BODY_CLASS || '',
         images_upload_url: 'upload.php',
         automatic_uploads: true,
         relative_urls: false,
@@ -2179,8 +2188,12 @@ mediaItems.forEach(item => {
                 plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
                 toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
                 skin: isDark ? 'oxide-dark' : 'oxide',
-                content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || []),
-                content_style: window.MODO_GRID_STYLE || '',
+                content_css: [(isDark ? 'dark' : 'default')].concat(
+                    window.MODO_GRID_CSS || [],
+                    window.MODO_THEME_CSS || []
+                ),
+                content_style: (window.MODO_THEME_STYLE || '') + (window.MODO_GRID_STYLE || ''),
+                body_class: window.MODO_THEME_BODY_CLASS || '',
                 relative_urls: false,
                 remove_script_host: false,
                 images_upload_url: 'upload.php',
