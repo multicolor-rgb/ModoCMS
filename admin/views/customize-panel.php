@@ -132,7 +132,7 @@ if (!function_exists('modo_render_control')) {
 
 <?php foreach ($schema['sections'] as $section): ?>
     <?php if (empty($section['controls'])) { continue; } ?>
-    <details class="modo-cz-section" open>
+    <details class="modo-cz-section" data-section-id="<?= htmlspecialchars($section['id'], ENT_QUOTES, 'UTF-8') ?>">
         <summary>
             <span><?= htmlspecialchars($section['title'], ENT_QUOTES, 'UTF-8') ?></span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>

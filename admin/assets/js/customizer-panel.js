@@ -1,8 +1,11 @@
 /* Modo CMS — Frontend Theme Settings Panel ("Edit template settings")
  * A slide-in sidebar rendered on the live frontend. The page itself is the
- * preview: controls mapped to a CSS custom property update instantly, while all
- * other changes reload the page with the session draft overlaid on top of the
- * published values (see Core\CustomizerPanel / Core\Customizer).
+ * preview: controls mapped to a CSS custom property update instantly, while the
+ * remaining ones reload the page with the session draft overlaid on top of the
+ * published values (see Core\CustomizerPanel / Core\Customizer). The reload only
+ * happens once editing is committed (field blur, switch/select change), so
+ * typing never interrupts the user. Settings sections are collapsed by default
+ * and their expanded state is remembered across those reloads.
  */
 (function () {
     'use strict';
@@ -28,6 +31,10 @@
     let reloadTimer = null;
     let statusTimer = null;
     let draftTimer = null;
+
+    // Values as rendered by the server, used to detect real changes so the
+    // preview is not reloaded when nothing actually changed.
+    let initialValues = {};
 
     const STORAGE_KEY = 'modo_cz_panel_open';
 
@@ -92,24 +99,84 @@
         style.textContent = css;
     }
 
-    function reloadPreview() {
+    function reloadPage() {
+        if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
         // The URL keeps ?modo_customize=1, so the panel and the draft persist.
         window.location.reload();
+    }
+
+    function reloadPreview() {
+        if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
+        // Store the pending draft first, so the reloaded page already shows the
+        // value the user just edited.
+        saveDraftNow().catch(() => {}).finally(reloadPage);
     }
 
     function saveDraft() {
         return api('save_draft', { values: JSON.stringify(collectValues()) });
     }
 
+    function cancelDraftSave() {
+        if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
+    }
+
+    function saveDraftNow() {
+        cancelDraftSave();
+        return saveDraft();
+    }
+
     function scheduleDraftSave() {
         if (draftTimer) clearTimeout(draftTimer);
         draftTimer = setTimeout(() => {
+            draftTimer = null;
             saveDraft().then(() => setStatus(L.saved, 'ok')).catch(() => {});
         }, 700);
     }
 
-    function onControlChange(el) {
+    // True when at least one control that cannot be previewed through a CSS
+    // custom property differs from the value rendered on page load.
+    function hasPendingPreviewChanges() {
         const values = collectValues();
+        let changed = false;
+        root.querySelectorAll('.modo-control[data-control-id]').forEach((el) => {
+            const id = el.getAttribute('data-control-id');
+            if (!id || (CFG.cssMap && CFG.cssMap[id])) return;
+            if (el.type === 'radio' && !el.checked) return;
+            if (values[id] !== initialValues[id]) changed = true;
+        });
+        return changed;
+    }
+
+    // Reloads the live preview only when it is actually needed, i.e. when the
+    // user has finished editing a control that is not driven by a CSS variable.
+    function schedulePreviewReload() {
+        if (reloadTimer) clearTimeout(reloadTimer);
+        if (!hasPendingPreviewChanges()) {
+            reloadTimer = null;
+            return;
+        }
+        reloadTimer = setTimeout(() => {
+            reloadTimer = null;
+            reloadPreview();
+        }, 300);
+    }
+
+    // Controls where typing is an ongoing action; a scheduled preview reload
+    // must not interrupt the user in the middle of it.
+    function isTypingControl(el) {
+        if (!el || el.tagName === 'TEXTAREA') return true;
+        return ['text', 'url', 'email', 'number', 'password'].indexOf(el.type) !== -1;
+    }
+
+    // Instant feedback while typing or dragging: never reloads the page.
+    function onControlInput(el) {
+        const values = collectValues();
+
+        // Do not reload while the user is still typing in some field.
+        if (reloadTimer && isTypingControl(el)) {
+            clearTimeout(reloadTimer);
+            reloadTimer = null;
+        }
 
         // Instant feedback for CSS-variable driven controls.
         applyCssVars(values);
@@ -127,26 +194,94 @@
         }
 
         scheduleDraftSave();
+    }
 
-        // Full refresh only when the change cannot be previewed via CSS vars.
+    // Called once editing is committed (blur for text fields, click for
+    // checkboxes/selects/radios, release for ranges). Only here — and only for
+    // controls without a CSS variable — a full page refresh may happen.
+    function onControlCommit(el) {
+        onControlInput(el);
+
         const id = el.getAttribute('data-control-id');
-        if (!CFG.cssMap || !CFG.cssMap[id]) {
-            if (reloadTimer) clearTimeout(reloadTimer);
-            reloadTimer = setTimeout(reloadPreview, 1000);
-        }
+        if (!id) return;
+        if (CFG.cssMap && CFG.cssMap[id]) return;
+
+        schedulePreviewReload();
     }
 
     // Controls wiring (delegated).
     root.addEventListener('input', (e) => {
         if (e.target.classList && e.target.classList.contains('modo-control')) {
-            onControlChange(e.target);
+            onControlInput(e.target);
         }
     });
     root.addEventListener('change', (e) => {
         if (e.target.classList && e.target.classList.contains('modo-control')) {
-            onControlChange(e.target);
+            onControlCommit(e.target);
         }
     });
+
+    // ------------------------------------------------------------------
+    // Collapsible sections: collapsed by default, open state remembered
+    // across live-preview reloads (per theme).
+    // ------------------------------------------------------------------
+    const SECTIONS_KEY = 'modo_cz_sections_' + (CFG.theme || 'default');
+    const SCROLL_KEY = 'modo_cz_scroll_' + (CFG.theme || 'default');
+
+    function readOpenSections() {
+        try {
+            const raw = localStorage.getItem(SECTIONS_KEY);
+            if (!raw) return null;
+            const list = JSON.parse(raw);
+            return Array.isArray(list) ? list : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function storeOpenSections() {
+        const open = [];
+        root.querySelectorAll('details.modo-cz-section[data-section-id]').forEach((section) => {
+            if (section.open) open.push(section.getAttribute('data-section-id'));
+        });
+        try { localStorage.setItem(SECTIONS_KEY, JSON.stringify(open)); } catch (e) {}
+    }
+
+    function initSectionState() {
+        const sections = root.querySelectorAll('details.modo-cz-section[data-section-id]');
+        if (!sections.length) return;
+
+        const open = readOpenSections();
+        if (open) {
+            sections.forEach((section) => {
+                section.open = open.indexOf(section.getAttribute('data-section-id')) !== -1;
+            });
+        }
+
+        // The "toggle" event does not bubble, so listen in the capture phase.
+        root.addEventListener('toggle', (e) => {
+            const section = e.target;
+            if (section && section.classList && section.classList.contains('modo-cz-section')) {
+                storeOpenSections();
+            }
+        }, true);
+    }
+
+    function initScrollState() {
+        const body = root.querySelector('.modo-czp-body');
+        if (!body) return;
+
+        let saved = 0;
+        try { saved = parseInt(sessionStorage.getItem(SCROLL_KEY) || '0', 10) || 0; } catch (e) {}
+
+        if (saved > 0) {
+            window.requestAnimationFrame(() => { body.scrollTop = saved; });
+        }
+
+        body.addEventListener('scroll', () => {
+            try { sessionStorage.setItem(SCROLL_KEY, String(body.scrollTop)); } catch (e) {}
+        }, { passive: true });
+    }
 
     // ------------------------------------------------------------------
     // Media fields: choose from the library or upload from the computer
@@ -200,7 +335,7 @@
         if (!field) return;
         field.value = url || '';
         updateMediaPreview(field);
-        onControlChange(field);
+        onControlCommit(field);
     }
 
     function triggerMediaPicker(field, fromModal) {
@@ -333,7 +468,9 @@
                 .then((res) => {
                     if (res.token) CFG.token = res.token;
                     setStatus(L.published, 'ok');
-                    reloadPreview();
+                    // Nothing left to save: the submitted values are published.
+                    cancelDraftSave();
+                    reloadPage();
                 })
                 .catch(() => setStatus(L.error, 'err'))
                 .finally(() => { publishBtn.disabled = false; });
@@ -347,7 +484,9 @@
                 api('reset', {}).then((res) => {
                     if (res.token) CFG.token = res.token;
                     setStatus(L.reset, 'ok');
-                    reloadPreview();
+                    // Do not save a draft after a reset, or it would be recreated.
+                    cancelDraftSave();
+                    reloadPage();
                 }).catch(() => setStatus(L.error, 'err'));
             });
         });
@@ -370,6 +509,13 @@
     // The panel is rendered by the server only when the "Edit template settings"
     // link was used, so always expand it automatically on load.
     setOpen(true);
+
+    // Snapshot the server-rendered values before the user edits anything.
+    initialValues = collectValues();
+
+    // Restore the sections the user had expanded and the panel scroll position.
+    initSectionState();
+    initScrollState();
 
     // Reflect the current draft instantly on load.
     applyCssVars(collectValues());

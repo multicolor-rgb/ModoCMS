@@ -11,9 +11,11 @@ namespace Core;
  * theme's settings while looking at the real page instead of an admin iframe.
  *
  * The whole page acts as the live preview: controls mapped to a CSS custom
- * property (via the "css_var" key) update a <style> block instantly, while all
- * other changes reload the page with the session draft overlaid on top of the
- * published values (see Customizer::activatePreview()).
+ * property (via the "css_var" key) update a <style> block instantly, while the
+ * remaining ones reload the page with the session draft overlaid on top of the
+ * published values (see Customizer::activatePreview()). The reload happens only
+ * after editing is committed (field blur, switch/select change), and the
+ * settings sections — collapsed by default — keep their expanded state.
  *
  * Scope: value editing only (the schema builder "Manage settings" stays in the
  * admin at /admin/customize.php). It never renders inside the admin area and
