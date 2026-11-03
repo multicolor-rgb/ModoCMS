@@ -42,6 +42,12 @@
 
 ---
 
+## 🆕 Co nowego w 3.0.1
+
+* **Panel ustawień szablonu:** sekcje są domyślnie zwinięte, a rozwinięte podczas edycji pozostają otwarte po przeładowaniu podglądu; pisanie w polach tekstowych nie odświeża już strony (podgląd aktualizuje się po zakończeniu edycji), a szkic jest zapisywany przed każdym przeładowaniem. **Publikuj** i **Reset** nie odtwarzają już szkicu.
+
+---
+
 ## 🆕 Co nowego w 3.0.0
 
 * **Typy stron:** gotowe presety dla stron statycznych i wpisów bloga z domyślnymi polami niestandardowymi — osobny ekran w panelu, funkcje motywu `get_page_type()` / `is_page_type()`, obsługa w API oraz rewizje zachowujące typ dokumentu.
@@ -211,7 +217,7 @@ php -S localhost:8000
 
 Panel w backendzie: **Wygląd → Customizer** (`/admin/customize.php`) służy **wyłącznie do zarządzania ustawieniami** (builder sekcji i pól zapisywany w bazie). Nie zawiera podglądu szablonu ani edycji wartości — te czynności wykonuje się na froncie.
 
-Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu”** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie.
+Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu”** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem dopiero po zakończeniu edycji (po wyjściu z pola tekstowego lub przełączeniu kontrolki), więc pisanie nie wywołuje przeładowania. Sekcje ustawień są domyślnie zwinięte, a te rozwinięte podczas edycji pozostają otwarte po tych przeładowaniach. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie.
 
 ### Typy pól
 

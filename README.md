@@ -42,6 +42,12 @@
 
 ---
 
+## 🆕 What's new in 3.0.1
+
+* **Template settings panel:** settings sections are collapsed by default and expanded ones stay open across preview reloads; typing in text fields no longer refreshes the page (the preview updates once editing is committed), and the draft is saved before every reload. **Publish** and **Reset** no longer recreate the draft.
+
+---
+
 ## 🆕 What's new in 3.0.0
 
 * **Page types:** reusable presets for static pages and blog posts with default custom fields — a dedicated admin screen, `get_page_type()` / `is_page_type()` theme functions, API support and revision history that keeps the document type.
@@ -211,7 +217,7 @@ php -S localhost:8000
 
 The backend panel **Appearance → Customizer** (`/admin/customize.php`) is used **only to manage settings** (the section and field builder stored in the database). It contains no template preview or value editing — those happen on the frontend.
 
-Value editing (with live preview) is available directly on the frontend: the **"Edit template settings"** link in the admin bar opens a panel sliding in from the right with the theme settings on the **live site** — no `iframe`, the preview is the site itself. Controls bound to a CSS variable (`css_var`) update the appearance instantly; the others reload the page with the draft applied. Changes are saved as a draft, and the **Publish** button commits them to the database. The `Core\CustomizerPanel` class is hooked into `theme-header`/`theme-footer`, so it works in every theme.
+Value editing (with live preview) is available directly on the frontend: the **"Edit template settings"** link in the admin bar opens a panel sliding in from the right with the theme settings on the **live site** — no `iframe`, the preview is the site itself. Controls bound to a CSS variable (`css_var`) update the appearance instantly; the others reload the page with the draft applied only once editing is finished (when leaving a text field or toggling a switch), so typing never triggers a refresh. Settings sections are collapsed by default and the ones expanded during editing stay expanded across those reloads. Changes are saved as a draft, and the **Publish** button commits them to the database. The `Core\CustomizerPanel` class is hooked into `theme-header`/`theme-footer`, so it works in every theme.
 
 ### Field types
 

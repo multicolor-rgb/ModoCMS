@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.0.
+# Release notes for Modo CMS 3.0.1.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,23 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.0
-            - **Page types:** reusable content presets for static pages and blog posts with default custom fields, a dedicated admin screen, `get_page_type()` / `is_page_type()` theme functions, API support and revision history that keeps the document type.
-            - **Media library folders:** one-level physical folders in `uploads/`, upload to a selected folder, single and bulk moves, renaming, breadcrumb filtering and automatic URL updates across pages, posts, snippets, settings, theme data, revisions and plugin data.
-            - **Media thumbnails:** lightweight 80/160/240 px images generated on upload, a backfill tool, a paginated library, lazy loading and `srcset` for HiDPI screens.
-            - **Richer custom fields:** rich text (TinyMCE) and galleries with columns, gap, lightbox and captions.
-            - **Forms 1.2.0:** HTML e-mail notifications enabled by default, recipient fallback chain, optional Reply-To set to the sender and a redesigned message template.
-            - **Automatic slugs:** duplicate slugs are suffixed (`-1`, `-2`, …) per language in the editor, quick draft, API and revision restore.
-            - **Packaging:** clean ZIP without database, uploads, `site/` or CI files.
+            ### What's new in 3.0.1
+            - **Template settings panel:** settings sections are collapsed by default and expanded ones stay open across preview reloads (remembered per theme).
+            - **No refreshes while typing:** the live preview reloads only after editing is committed (field blur, switch/option change, range release) and only when the value actually changed.
+            - **Reliable preview:** the draft is saved before every reload, the panel scroll position is restored, and **Publish** / **Reset** no longer recreate the draft.
+            - **No database changes:** updating from 3.0.0 requires no migration — replacing the files is enough.
 
-            ### Najważniejsze zmiany w 3.0.0
-            - **Typy stron:** gotowe presety treści dla stron i wpisów z domyślnymi polami niestandardowymi, osobny ekran w panelu, funkcje motywu `get_page_type()` / `is_page_type()`, obsługa w API i rewizje zachowujące typ dokumentu.
-            - **Foldery w bibliotece mediów:** jednopoziomowe, fizyczne foldery w `uploads/`, upload do wybranego folderu, przenoszenie pojedyncze i zbiorcze, zmiana nazwy, filtrowanie z breadcrumbem oraz automatyczna aktualizacja adresów URL w stronach, wpisach, snippetach, ustawieniach, motywie, rewizjach i danych pluginów.
-            - **Miniatury mediów:** lekkie obrazy 80/160/240 px generowane przy uploadzie, narzędzie uzupełniania biblioteki, paginowana lista, leniwe ładowanie i `srcset` dla ekranów HiDPI.
-            - **Bogatsze pola niestandardowe:** tekst sformatowany (TinyMCE) oraz galerie z kolumnami, odstępem, lightboxem i podpisami.
-            - **Formularze 1.2.0:** powiadomienia e-mail HTML domyślnie włączone, łańcuch fallbacku odbiorcy, opcjonalne Reply-To na adres nadawcy i przeprojektowany szablon wiadomości.
-            - **Automatyczne slugi:** zajęty slug nie blokuje zapisu — w obrębie języka dopisywane jest `-1`, `-2` itd. w edytorze, szybkim szkicu, API i przywracaniu rewizji.
-            - **Pakowanie:** czysty ZIP bez bazy, uploadów, `site/` i plików CI.
+            ### Najważniejsze zmiany w 3.0.1
+            - **Panel ustawień szablonu:** sekcje są domyślnie zwinięte, a rozwinięte podczas edycji pozostają otwarte po przeładowaniu podglądu (stan pamiętany per motyw).
+            - **Bez odświeżania podczas pisania:** podgląd przeładowuje się dopiero po zakończeniu edycji (wyjście z pola, zmiana przełącznika/opcji, puszczenie suwaka) i tylko gdy wartość faktycznie się zmieniła.
+            - **Stabilny podgląd:** szkic jest zapisywany przed każdym przeładowaniem, pozycja przewinięcia panelu jest przywracana, a **Publikuj** / **Reset** nie odtwarzają już szkicu.
+            - **Bez zmian w bazie:** aktualizacja z 3.0.0 nie wymaga migracji — wystarczy podmienić pliki.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

@@ -4,6 +4,23 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.1] — 2026-11-03
+
+### Fixed
+
+- **“Edit template settings” panel**:
+  - settings sections are collapsed by default, while the ones expanded during
+    editing stay open after a live-preview reload (state remembered per theme),
+  - typing in text fields no longer reloads the page — the preview refreshes
+    only once editing is committed (field blur, switch/option change, range
+    release) and only when the value actually changed,
+  - the draft is saved before the reload, so the preview shows the current value
+    (removed the save/reload race),
+  - the panel scroll position is restored after a reload,
+  - **Publish** and **Reset** no longer recreate the draft after the action.
+- No database schema changes — updating from 3.0.0 needs no migration, replacing
+  the files is enough.
+
 ## [3.0.0] — 2026-11-02
 
 ### Added
