@@ -96,6 +96,17 @@ const DOCS = [
     icon: 'grid'
   },
   {
+    slug: 'theme-editor-styles',
+    pl: 'styl-motywu-w-edytorze.md',
+    en: 'theme-editor-styles.md',
+    title: { pl: 'Styl motywu w edytorze', en: 'Theme editor styles' },
+    desc: {
+      pl: 'Opcjonalna typografia TinyMCE i Editor.js z pliku editor.css.',
+      en: 'Optional TinyMCE and Editor.js typography from editor.css.'
+    },
+    icon: 'code'
+  },
+  {
     slug: 'examples',
     pl: 'przyklady.md',
     en: 'examples.md',
