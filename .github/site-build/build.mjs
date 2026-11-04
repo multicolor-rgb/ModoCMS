@@ -24,7 +24,7 @@ const SRC = path.join(ROOT, 'site');
 const OUT = path.join(ROOT, '.build', 'site');
 const SITE_URL = 'https://modocms.top';
 const REPO = 'https://github.com/multicolor-rgb/ModoCMS';
-const BRANCH = '5.0';
+const BRANCH = 'main';
 
 /* ---------------- documentation map ---------------- */
 
