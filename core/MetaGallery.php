@@ -168,6 +168,26 @@ final class MetaGallery
     }
 
     /**
+     * Generates cached thumbnails for every image in the gallery.
+     */
+    public static function warmThumbnails(mixed $raw): void
+    {
+        if (!class_exists('\\Core\\MediaLibrary') || !\Core\MediaLibrary::galleryThumbnailsEnabled()) {
+            return;
+        }
+
+        $data = self::normalize($raw);
+        $widths = \Core\MediaLibrary::galleryThumbnailWidths();
+        if ($data['items'] === [] || $widths === []) {
+            return;
+        }
+
+        foreach ($data['items'] as $item) {
+            \Core\MediaLibrary::ensureThumbnails($item['image'], $widths);
+        }
+    }
+
+    /**
      * Dependency-free renderer used when the Modo Gallery plugin is inactive.
      *
      * @param array<int,array{image:string,alt:string,caption:string,link:string}> $items
@@ -192,6 +212,8 @@ final class MetaGallery
             . 'display:grid;grid-template-columns:repeat(' . $columns . ',minmax(0,1fr));'
             . 'gap:' . $gap . 'px;margin:1.5rem 0;">';
 
+        $sizes = max(1, (int) round(100 / $columns)) . 'vw';
+
         foreach ($items as $item) {
             $src = self::mediaUrl($item['image']);
             if ($src === '') {
@@ -201,13 +223,21 @@ final class MetaGallery
             $caption = $item['caption'];
             $link    = $item['link'];
 
+            $sources = ['src' => $src, 'srcset' => ''];
+            if (class_exists('\\Core\\MediaLibrary') && is_callable(['\\Core\\MediaLibrary', 'frontendImageSources'])) {
+                $sources = \Core\MediaLibrary::frontendImageSources($item['image'], null, $src);
+            }
+
             $figureStyle = 'position:relative;display:block;overflow:hidden;border-radius:10px;'
                 . 'background:rgba(0,0,0,.04);text-decoration:none;color:inherit;';
             if ($ratio !== 'auto') {
                 $figureStyle .= 'aspect-ratio:' . $ratioCss . ';';
             }
 
-            $img = '<img src="' . $esc($src) . '" alt="' . $esc($alt) . '" loading="lazy" decoding="async"'
+            $srcset = (string) ($sources['srcset'] ?? '');
+            $img = '<img src="' . $esc((string) ($sources['src'] ?? $src)) . '"'
+                . ($srcset !== '' ? ' srcset="' . $esc($srcset) . '" sizes="' . $esc($sizes) . '"' : '')
+                . ' alt="' . $esc($alt) . '" loading="lazy" decoding="async"'
                 . ' style="width:100%;height:100%;object-fit:cover;display:block;">';
 
             $inner = $img;

@@ -430,6 +430,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $metaValue = (string) ($postedValues[$i] ?? '');
             if ($metaType === \Core\MetaGallery::TYPE) {
                 $metaValue = \Core\MetaGallery::toJson($metaValue);
+                if (\Core\MediaLibrary::galleryThumbnailsAuto()) {
+                    try {
+                        \Core\MetaGallery::warmThumbnails($metaValue);
+                    } catch (\Throwable $e) {
+                        // Gallery thumbnails are an optimisation; never block the save.
+                    }
+                }
             }
 
             $metaLabel = trim((string) ($postedLabels[$i] ?? ''));
@@ -718,10 +725,9 @@ require_once __DIR__ . '/views/header.php';
 </script>
 <?php if ($useEditorJs): ?>
 <style>
-    /* The Editor.js canvas is inline, so both the theme typography and the
-       grid CSS are scoped to it instead of leaking into the admin UI. The
-       theme block comes first: an @import from editor.css must stay the first
-       rule in this <style> element. Customised block skins follow below. */
+    /* The Editor.js canvas is inline, so the grid CSS is scoped to it instead
+       of leaking into the admin UI. Customised block skins follow below.
+       Theme styles go first so their @import rules stay at the top. */
     <?= \Core\ThemeEditorStyles::scopedCss('#editorjs') ?>
     <?= \Core\CssFramework::editorScopedCss('#editorjs') ?>
     #editorjs {
@@ -2188,10 +2194,7 @@ mediaItems.forEach(item => {
                 plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
                 toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
                 skin: isDark ? 'oxide-dark' : 'oxide',
-                content_css: [(isDark ? 'dark' : 'default')].concat(
-                    window.MODO_GRID_CSS || [],
-                    window.MODO_THEME_CSS || []
-                ),
+                content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || [], window.MODO_THEME_CSS || []),
                 content_style: (window.MODO_THEME_STYLE || '') + (window.MODO_GRID_STYLE || ''),
                 body_class: window.MODO_THEME_BODY_CLASS || '',
                 relative_urls: false,

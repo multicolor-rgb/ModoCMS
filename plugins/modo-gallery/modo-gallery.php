@@ -1276,6 +1276,9 @@ if (!class_exists('ModoGallery')) {
                 . ' style="' . $style . '">';
 
             $gName = (string)($g['name'] ?? '');
+            $large = max(1, (int)round(100 / $columns));
+            $medium = max(1, (int)round(100 / min($columns, 3)));
+            $sizes = '(max-width: 560px) 50vw, (max-width: 900px) ' . $medium . 'vw, ' . $large . 'vw';
             foreach ($items as $it) {
                 $img = (string)$it['image'];
                 if ($img === '') {
@@ -1286,7 +1289,15 @@ if (!class_exists('ModoGallery')) {
                 $cap  = $it['caption'];
                 $link = $it['link'];
 
-                $inner = '<img src="' . $esc($src) . '" alt="' . $esc($alt) . '" loading="lazy" decoding="async">';
+                $sources = ['src' => $src, 'srcset' => ''];
+                if (class_exists('\\Core\\MediaLibrary') && is_callable(['\\Core\\MediaLibrary', 'frontendImageSources'])) {
+                    $sources = \Core\MediaLibrary::frontendImageSources($img, null, $src);
+                }
+
+                $srcset = (string)($sources['srcset'] ?? '');
+                $inner = '<img src="' . $esc((string)($sources['src'] ?? $src)) . '"'
+                    . ($srcset !== '' ? ' srcset="' . $esc($srcset) . '" sizes="' . $esc($sizes) . '"' : '')
+                    . ' alt="' . $esc($alt) . '" loading="lazy" decoding="async">';
                 if ($showCaps && $cap !== '') {
                     $inner .= '<span class="modo-gallery__caption">' . $esc($cap) . '</span>';
                 }

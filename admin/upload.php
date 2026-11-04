@@ -117,7 +117,12 @@ if (move_uploaded_file($file['tmp_name'], ($folderDir ?? $uploadDir) . '/' . $sa
     // Warm every picker size so the media modal does not have to resize the
     // original on first view. No-op when no image backend is available.
     try {
-        MediaLibrary::ensureThumbnails($storagePath, MediaLibrary::THUMBNAIL_PREVIEW_WIDTHS);
+        MediaLibrary::ensureThumbnails(
+            $storagePath,
+            MediaLibrary::galleryThumbnailsAuto()
+                ? MediaLibrary::thumbnailGenerationWidths()
+                : MediaLibrary::THUMBNAIL_PREVIEW_WIDTHS
+        );
     } catch (\Throwable $e) {
         // The upload itself succeeded; a missing thumbnail is not fatal.
     }

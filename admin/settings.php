@@ -12,6 +12,7 @@ use Core\DomainMigration;
 use Core\Setup;
 use Core\Config;
 use Core\Analytics;
+use Core\MediaLibrary;
 
 Auth::requireCapability('manage_settings');
 
@@ -221,6 +222,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'cache_ttl'                    => (string)max(1, (int)($_POST['cache_ttl'] ?? 3600)),
             'webp_enabled'                 => isset($_POST['webp_enabled']) ? '1' : '0',
             'webp_quality'                 => (string)max(1, min(100, (int)($_POST['webp_quality'] ?? 82))),
+            'gallery_thumbnails_enabled'   => isset($_POST['gallery_thumbnails_enabled']) ? '1' : '0',
+            'gallery_thumbnails_auto'      => isset($_POST['gallery_thumbnails_auto']) ? '1' : '0',
+            'gallery_thumbnail_widths'     => MediaLibrary::normalizeThumbnailWidths((string)($_POST['gallery_thumbnail_widths'] ?? '480,960')),
+            'gallery_thumbnail_quality'    => (string)max(1, min(100, (int)($_POST['gallery_thumbnail_quality'] ?? 78))),
             'redirects_enabled'            => isset($_POST['redirects_enabled']) ? '1' : '0',
             'hreflang_enabled'             => isset($_POST['hreflang_enabled']) ? '1' : '0',
             'title_separator'              => substr(trim($_POST['title_separator'] ?? '|'), 0, 10),
@@ -916,7 +921,38 @@ require_once __DIR__ . '/views/header.php';
             <?php endif; ?>
         </div>
 
-        <!-- 10. SEO & Internationalization -->
+        <!-- 10. Gallery thumbnails -->
+        <div class="card settings-panel" data-tab="performance">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Gallery thumbnails') ?>
+            </h3>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="gallery_thumbnails_enabled" value="1" <?= Router::getOption('gallery_thumbnails_enabled', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Generate and use thumbnails in galleries') ?>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 10px;">
+                <input type="checkbox" name="gallery_thumbnails_auto" value="1" <?= Router::getOption('gallery_thumbnails_auto', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Generate thumbnails automatically on upload and gallery save') ?>
+            </label>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0 0 0;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="gallery_thumbnail_widths"><?= _e('Thumbnail widths (px, comma-separated)') ?></label>
+                    <input class="form-control" type="text" id="gallery_thumbnail_widths" name="gallery_thumbnail_widths" value="<?= htmlspecialchars(MediaLibrary::normalizeThumbnailWidths(Router::getOption('gallery_thumbnail_widths', '480,960')), ENT_QUOTES, 'UTF-8') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="gallery_thumbnail_quality"><?= _e('Thumbnail quality (1-100)') ?></label>
+                    <input class="form-control" type="number" min="1" max="100" id="gallery_thumbnail_quality" name="gallery_thumbnail_quality" value="<?= (int)Router::getOption('gallery_thumbnail_quality', '78') ?>">
+                </div>
+            </div>
+
+            <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px;">
+                <?= _e('Admin previews always use 80/160/240 px. Existing images can be regenerated in Media → Generate missing thumbnails.') ?>
+            </small>
+        </div>
+
+        <!-- 11. SEO & Internationalization -->
         <div class="card settings-panel" data-tab="seo">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('SEO & Internationalization') ?>

@@ -45,7 +45,7 @@ foreach ($slice as $item) {
         continue;
     }
     try {
-        MediaLibrary::ensureThumbnails($path, MediaLibrary::THUMBNAIL_PREVIEW_WIDTHS);
+        MediaLibrary::ensureThumbnails($path, MediaLibrary::thumbnailGenerationWidths());
     } catch (\Throwable $e) {
         // A single broken file must not stop the whole batch.
     }
