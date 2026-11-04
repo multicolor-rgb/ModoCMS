@@ -40,7 +40,11 @@
      */
     function buildColumn(fw, count, bp, content) {
         var w = width12(count);
-        var inner = content === '' ? '&nbsp;' : esc(content);
+        var text = String(content == null ? '' : content).trim();
+        // Always give the cell a real block wrapper. With bare text, TinyMCE's
+        // FormatBlock command converts the column <div> itself into <h1>/<p>
+        // and the grid structure collapses.
+        var inner = text === '' ? '<p>&nbsp;</p>' : '<p>' + esc(text) + '</p>';
         var cls = '';
 
         switch (fw.mode) {
@@ -112,6 +116,100 @@
         }
 
         return containerOpen + rowOpen + '\n' + colsHtml + '\n' + rowClose + containerClose;
+    }
+
+    var BLOCK_TAGS = /^(ADDRESS|ARTICLE|ASIDE|BLOCKQUOTE|DD|DETAILS|DIALOG|DIV|DL|DT|FIELDSET|FIGCAPTION|FIGURE|FOOTER|FORM|H[1-6]|HEADER|HGROUP|HR|LI|MAIN|NAV|OL|P|PRE|SECTION|TABLE|UL)$/;
+
+    function isBlockNode(node) {
+        return !!node && node.nodeType === 1 && BLOCK_TAGS.test(node.nodeName);
+    }
+
+    /**
+     * Ensures a grid column contains block-level children.
+     *
+     * Old grids (and content pasted into a cell) may hold bare text directly
+     * inside the column <div>. TinyMCE's block-format command then targets the
+     * column itself and replaces it with <h1>/<p>, destroying the wrapper.
+     * Wrapping inline runs in <p> keeps the column element intact.
+     */
+    function normalizeColumn(col) {
+        var doc = col.ownerDocument;
+        var run = [];
+        var child = col.firstChild;
+
+        function flush() {
+            if (!run.length) {
+                return;
+            }
+
+            var hasContent = run.some(function (node) {
+                return node.nodeType === 1
+                    || (node.nodeType === 3 && node.nodeValue.trim() !== '');
+            });
+
+            if (!hasContent) {
+                run.forEach(function (node) {
+                    if (node.parentNode === col) {
+                        col.removeChild(node);
+                    }
+                });
+                run = [];
+                return;
+            }
+
+            var paragraph = doc.createElement('p');
+            col.insertBefore(paragraph, run[0]);
+            run.forEach(function (node) {
+                paragraph.appendChild(node);
+            });
+            run = [];
+        }
+
+        while (child) {
+            var next = child.nextSibling;
+            if (isBlockNode(child)) {
+                flush();
+            } else if (child.nodeType === 1 || child.nodeType === 3) {
+                run.push(child);
+            }
+            child = next;
+        }
+        flush();
+
+        var hasBlock = false;
+        for (var i = 0; i < col.children.length; i++) {
+            if (isBlockNode(col.children[i])) {
+                hasBlock = true;
+                break;
+            }
+        }
+        if (!hasBlock) {
+            col.innerHTML = '<p>&nbsp;</p>';
+        }
+    }
+
+    /** Normalises every grid column of the active framework. */
+    function normalizeGrids(editor) {
+        var cfg = getConfig();
+        if (!cfg || !cfg.guide || !cfg.guide.col || !editor || typeof editor.getBody !== 'function') {
+            return;
+        }
+
+        var body = editor.getBody();
+        if (!body) {
+            return;
+        }
+
+        var cols;
+        try {
+            cols = body.querySelectorAll(cfg.guide.col);
+        } catch (err) {
+            return;
+        }
+
+        for (var i = 0; i < cols.length; i++) {
+            normalizeColumn(cols[i]);
+        }
     }
 
     /**
@@ -212,8 +310,8 @@
     }
 
     /**
-     * Exposes the framework aware builder so other editors (Editor.js grid
-     * tool, admin/assets/js/editorjs-grid-tool.js) produce identical markup.
+     * Exposes the framework aware builder so the TinyMCE dialog keeps one
+     * implementation of the grid markup.
      */
     window.ModoGrid = {
         config: getConfig,
@@ -222,6 +320,7 @@
         width12: width12,
         buildColumn: buildColumn,
         buildGrid: buildGrid,
+        normalizeGrids: normalizeGrids,
         openBuilder: openBuilder
     };
 
@@ -261,6 +360,15 @@
                     origSetup(editor);
                 }
                 registerButton(editor);
+
+                // Existing grids may contain bare text directly in the column
+                // <div>. Normalise them before the user starts formatting.
+                editor.on('init', function () {
+                    normalizeGrids(editor);
+                });
+                editor.on('SetContent', function () {
+                    normalizeGrids(editor);
+                });
             };
 
             return orig.apply(this, arguments);

@@ -37,15 +37,40 @@
 * **Built-in Custom Fields:** Support for various field types (text, textarea, rich text / TinyMCE, galleries with columns, gap, lightbox and captions, number, checkbox, color, image).
 * **Page types:** Create reusable content presets for pages and posts with default custom fields, available from the editor and exposed to themes via `get_page_type()` / `is_page_type()`.
 * **Plugin architecture (Hooks):** A system of actions and filters that makes it easy to extend the admin panel and the frontend.
-* **Content editor choice (no CDN):** classic WYSIWYG (TinyMCE 6.8.3) or a block editor (Editor.js 2.31.7) — both bundled locally. Content keeps the format in which it was saved, so you can switch editors at any time without losing existing pages.
+* **Content editor (no CDN):** classic WYSIWYG (TinyMCE 6.8.3) bundled locally. Toolbar presets, media library, grid builder and plugin buttons work out of the box.
 * **CSS grids / frameworks (no CDN):** choose a popular grid system (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, a custom "Modo Grid" or Custom). The same bundled CSS is used on the frontend and in the content editor, so a grid laid out in the editor looks identical on the site.
 * **Security:** Protection against SQL Injection (PDO Prepared Statements), CSRF, permission verification and output sanitisation.
 
 ---
 
+## 🆕 What's new in 3.0.4
+
+* **TinyMCE is now the only content editor:** the Editor.js block editor and its settings, assets and plugin bridge were removed. Legacy JSON content is converted to HTML automatically on the first admin request; `tools/migrate-editorjs.php` is available for CLI use.
+* **Better grid editing:** dashed row/column guides in the editor, 10 px canvas padding, automatic `<p>` wrappers and normalisation so changing `h1 → p` no longer breaks the grid.
+* **No horizontal scrollbar:** `box-sizing: border-box` on grid containers/columns and `overflow-x: hidden` in the editor canvas.
+* **Dark mode fix:** the TinyMCE content canvas always stays white; only the toolbar and dialogs follow dark mode.
+
+---
+
+## 🆕 What's new in 3.0.3
+
+* **Gallery thumbnails:** custom-field galleries and the Modo Gallery plugin now load thumbnails through `srcset`/`sizes` (480 and 960 px by default) instead of full-size images, while the lightbox still opens the original. Existing 240/320 px previews are reused immediately, so galleries benefit before a full backfill.
+* **Gallery thumbnail settings:** *Settings → Performance → Gallery thumbnails* lets you enable or disable gallery thumbnails, toggle automatic generation, set the widths (default `480,960`) and quality (default `78`). The panel also shows the number of missing gallery thumbnails and a **Generate gallery thumbnails** button that processes only images used by galleries.
+* **Large photos:** when an image exceeds GD's 20 MP limit, the ImageMagick CLI (`/usr/bin/convert`) is used automatically if available, so 6000×8000 photos also get thumbnails.
+* **Diagnostics:** the backfill reports generated, skipped and failed files; the interface shows errors instead of a false success, and generation failures are written to the PHP error log.
+* **Full URLs and subdirectories:** local paths such as `https://example.com/uploads/...` and subdirectory installs (`/cms/uploads/...`) are recognised correctly.
+* **Media library tools:** bulk deletion of selected files and folder contents, a media lightbox with zoom and navigation, and a browser image editor with rotate, flip, crop, save-as-copy and overwrite.
+* **One-click updater:** *Settings → System* checks the latest public release through the GitHub API (with a 12-hour cache and a manual refresh), downloads it over HTTPS, verifies the SHA-256 digest when published, backs up every replaced file and the database, and installs with maintenance mode plus automatic rollback. When the anonymous API limit is reached, the public releases feed is used; an optional GitHub token raises the limit. `data/`, `uploads/`, `modoconfig.php` and `install.php` are never touched.
+* **Version source:** `core/Version.php` is now the single source of truth for the installed version.
+* **Lightbox fix:** the `.modo-gallery` container is no longer treated as a theme lightbox trigger, so on “Realizacje” posts only the GLightbox from the custom field handles gallery images.
+* **Cookie Consent 1.0.1:** the banner no longer locks page scrolling in the `bar`, `card`, `bottom-left` and `bottom-right` layouts; only the full-screen modal locks scrolling and its content remains scrollable.
+* **Safe fallback:** without GD, Imagick or the ImageMagick CLI, galleries use the original images and nothing breaks. The panel warns when the backend is missing or `uploads/thumbs` is not writable.
+
+---
+
 ## 🆕 What's new in 3.0.2
 
-* **Optional theme styles in the content editor:** a theme can now ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE and Editor.js canvas only. The file is detected automatically — no new setting, no fallback to `style.css`, and no frontend changes. Optional `editor.body_class` and `editor.content_style` metadata can be added to `theme.json`. See [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
+* **Optional theme styles in the content editor:** a theme can now ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE canvas only. The file is detected automatically — no new setting, no fallback to `style.css`, and no frontend changes. Optional `editor.body_class` and `editor.content_style` metadata can be added to `theme.json`. See [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
 
 ---
 
@@ -59,7 +84,7 @@
 
 * **Page types:** reusable presets for static pages and blog posts with default custom fields — a dedicated admin screen, `get_page_type()` / `is_page_type()` theme functions, API support and revision history that keeps the document type.
 * **Media library folders:** one-level physical folders inside `uploads/` with upload to a selected folder, single and bulk moves, renaming, breadcrumb filtering and automatic URL updates in pages, posts, snippets, settings, theme data, revisions and plugin data.
-* **Media thumbnails:** lightweight 80/160/240 px images generated on upload, a backfill tool for existing libraries, a paginated library view, lazy loading and `srcset` for HiDPI screens.
+* **Media and gallery thumbnails:** lightweight 80/160/240 px admin previews plus configurable 480/960 px gallery images generated on upload, image edit and gallery save; a backfill tool, `srcset`/`sizes`, lazy loading and lightboxes that still open the original file.
 * **Richer custom fields:** rich text (TinyMCE) and galleries with columns, gap, lightbox and captions.
 * **Forms 1.2.0:** HTML e-mail notifications enabled by default, recipient fallback chain, optional Reply-To set to the sender and a redesigned message template.
 * **Automatic slugs:** a duplicate slug no longer blocks saving — `-1`, `-2`, etc. are appended per language in the editor, quick draft, API and revision restore.
@@ -88,6 +113,9 @@ Blog posts can be grouped into **flat categories** (no hierarchy). Support cover
 * PHP **8.0** or newer
 * PHP extensions: **pdo_sqlite**, **sqlite3**, **mbstring**
 * Web server: **Apache** (with `mod_rewrite` and `.htaccess` support) or **Nginx**
+* The built-in updater requires the **ZipArchive** PHP extension and outbound HTTPS access (cURL or `allow_url_fopen`).
+* Thumbnail backend (optional but recommended): **GD** or **Imagick** PHP extension, or the ImageMagick CLI (`convert`). Without any of them, media previews and galleries fall back to the original images.
+* `uploads/` must be writable by PHP, including `uploads/thumbs/` for generated thumbnails.
 
 ---
 
@@ -291,51 +319,22 @@ Controls with a `css_var` key are automatically emitted in `<head>` as `:root` C
 
 ---
 
-## ✍️ Content editor choice (TinyMCE / Editor.js)
+## ✍️ Content editor (TinyMCE)
 
-In the panel **Settings → "Content" tab → Content Editor** you choose the editor used for pages, posts and snippets:
+Pages, posts and snippets use the bundled **TinyMCE 6.8.3** visual editor. Everything ships locally — no CDN and no build step.
 
-* **Classic (TinyMCE, WYSIWYG)** — the default classic visual editor (TinyMCE 6.8.3, bundled locally).
-* **Blocks (Editor.js)** — a block editor (Editor.js 2.31.7) with a tool set bundled locally in `admin/assets/vendor/editorjs/`.
-
-### How it works
-
-* Content is stored in the `content` field in the format it was written in: HTML (TinyMCE) or an Editor.js document JSON. **Changing the editor does not destroy existing content** — both formats can coexist in one installation.
-* Block documents are converted to HTML at display time (`Core\EditorJs::render()`, the `the_content` filter at priority 1 — before snippets and plugin shortcodes are expanded).
-* A page saved as HTML and opened in the block editor is automatically converted to blocks (unknown markup goes into a "Raw HTML" block, so nothing is lost).
-* `post_excerpt()` and the `content_to_text()` / `content_excerpt()` tags return plain text regardless of the editor used.
-
-### Available blocks
-
-Heading, paragraph, list, checklist, quote, delimiter, table, image, raw HTML, shortcode, plus inline tools: highlight and inline code. Additionally, to be enabled: **warning**, **code**, **embed** and the **"Insert grid / columns"** builder. The set is chosen with checkboxes in Settings — unchecking a block only hides it in the editor (already-saved blocks are still rendered on the site).
-
-### Plugins and grids
-
-* Plugins register buttons through the `window.ModoEditor.registerButton()` bridge (`admin/assets/js/editor-bridge.js`), so "Gallery / Form / Carousel" work in both editors. In TinyMCE the previous mechanism remains — zero regressions.
-* The grid builder in Editor.js uses the same code as the TinyMCE button (`window.ModoGrid` in `grid-editor.js`), so the markup is identical to the table below. The grid CSS sheet is scoped to the editor canvas (`CssFramework::editorScopedCss()`), because Editor.js renders inline (no iframe).
-* Images are uploaded via `admin/upload.php`, and the media-library button uses the existing modal.
-
-### Editor interface language (i18n)
-
-The block editor has no language switch of its own — **it uses the admin panel language** (Profile → "Admin Panel Language", the global `admin_language` value).
-
-* The Editor.js interface dictionary is built by `Core\EditorJs::i18n()` (`core/EditorJs.php`): the `messages()` method is a copy of the default dictionary from `editorjs.umd.js` (tool names, block menu, popovers, `tools.<id>` for tools), and `translateTree()` passes every text through `__()`. Text direction (`i18n.direction`) is set by `direction()` — it returns `rtl` for `ar, fa, he, ur…`.
-* Editor text translations live in the same files as the rest of the panel: `languages/{pl,en,de,es}.json`. **The key is the English source text** (e.g. `"Click to tune": "Kliknij, aby ustawić"`), and `languages/en.json` maps the key to itself. An empty or missing entry never blanks a label — `__()` falls back to `en.json`, and if it is missing there too, Editor.js shows the English source text.
-* Values that bundles read only from `config` (field placeholders, image caption) are returned by `Core\EditorJs::toolConfig()` — the dictionary will not handle them. Messages injected by the bootstrap (`editorjs-init.js`) are in `clientConfig()['labels']`.
-
-**Adding a new tool:** add the bundle to the `EditorJs::TOOLS` registry (label → translation key), and its own texts to `messages()` in the `'tools.' + id` namespace (the namespace name is determined by the tool identifier in the registry — Editor.js does the same). Add all keys to `languages/*.json`. The `embed` block has `'toolbox' => false` in the registry because `embed.umd.js` 2.8.0 does not export `static get toolbox()` — `admin/assets/js/editorjs-init.js` then wraps the class and adds a translated title and icon, so the block can be inserted from the "+" menu.
-
-**Known limitation:** the *Confirm* / *Cancel* buttons in popovers are hard-coded in the Editor.js bundle (they do not pass through `api.i18n.t()`), so they remain English — changing them would require editing the `editorjs.umd.js` file itself.
-
-### Licenses
-
-All Editor.js bundles (MIT) are bundled locally — **no requests are sent to a CDN**. License texts are in `admin/assets/vendor/editorjs/licenses/`.
+* Content is stored as HTML in the `content` field.
+* Toolbar presets and a custom toolbar string are configured in **Settings → "Content" tab → Content Editor**.
+* Plugins add their toolbar buttons through `tinymce.init` patches: **Gallery / Form / Carousel** insert their shortcodes at the cursor.
+* Images are uploaded via `admin/upload.php`, and the media-library button opens the existing modal.
+* A theme can ship `themes/<theme>/assets/css/editor.css` to style the editor canvas only; see [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
+* Legacy content saved by the removed Editor.js block editor is converted to HTML automatically on the first admin request after the update.
 
 ---
 
 ## 🧮 CSS grids / frameworks (no CDN)
 
-Modo CMS can load a popular grid system **locally (no CDN)** and use it both on the frontend and in the content editor — so a grid laid out in TinyMCE or the block editor looks exactly the same on the published page.
+Modo CMS can load a popular grid system **locally (no CDN)** and use it both on the frontend and in the content editor — so a grid laid out in TinyMCE looks exactly the same on the published page.
 
 ### Choosing a framework
 
@@ -367,7 +366,9 @@ The same sheet is passed to TinyMCE as `content_css`, and additionally the **"In
 | Modo Grid  | `.modo-grid`       | `.modo-col-md-6`                 |
 | Custom     | `.grid-row`        | `.grid-col`                      |
 
-The builder lets you choose the number of columns, a responsive breakpoint, an optional container and column content (one line = one column). The scripts handling the button: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (server-provided configuration). The same builder and the same markup are handled by the block editor — the "Insert grid / columns" button on the bar above the canvas and the **Grid / Columns** block (`admin/assets/js/editorjs-grid-tool.js`), while the server-side HTML generation is done by `CssFramework::gridMarkup()`.
+The builder lets you choose the number of columns, a responsive breakpoint, an optional container and column content (one line = one column). The scripts handling the button: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (server-provided configuration). The server-side HTML generation used while converting legacy grid blocks is done by `CssFramework::gridMarkup()`.
+
+In the editor the grid is visible through dashed guides: the row gets a blue outline and columns an amber one (editor canvas only, never on the frontend). Every column's content is wrapped in `<p>` automatically — including existing grids when the editor opens — so changing a block format (e.g. `h1 → p`) no longer turns the column `<div>` into a heading and destroys the grid structure. The TinyMCE canvas also has 10 px of inner padding.
 
 ### Changing the framework
 

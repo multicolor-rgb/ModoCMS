@@ -22,6 +22,8 @@ data/pages/*
 !data/pages/.htaccess
 data/sessions/*
 !data/sessions/.htaccess
+data/updates/*
+!data/updates/.htaccess
 
 # --- Uploaded media (user content) ---
 uploads/*

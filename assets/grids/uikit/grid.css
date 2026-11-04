@@ -14,6 +14,7 @@
 @media (max-width: 959px) { .uk-container { padding: 0 20px; } }
 
 .uk-grid {
+    box-sizing: border-box;
     display: flex;
     flex-wrap: wrap;
     margin: 0;

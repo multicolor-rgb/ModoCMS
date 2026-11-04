@@ -65,7 +65,7 @@ Hooks::addAction('modo_customize_register', function () {
 
 | Filter | Receives | Extra arguments | Fires in |
 |---|---|---|---|
-| `the_content` | Post/page HTML (string) | — | `page_content()` (`core/frontend.php`). Core listens at priority `1` (`EditorJs`) and `5` (`render_snippets`). |
+| `the_content` | Post/page HTML (string) | — | `page_content()` (`core/frontend.php`). Core listens at priority `1` (`LegacyEditorContent`) and `5` (`render_snippets`). |
 | `the_title` | Title (string) | — | `page_title()` |
 | `the_excerpt` | Excerpt (string) | — | `post_excerpt()` |
 | `page_date` | Formatted date (string) | — | `page_date()` |

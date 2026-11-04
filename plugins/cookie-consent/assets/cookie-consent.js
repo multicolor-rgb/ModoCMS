@@ -113,7 +113,11 @@
     function showBanner() {
         var root = getRoot();
         if (root) { root.hidden = false; }
-        document.documentElement.classList.add('cc-lock');
+        // Only the full-screen modal is allowed to lock page scrolling. Bars and
+        // cards must never prevent the visitor from reading the page below.
+        if (CFG.layout === 'modal') {
+            document.documentElement.classList.add('cc-lock');
+        }
         var revoke = getRevoke();
         if (revoke) { revoke.hidden = true; }
     }

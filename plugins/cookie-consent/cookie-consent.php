@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cookie Consent & Consent Manager
  * Description: Blokuje skrypty analityczne/marketingowe do momentu wyrażenia zgody. Baner zgody zgodny z RODO (GDPR), ePrivacy, CCPA/CPRA i Google Consent Mode v2.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Modo CMS
  *
  * @package ModoCookieConsent
@@ -16,7 +16,7 @@ if (!class_exists('ModoCookieConsent')) {
     final class ModoCookieConsent
     {
         public const PLUGIN_ID = 'cookie-consent';
-        public const VERSION   = '1.0.0';
+        public const VERSION   = '1.0.1';
         public const OPT_PREFIX = 'cc_';
 
         /** @var array<string,string> Domyślne wartości ustawień. */
@@ -215,8 +215,9 @@ if (!class_exists('ModoCookieConsent')) {
         public static function renderHead(): void
         {
             $cfg = self::frontConfig();
-            $css = self::assetsUrl() . '/cookie-consent.css';
-            $js  = self::assetsUrl() . '/cookie-consent.js';
+            $version = rawurlencode(self::VERSION);
+            $css = self::assetsUrl() . '/cookie-consent.css?v=' . $version;
+            $js  = self::assetsUrl() . '/cookie-consent.js?v=' . $version;
 
             echo "\n<!-- Cookie Consent (Modo CMS) -->\n";
             echo '<link rel="stylesheet" href="' . htmlspecialchars($css, ENT_QUOTES, 'UTF-8') . '">' . "\n";

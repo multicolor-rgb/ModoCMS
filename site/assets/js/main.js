@@ -111,7 +111,7 @@
       'f1.title': 'Theme Customizer',
       'f1.desc': 'Ustawienia motywu z podglądem na żywo — pola deklarujesz w theme.json lub z wtyczki, a kolory aktualizują się natychmiast przez zmienne CSS.',
       'f2.title': 'Dwa edytory treści',
-      'f2.desc': 'Klasyczny WYSIWYG (TinyMCE) albo edytor blokowy (Editor.js). Zmiana edytora nie niszczy istniejących treści — oba formaty współistnieją.',
+      'f2.desc': 'Klasyczny edytor WYSIWYG (TinyMCE) z lokalnym bundlem — bez CDN i bez builda.',
       'f3.title': 'Siatki CSS bez CDN',
       'f3.desc': 'Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind lub własna siatka — dołączone lokalnie i spójne między frontendem a edytorem.',
       'f4.title': 'Hooki i filtry',
@@ -127,7 +127,7 @@
       'f9.title': 'Bezpieczeństwo',
       'f9.desc': 'PDO Prepared Statements, tokeny CSRF, weryfikacja uprawnień i sanityzacja wyjścia — bezpieczne wzorce od pierwszej linii kodu.',
       'f10.title': 'Style motywu w edytorze',
-      'f10.desc': 'Motyw może dostarczyć editor.css, który stylizuje wyłącznie kanwę TinyMCE i Editor.js — bez zmian na frontendzie i bez nowego ustawienia.',
+      'f10.desc': 'Motyw może dostarczyć editor.css, który stylizuje wyłącznie kanwę TinyMCE — bez zmian na frontendzie i bez nowego ustawienia.',
 
       'how.eyebrow': 'Jak to działa',
       'how.title': 'Rdzeń zostaje czysty — resztę dopinasz hookami',
@@ -172,7 +172,7 @@
       'doc7.title': 'Typy stron',
       'doc7.desc': 'Gotowe presety treści z domyślnymi polami niestandardowymi.',
       'doc8.title': 'Styl motywu w edytorze',
-      'doc8.desc': 'Opcjonalna typografia TinyMCE i Editor.js z pliku editor.css.',
+      'doc8.desc': 'Opcjonalna typografia TinyMCE z pliku editor.css.',
 
       'cta.title': 'Gotowy zbudować coś lekkiego?',
       'cta.sub': 'Pobierz Modo CMS, przeczytaj dokumentację i postaw własną witrynę na PHP 8 i SQLite3 — bez bazy do konfiguracji i bez zewnętrznych zależności.',
@@ -287,7 +287,7 @@
       'f1.title': 'Theme Customizer',
       'f1.desc': 'Theme settings with live preview — declare fields in theme.json or from a plugin, and colours update instantly via CSS variables.',
       'f2.title': 'Two content editors',
-      'f2.desc': 'Classic WYSIWYG (TinyMCE) or a block editor (Editor.js). Switching editors never destroys existing content — both formats coexist.',
+      'f2.desc': 'Classic WYSIWYG editor (TinyMCE) bundled locally — no CDN and no build step.',
       'f3.title': 'CSS grids without a CDN',
       'f3.desc': 'Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind or your own grid — bundled locally and consistent between frontend and editor.',
       'f4.title': 'Hooks & filters',
@@ -303,7 +303,7 @@
       'f9.title': 'Security',
       'f9.desc': 'PDO prepared statements, CSRF tokens, permission checks and output sanitisation — safe patterns from the first line of code.',
       'f10.title': 'Theme styles in the editor',
-      'f10.desc': 'A theme can ship editor.css that styles only the TinyMCE and Editor.js canvas — no frontend changes and no new setting.',
+      'f10.desc': 'A theme can ship editor.css that styles only the TinyMCE canvas — no frontend changes and no new setting.',
 
       'how.eyebrow': 'How it works',
       'how.title': 'The core stays clean — the rest plugs in through hooks',
@@ -348,7 +348,7 @@
       'doc7.title': 'Page types',
       'doc7.desc': 'Reusable content presets with default custom fields.',
       'doc8.title': 'Theme styles in the editor',
-      'doc8.desc': 'Optional TinyMCE and Editor.js typography from editor.css.',
+      'doc8.desc': 'Optional TinyMCE typography from editor.css.',
 
       'cta.title': 'Ready to build something lightweight?',
       'cta.sub': 'Download Modo CMS, read the docs and launch your own site on PHP 8 and SQLite3 — with no database to configure and no external dependencies.',

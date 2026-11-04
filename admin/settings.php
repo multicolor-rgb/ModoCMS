@@ -12,6 +12,8 @@ use Core\DomainMigration;
 use Core\Setup;
 use Core\Config;
 use Core\Analytics;
+use Core\MediaLibrary;
+use Core\Updater;
 
 Auth::requireCapability('manage_settings');
 
@@ -57,6 +59,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'results' => Setup::deployHtaccess(isset($_POST['force_custom'])),
         ];
         header('Location: settings.php?tab=system&htaccess_deployed=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'update_check') {
+        // Settings -> System: query GitHub for the latest published release.
+        $_SESSION['update_report'] = [
+            'mode'   => 'check',
+            'result' => Updater::check(true),
+        ];
+        header('Location: settings.php?tab=system&update_checked=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'update_run') {
+        // Settings -> System: download, back up and install the latest release.
+        $_SESSION['update_report'] = [
+            'mode'   => 'update',
+            'result' => Updater::update(),
+        ];
+        header('Location: settings.php?tab=system&update_done=1');
         exit;
     } elseif (($_POST['action'] ?? '') === 'config_save') {
         // Settings -> System: persist the hardening options in modoconfig.php.
@@ -207,9 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'css_grid_inject_frontend' => isset($_POST['css_grid_inject_frontend']) ? '1' : '0',
             'css_grid_inject_editor'   => isset($_POST['css_grid_inject_editor']) ? '1' : '0',
             'css_grid_custom_css'    => trim($_POST['css_grid_custom_css'] ?? ''),
-            'content_editor'         => in_array($_POST['content_editor'] ?? '', ['tinymce', \Core\EditorJs::VALUE], true) ? (string) $_POST['content_editor'] : 'tinymce',
-            'editorjs_tools'         => \Core\EditorJs::sanitizeTools($_POST['editorjs_tools'] ?? []),
-            'editorjs_grid'          => isset($_POST['editorjs_grid']) ? '1' : '0',
             'custom_head_scripts'    => trim($_POST['custom_head_scripts'] ?? ''),
             'custom_footer_scripts'  => trim($_POST['custom_footer_scripts'] ?? ''),
             'security_brute_force_enabled' => isset($_POST['security_brute_force_enabled']) ? '1' : '0',
@@ -221,6 +236,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'cache_ttl'                    => (string)max(1, (int)($_POST['cache_ttl'] ?? 3600)),
             'webp_enabled'                 => isset($_POST['webp_enabled']) ? '1' : '0',
             'webp_quality'                 => (string)max(1, min(100, (int)($_POST['webp_quality'] ?? 82))),
+            'gallery_thumbnails_enabled'   => isset($_POST['gallery_thumbnails_enabled']) ? '1' : '0',
+            'gallery_thumbnails_auto'      => isset($_POST['gallery_thumbnails_auto']) ? '1' : '0',
+            'gallery_thumbnail_widths'     => MediaLibrary::normalizeThumbnailWidths((string)($_POST['gallery_thumbnail_widths'] ?? '480,960')),
+            'gallery_thumbnail_quality'    => (string)max(1, min(100, (int)($_POST['gallery_thumbnail_quality'] ?? 78))),
             'redirects_enabled'            => isset($_POST['redirects_enabled']) ? '1' : '0',
             'hreflang_enabled'             => isset($_POST['hreflang_enabled']) ? '1' : '0',
             'title_separator'              => substr(trim($_POST['title_separator'] ?? '|'), 0, 10),
@@ -328,6 +347,12 @@ $advancedFile = [
 
 $configReport = $_SESSION['config_report'] ?? null;
 unset($_SESSION['config_report']);
+
+// System tab: updater state from the local cache (no network request on every
+// page load) and the report from the last check/update action.
+$updateState = Updater::state();
+$updateReport = $_SESSION['update_report'] ?? null;
+unset($_SESSION['update_report']);
 
 // Tab the admin asked for through the URL (e.g. after the repair redirect).
 $settingsTabs = ['general', 'content', 'seo', 'security', 'performance', 'email', 'analytics', 'tools', 'system'];
@@ -646,37 +671,14 @@ require_once __DIR__ . '/views/header.php';
             </div>
         </div>
 
-        <!-- 5. Content Editor (TinyMCE or Editor.js block editor) -->
+        <!-- 5. Content Editor (TinyMCE) -->
         <div class="card settings-panel" data-tab="content">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('Content Editor') ?>
             </h3>
 
             <?php
-                $currentEditor = Router::getOption(\Core\EditorJs::OPTION, 'tinymce');
-                if ($currentEditor !== \Core\EditorJs::VALUE) {
-                    $currentEditor = 'tinymce';
-                }
-            ?>
-
-            <div class="form-group">
-                <label class="form-label" for="content_editor"><?= _e('Editor') ?></label>
-                <select class="form-control" name="content_editor" id="content_editor">
-                    <option value="tinymce" <?= $currentEditor === 'tinymce' ? 'selected' : '' ?>>
-                        <?= _e('Classic (TinyMCE, WYSIWYG)') ?>
-                    </option>
-                    <option value="editorjs" <?= $currentEditor === \Core\EditorJs::VALUE ? 'selected' : '' ?>>
-                        <?= _e('Blocks (Editor.js)') ?>
-                    </option>
-                </select>
-                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; line-height: 1.4;">
-                    <?= _e('Both editors are bundled locally. Content keeps the format it was written in, so switching never destroys existing pages — blocks are rendered to HTML on output.') ?>
-                </small>
-            </div>
-
-            <div id="tinymce-fields">
-            <?php 
-                $currentPreset = Router::getOption('tinymce_preset', 'standard'); 
+                $currentPreset = Router::getOption('tinymce_preset', 'standard');
                 $currentCustom = Router::getOption('tinymce_custom_toolbar', '');
             ?>
 
@@ -705,42 +707,6 @@ require_once __DIR__ . '/views/header.php';
                     <?= _e('Use pipe (|) to group items. Available tokens: undo, redo, blocks, bold, italic, underline, strikethrough, alignleft, aligncenter, alignright, alignjustify, bullist, numlist, outdent, indent, link, image, mediamanager, table, forecolor, backcolor, removeformat, code, fullscreen.') ?>
                 </small>
             </div>
-
-            </div><!-- /#tinymce-fields -->
-
-            <div id="editorjs-fields">
-                <?php
-                    $editorjsTools = \Core\EditorJs::availableTools();
-                    $enabledTools  = \Core\EditorJs::enabledTools();
-                ?>
-
-                <div class="form-group">
-                    <label class="form-label"><?= _e('Available blocks') ?></label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px;">
-                        <?php foreach ($editorjsTools as $toolId => $tool): ?>
-                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
-                                <input type="checkbox" name="editorjs_tools[]" value="<?= htmlspecialchars($toolId, ENT_QUOTES, 'UTF-8') ?>" <?= in_array($toolId, $enabledTools, true) ? 'checked' : '' ?>>
-                                <?= htmlspecialchars((string) $tool['label'], ENT_QUOTES, 'UTF-8') ?>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                    <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 6px; line-height: 1.4;">
-                        <?= _e('Leave every box unchecked to use the recommended default set. Unchecking a block only hides it in the editor — already stored blocks keep rendering on the frontend.') ?>
-                    </small>
-                </div>
-
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 6px;">
-                    <input type="checkbox" name="editorjs_grid" value="1" <?= \Core\EditorJs::gridEnabled() ? 'checked' : '' ?>>
-                    <?= _e('Enable the "Insert Grid / Columns" tool') ?>
-                </label>
-                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 6px; line-height: 1.4;">
-                    <?= _e('The tool needs a grid framework selected below (CSS Grid / Framework card). It produces the same markup as the TinyMCE button.') ?>
-                </small>
-
-                <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 12px; line-height: 1.4;">
-                    <?= _e('Editor.js is licensed under the MIT license and is shipped inside this installation (admin/assets/vendor/editorjs) — no requests are made to a CDN.') ?>
-                </small>
-            </div><!-- /#editorjs-fields -->
         </div>
 
         <!-- 5b. CSS Grid / Framework (frontend + editor, no CDN) -->
@@ -916,7 +882,67 @@ require_once __DIR__ . '/views/header.php';
             <?php endif; ?>
         </div>
 
-        <!-- 10. SEO & Internationalization -->
+        <!-- 10. Gallery thumbnails -->
+        <div class="card settings-panel" data-tab="performance">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Gallery thumbnails') ?>
+            </h3>
+
+            <?php
+            $missingGalleryThumbs = \Core\MetaGallery::missingGalleryThumbnailCount();
+            $thumbsWritable = MediaLibrary::thumbnailDirectoryWritable();
+            ?>
+            <?php if (!MediaLibrary::thumbnailSupported()): ?>
+                <small style="font-size: 11px; color: var(--danger, #ef4444); display: block; margin-bottom: 10px;">
+                    <?= _e('Thumbnail generation is not available: no GD, Imagick or ImageMagick backend was detected.') ?>
+                </small>
+            <?php elseif (!$thumbsWritable): ?>
+                <small style="font-size: 11px; color: var(--danger, #ef4444); display: block; margin-bottom: 10px;">
+                    <?= _e('The uploads/thumbs directory is not writable by PHP. Thumbnails cannot be generated.') ?>
+                </small>
+            <?php endif; ?>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="gallery_thumbnails_enabled" value="1" <?= Router::getOption('gallery_thumbnails_enabled', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Generate and use thumbnails in galleries') ?>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 10px;">
+                <input type="checkbox" name="gallery_thumbnails_auto" value="1" <?= Router::getOption('gallery_thumbnails_auto', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Generate thumbnails automatically on upload and gallery save') ?>
+            </label>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0 0 0;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="gallery_thumbnail_widths"><?= _e('Thumbnail widths (px, comma-separated)') ?></label>
+                    <input class="form-control" type="text" id="gallery_thumbnail_widths" name="gallery_thumbnail_widths" value="<?= htmlspecialchars(MediaLibrary::normalizeThumbnailWidths(Router::getOption('gallery_thumbnail_widths', '480,960')), ENT_QUOTES, 'UTF-8') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="gallery_thumbnail_quality"><?= _e('Thumbnail quality (1-100)') ?></label>
+                    <input class="form-control" type="number" min="1" max="100" id="gallery_thumbnail_quality" name="gallery_thumbnail_quality" value="<?= (int)Router::getOption('gallery_thumbnail_quality', '78') ?>">
+                </div>
+            </div>
+
+            <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px;">
+                <?= _e('Admin previews always use 80/160/240 px. Existing images can be regenerated in Media → Generate missing thumbnails.') ?>
+            </small>
+
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" id="gallery-thumb-backfill-btn" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"
+                        data-csrf="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
+                    <?= _e('Generate gallery thumbnails') ?>
+                </button>
+                <span id="gallery-thumb-status" style="font-size: 11px; color: var(--text-muted);">
+                    <?= htmlspecialchars(sprintf(__('Missing gallery thumbnails: %d'), $missingGalleryThumbs), ENT_QUOTES, 'UTF-8') ?>
+                </span>
+            </div>
+            <div id="gallery-thumb-progress" style="display: none; margin-top: 10px; max-width: 420px;">
+                <div style="height: 6px; background: var(--border-subtle); border-radius: 999px; overflow: hidden;">
+                    <div id="gallery-thumb-bar" style="width: 0%; height: 100%; background: var(--primary, #3b82f6); transition: width 0.2s;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 11. SEO & Internationalization -->
         <div class="card settings-panel" data-tab="seo">
             <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
                 <?= _e('SEO & Internationalization') ?>
@@ -1341,6 +1367,7 @@ require_once __DIR__ . '/views/header.php';
 
 
 
+<?php require __DIR__ . '/views/update-panel.php'; ?>
 <?php require __DIR__ . '/views/system-panel.php'; ?>
 <?php require __DIR__ . '/views/hardening-panel.php'; ?>
 
@@ -1369,23 +1396,6 @@ if (presetSelect && customToolbarGroup) {
             customToolbarGroup.style.display = 'none';
         }
     });
-}
-
-// Switch between the TinyMCE and the Editor.js settings block.
-const editorSelect = document.getElementById('content_editor');
-const tinymceFields = document.getElementById('tinymce-fields');
-const editorjsFields = document.getElementById('editorjs-fields');
-
-function toggleEditorFields() {
-    if (!editorSelect || !tinymceFields || !editorjsFields) return;
-    const useEditorJs = editorSelect.value === 'editorjs';
-    tinymceFields.style.display = useEditorJs ? 'none' : 'block';
-    editorjsFields.style.display = useEditorJs ? 'block' : 'none';
-}
-
-if (editorSelect) {
-    editorSelect.addEventListener('change', toggleEditorFields);
-    toggleEditorFields();
 }
 
 function triggerUpload(fieldId, previewImgId, placeholderId) {
@@ -1430,6 +1440,69 @@ filePicker.addEventListener('change', () => {
         UI.alert({ title: '<?= _e('Upload Error') ?>', message: '<?= _e('Network error occurred while uploading.') ?>', danger: true });
     });
 });
+</script>
+
+<script>
+(function () {
+    var btn = document.getElementById('gallery-thumb-backfill-btn');
+    if (!btn) return;
+
+    var status = document.getElementById('gallery-thumb-status');
+    var progress = document.getElementById('gallery-thumb-progress');
+    var bar = document.getElementById('gallery-thumb-bar');
+    var csrf = btn.getAttribute('data-csrf') || '';
+    var originalLabel = btn.textContent;
+
+    btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        btn.textContent = <?= json_encode(__('Generating thumbnails...')) ?>;
+        if (progress) progress.style.display = 'block';
+
+        var offset = 0;
+        var done = false;
+        var generated = 0;
+        var failed = 0;
+
+        while (!done) {
+            var body = new URLSearchParams();
+            body.set('csrf', csrf);
+            body.set('scope', 'gallery');
+            body.set('offset', String(offset));
+            body.set('limit', '5');
+
+            try {
+                var response = await fetch('thumbs-backfill.php', { method: 'POST', body: body });
+                var data = await response.json();
+                if (!data.ok) throw new Error(data.error || 'failed');
+
+                offset = Number(data.next) || 0;
+                done = !!data.done;
+                generated += Number(data.generated) || 0;
+                failed += Number(data.failed) || 0;
+
+                if (bar) {
+                    var percent = data.total > 0 ? Math.min(100, Math.round((offset / data.total) * 100)) : 100;
+                    bar.style.width = percent + '%';
+                }
+                if (status) {
+                    status.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
+                }
+            } catch (error) {
+                btn.disabled = false;
+                btn.textContent = originalLabel;
+                if (status) status.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
+                return;
+            }
+        }
+
+        btn.textContent = originalLabel;
+        btn.disabled = false;
+        if (status) {
+            status.textContent = <?= json_encode(__('Thumbnails generated.')) ?> + ' (' + generated + (failed > 0 ? ', errors: ' + failed : '') + ')';
+        }
+        window.setTimeout(function () { window.location.reload(); }, 900);
+    });
+})();
 </script>
 
 <script>

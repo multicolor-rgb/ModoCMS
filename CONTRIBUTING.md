@@ -48,7 +48,7 @@ There is no automated test suite yet. Before opening a pull request:
 
 1. Test your change in the admin panel **and** on the frontend.
 2. Test an installation in a **subdirectory** (not only in the root) — the `.htaccess` has no `RewriteBase` on purpose.
-3. Test with both content editors (TinyMCE and Editor.js) if you touch the editor or the grid system.
+3. Test the content editor (TinyMCE) if you touch the editor or the grid system.
 4. Check the browser console and the PHP error log.
 
 ### Branching and commits
@@ -125,7 +125,7 @@ Nie ma jeszcze automatycznych testów. Przed zgłoszeniem pull requesta:
 
 1. Przetestuj zmianę w panelu admina **i** na frontendzie.
 2. Przetestuj instalację w **podkatalogu** (nie tylko w root) — `.htaccess` celowo nie ma `RewriteBase`.
-3. Przetestuj z oboma edytorami treści (TinyMCE i Editor.js), jeśli dotykasz edytora lub systemu siatek.
+3. Przetestuj edytor treści (TinyMCE), jeśli dotykasz edytora lub systemu siatek.
 4. Sprawdź konsolę przeglądarki oraz log błędów PHP.
 
 ### Gałęzie i commity

@@ -4,6 +4,11 @@
    renders identically on the frontend and inside the content editor.
    ========================================================================== */
 
+.grid-container,
+.grid-x {
+    box-sizing: border-box;
+}
+
 .grid-container {
     max-width: 1200px;
     margin-left: auto;

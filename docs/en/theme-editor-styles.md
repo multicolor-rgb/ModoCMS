@@ -10,7 +10,7 @@ The feature is **optional** and activates only when this file exists:
 themes/<theme>/assets/css/editor.css
 ```
 
-- No file means no change: TinyMCE and Editor.js behave exactly as before.
+- No file means no change: TinyMCE behaves exactly as before.
 - There is no fallback to `style.css` or any other theme stylesheet.
 - There is no new setting in **Settings**.
 - Styles are injected into the editor canvas only, never into the frontend.
@@ -27,18 +27,11 @@ When `editor.css` exists, the editor receives:
 
 The `content_css` order is: TinyMCE skin → grid CSS → theme CSS. This lets theme typography override grid settings.
 
-## Editor.js
+The content canvas always starts from TinyMCE's light `default` content stylesheet, regardless of the admin panel's dark mode. Dark mode only changes the editor UI chrome (`oxide-dark` skin: toolbar and dialogs), so content is previewed on a white background like on the frontend. A theme that intentionally wants a different canvas background can still override it in `editor.css`.
 
-Editor.js renders inline in the admin panel, so theme CSS is scoped to the canvas:
+## Editor.js (removed)
 
-- `#editorjs` on the content editor screen,
-- `#snippet-editorjs` on the snippets screen.
-
-Selectors `:root`, `html` and `body` map directly to the scope, while `:root X`, `html X` and `body X` become `<scope> X`. `@media` rules are processed recursively.
-
-Relative `url(...)` references and `@import` rules are rewritten to absolute theme URLs because the CSS is inlined into the admin page. `@import` rules are moved to the top of the `<style>` block, before the grid CSS.
-
-Customizer variables are appended **last** to the scoped CSS so they override the defaults declared in `editor.css`.
+The optional Editor.js block editor was removed. Legacy documents are converted to HTML automatically; `editor.css` is now used exclusively by TinyMCE. Any `editor.css` rules that were written for the old inline canvas still apply, because TinyMCE loads the same file inside its iframe.
 
 ## Optional `editor` block in `theme.json`
 
@@ -118,7 +111,7 @@ If the theme ships `themes/<theme>/assets/fonts/fonts.css`, include it at the to
 @import url("../fonts/fonts.css");
 ```
 
-The path is relative to `editor.css` and is automatically rewritten to an absolute theme URL for Editor.js.
+The path is relative to `editor.css` and is resolved against the theme directory; TinyMCE loads it inside its own iframe.
 
 ## Adding support to another theme
 
@@ -126,15 +119,14 @@ The path is relative to `editor.css` and is automatically rewritten to an absolu
 2. Add an `editor.css` file with content typography.
 3. Do not copy header, footer, hero or section layout into it — content styles only.
 4. Optionally add the `"editor"` block in `theme.json`.
-5. Test the editor with the theme selected in **Settings → Content** for both TinyMCE and Editor.js.
+5. Test the editor with the theme selected in **Settings → Content**.
 
 ## Changed files
 
-- `core/ThemeEditorStyles.php` — new `Core\ThemeEditorStyles` class,
-- `core/Customizer.php` — new `cssVariables()` method,
-- `core/CssFramework.php` — new `scopeCss()` method,
-- `admin/page-edit.php` — payload and configuration for both editors,
-- `admin/snippets.php` — payload and configuration for the snippet editor,
+- `core/ThemeEditorStyles.php` — `Core\ThemeEditorStyles` class,
+- `core/Customizer.php` — `cssVariables()` method,
+- `admin/page-edit.php` — TinyMCE payload and configuration,
+- `admin/snippets.php` — snippet editor payload and configuration,
 - `themes/default/assets/css/editor.css`,
 - `themes/default2/assets/css/editor.css`,
 - `themes/editorial/assets/css/editor.css`,
@@ -144,14 +136,12 @@ The path is relative to `editor.css` and is automatically rewritten to an absolu
 
 1. **Without `editor.css`** — open a page and a snippet editor; the editor must look unchanged.
 2. **With `editor.css`** — TinyMCE typography should match the file.
-3. **Editor.js** — styles must apply only inside `#editorjs` / `#snippet-editorjs`, with no leak into the admin UI.
-4. **`@import`** — in the page source the `@import` rule must be the first rule in the `<style>` block, before the grid CSS.
-5. **Customizer** — changing a colour or font size in the Customizer must override the default from `editor.css`.
-6. **Frontend** — the public site must not change.
+3. **`@import`** — the imported font stylesheet must load inside the TinyMCE iframe.
+4. **Customizer** — changing a colour or font size in the Customizer must override the default from `editor.css`.
+5. **Frontend** — the public site must not change.
 
 ## Troubleshooting
 
 - Styles do not appear — verify the exact `themes/<theme>/assets/css/editor.css` path and that the file is readable.
-- Styles appear only in TinyMCE — make sure the correct theme is active for Editor.js and refresh the browser cache.
 - `body_class` has no effect — check that `theme.json` is valid JSON and that `editor.css` exists.
 - Broken font/image paths — use paths relative to `editor.css`; Modo CMS rewrites them to theme URLs.

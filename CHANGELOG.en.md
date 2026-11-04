@@ -4,6 +4,114 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.4] — 2026-11-04
+
+### Added
+
+- **Grid guides in TinyMCE** — rows and columns are visible in the editor through dashed outlines; the guides never reach the frontend.
+- **Easier grid editing** — every column's content is wrapped in `<p>` automatically and existing grids are normalised when the editor opens. Changing a block format (e.g. `h1 → p`) no longer turns the column `<div>` into a heading and destroys the structure.
+- **Automatic Editor.js migration** — legacy JSON documents are converted to HTML once (pages, snippets, revisions) on the first admin request; the CLI script `tools/migrate-editorjs.php` is also available.
+- **Editor canvas padding** — 10 px inner spacing in TinyMCE.
+
+### Changed
+
+- **TinyMCE is the only content editor** — Editor.js was removed from the panel, settings, plugins and the release package.
+- **The editor canvas is always light** — dark mode only changes the toolbar and dialogs; content is edited on a white background.
+- **`box-sizing: border-box`** — fixed widths for grid containers and columns (bundled CSS + TinyMCE canvas).
+- **`editor.css` is TinyMCE-only** — CSS scoping for the inline block editor was removed.
+
+### Fixed
+
+- No horizontal scrollbar in the editor.
+- Grid columns no longer wrap under each other because of padding.
+- Changing a block format inside a grid no longer destroys the column wrapper.
+- Dark text on a dark background in dark mode.
+
+### Removed
+
+- **Editor.js block editor** — code, bundles, settings, the `editor-bridge.js` bridge, tools and Gallery/Form/Carousel integrations.
+- Unused CSS scoping helpers (`scopeCss()`, `editorScopedCss()`, `ThemeEditorStyles::scopedCss()`).
+- Test `robots.txt` / `sitemap.xml` from the repository (they are generated at runtime).
+
+## [3.0.3] — 2026-11-04
+
+### Added
+
+- **Gallery thumbnails**:
+  - custom-field galleries and the Modo Gallery plugin load thumbnails through
+    `srcset`/`sizes` (480 and 960 px by default) instead of full-size images,
+  - the lightbox still opens the original file,
+  - existing 240/320 px previews are reused immediately, so galleries benefit
+    before a full backfill,
+  - thumbnails are generated on upload, image edit and gallery-field save,
+  - new settings under **Settings → Performance → Gallery thumbnails**:
+    enable/disable, automatic generation, widths (default `480,960`) and
+    quality (default `78`),
+  - the **Generate gallery thumbnails** button processes only images used by
+    galleries, and the panel shows a missing-thumbnail counter,
+  - after changing the widths, run the gallery backfill again to create the new
+    sizes,
+  - images above GD's 20 MP limit use the ImageMagick CLI (`/usr/bin/convert`)
+    when available,
+  - local full URLs (`https://domain/uploads/...`) and subdirectory paths
+    (`/cms/uploads/...`) are recognised correctly,
+  - without GD, Imagick or the ImageMagick CLI, galleries fall back to the
+    original images.
+- New `MediaLibrary::frontendImageSources()`, `galleryThumbnailWidths()`,
+  `thumbnailGenerationWidths()`, `thumbnailExists()` and
+  `canGenerateThumbnail()` methods, plus `MetaGallery::warmThumbnails()`,
+  `allGalleryImagePaths()` and `missingGalleryThumbnailCount()`.
+- **Media library**:
+  - bulk deletion of selected files and folder contents with confirmation,
+  - a lightbox with zoom, previous/next navigation, original preview and an
+    edit action,
+  - a browser image editor with rotate, flip, crop presets and save-as-copy or
+    overwrite,
+  - new `admin/media-save.php` and `admin/assets/js/media-tools.js`, plus a
+    rebuilt `admin/media.php` and `core/MediaLibrary.php`.
+- **System updater** under `Settings → System`:
+  - checks the latest public release through the GitHub API (with a cache and
+    a manual refresh button),
+  - one-click installation of the latest release with HTTPS download,
+  - SHA-256 package verification, zip-slip protection and size limits,
+  - automatic database snapshot and a copy of every replaced file in
+    `data/backups/` before updating,
+  - skips `data/`, `uploads/`, `modoconfig.php` and `install.php`, and preserves
+    a custom root `.htaccess`,
+  - temporary maintenance mode while files are replaced, cache/OPcache purge and
+    automatic rollback on failure.
+- `core/Version.php` as the single source of the installed version.
+- PL/EN/DE/ES translations and documentation for the new panel messages.
+
+### Fixed
+
+- **Gallery lightbox**: the `.modo-gallery` container is no longer treated as a
+  theme lightbox trigger, so on “Realizacje” posts only the GLightbox from the
+  custom field handles gallery images.
+- **Thumbnail diagnostics**: the backfill reports generated, skipped and failed
+  files; the interface shows errors instead of a false success and warns when
+  the image backend is missing or `uploads/thumbs` is not writable; generation
+  failures are written to the PHP error log.
+- Restored image-editor translation keys removed by an earlier package version
+  (`Invalid image.`, `The image is too large to upload.`,
+  `Could not save the image.`, `Original`, and `Reset` in DE/ES) and preserved
+  the display filename when overwriting an image.
+- **System updater**: when the GitHub API limit is exhausted (HTTP 403/429), the
+  latest release is read from the public `releases.atom` feed, so update checks
+  no longer fail. Added an optional GitHub token (`update_github_token`) that
+  raises the API limit from 60 to 5000 requests per hour, and extended the
+  update-check cache to 12 hours.
+- **Cookie Consent**: the banner no longer blocks page scrolling in the `bar`,
+  `card`, `bottom-left` and `bottom-right` layouts; scrolling is locked only by
+  the full-screen modal, whose content remains scrollable. Plugin bumped to
+  `1.0.1`.
+
+### No database changes
+
+- No migration — settings are stored in the `settings` table on the first save
+  in the panel; until then the defaults apply. The updater creates a database
+  snapshot but does not change the schema.
+
 ## [3.0.2] — 2026-11-03
 
 ### Added

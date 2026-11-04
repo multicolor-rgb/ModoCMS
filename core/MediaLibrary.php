@@ -18,11 +18,17 @@ final class MediaLibrary
     /** Widths (in pixels) accepted by the thumbnail endpoint. */
     public const THUMBNAIL_WIDTHS = [80, 160, 240, 320];
 
+    /** Default widths used by custom-field galleries. */
+    public const THUMBNAIL_GALLERY_WIDTHS = [480, 960];
+
     /** Widths generated eagerly for the admin previews. */
     public const THUMBNAIL_PREVIEW_WIDTHS = [80, 160, 240];
 
     /** Per-request cache for filesystem listings. */
     private static array $listImagesCache = [];
+
+    /** Per-request cache for thumbnail settings. */
+    private static ?array $thumbnailConfig = null;
 
     /** Fallback transliteration for Polish names when iconv is unavailable. */
     private const TRANSLITERATION = [
@@ -638,6 +644,43 @@ final class MediaLibrary
     /** @return array{ok:bool,error?:string} */
     public static function deleteFile(string $storedPath): array
     {
+        $result = self::deleteFileInternal($storedPath);
+        self::purgeCache();
+
+        return $result;
+    }
+
+    /**
+     * Deletes multiple files in one request and purges the page cache once.
+     *
+     * @param array<int,mixed> $paths
+     * @return array{deleted:int,failed:int}
+     */
+    public static function deleteFiles(array $paths): array
+    {
+        $deleted = 0;
+        $failed = 0;
+
+        foreach ($paths as $path) {
+            if (!is_string($path) || $path === '') {
+                continue;
+            }
+            $result = self::deleteFileInternal($path);
+            if (!empty($result['ok'])) {
+                $deleted++;
+            } else {
+                $failed++;
+            }
+        }
+
+        self::purgeCache();
+
+        return ['deleted' => $deleted, 'failed' => $failed];
+    }
+
+    /** @return array{ok:bool,error?:string} */
+    private static function deleteFileInternal(string $storedPath): array
+    {
         $absolute = self::absoluteFromStoredPath($storedPath);
         if ($absolute === null) {
             // The file may already be gone; clean up a stale database row.
@@ -692,9 +735,234 @@ final class MediaLibrary
             // blocking the deletion flow.
         }
 
+        return ['ok' => true];
+    }
+
+    /**
+     * Saves a browser-edited image over an existing upload, or next to it.
+     *
+     * @return array{ok:bool,error?:string,path?:string,url?:string,filename?:string}
+     */
+    public static function saveEditedFile(
+        string $storedPath,
+        string $sourceTmp,
+        string $mime,
+        bool $overwrite = true,
+        ?int $userId = null
+    ): array {
+        $source = self::absoluteFromStoredPath($storedPath);
+        if ($source === null) {
+            return ['ok' => false, 'error' => 'missing'];
+        }
+
+        $sourceStored = self::storedPathFromAbsolute($source);
+        if ($sourceStored === null) {
+            return ['ok' => false, 'error' => 'invalid'];
+        }
+
+        $mime = strtolower(trim($mime));
+        $extension = self::extensionForMime($mime);
+        if ($extension === null || !is_file($sourceTmp) || (int) @filesize($sourceTmp) <= 0) {
+            return ['ok' => false, 'error' => 'invalid'];
+        }
+
+        $directory = dirname($source);
+        $currentExtension = strtolower((string) pathinfo($source, PATHINFO_EXTENSION));
+        $writableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        if ($overwrite) {
+            if (!in_array($currentExtension, $writableExtensions, true)
+                || !self::mimeMatchesExtension($mime, $currentExtension)
+            ) {
+                return ['ok' => false, 'error' => 'readonly'];
+            }
+            $target = $source;
+            $newStored = $sourceStored;
+        } else {
+            $base = (string) pathinfo($source, PATHINFO_FILENAME);
+            $target = $directory . '/' . self::uniqueName($directory, $base . '-edited.' . $extension);
+            $newStored = self::storedPathForAbsolute($target);
+        }
+
+        if ($newStored === null) {
+            return ['ok' => false, 'error' => 'invalid'];
+        }
+
+        // Write through a temporary file so a failed write never truncates the
+        // original image.
+        $targetName = basename($target);
+        $tmp = $directory . '/.' . $targetName . '.tmp-' . bin2hex(random_bytes(6));
+        if (!@copy($sourceTmp, $tmp) || !is_file($tmp) || (int) @filesize($tmp) <= 0) {
+            if (is_file($tmp)) {
+                @unlink($tmp);
+            }
+            return ['ok' => false, 'error' => 'failed'];
+        }
+        @chmod($tmp, 0664);
+        if (!@rename($tmp, $target)) {
+            @unlink($tmp);
+            return ['ok' => false, 'error' => 'failed'];
+        }
+        @chmod($target, 0664);
+        clearstatcache(true, $target);
+
+        $webpStored = null;
+        try {
+            $db = Database::getConnection();
+
+            // Remove the previously generated WebP file before rebuilding it
+            // from the new pixels. Prefer the path recorded in the media row;
+            // older installations may not follow the sibling naming scheme.
+            $oldWebp = '';
+            $stmt = $db->prepare("SELECT webp_path FROM media WHERE filepath = :path LIMIT 1");
+            $stmt->execute([':path' => $newStored]);
+            $oldWebp = (string) ($stmt->fetchColumn() ?: '');
+            if ($oldWebp !== '') {
+                $oldWebpAbsolute = self::absoluteFromStoredPath($oldWebp);
+                if ($oldWebpAbsolute !== null && realpath($oldWebpAbsolute) !== realpath($target)) {
+                    @unlink($oldWebpAbsolute);
+                }
+            }
+
+            $webpStored = self::regenerateWebpSibling($target, $extension);
+            $size = (int) @filesize($target);
+
+            $lookup = $db->prepare("SELECT id, filename FROM media WHERE filepath = :path LIMIT 1");
+            $lookup->execute([':path' => $newStored]);
+            $existingRow = $lookup->fetch() ?: null;
+
+            if ($existingRow !== null) {
+                // Overwriting keeps the user-facing upload name; the stored
+                // filename is usually a random slug generated by upload.php.
+                $displayName = $overwrite && trim((string) ($existingRow['filename'] ?? '')) !== ''
+                    ? (string) $existingRow['filename']
+                    : $targetName;
+
+                $db->prepare("
+                    UPDATE media
+                    SET filename = :name, file_size = :size, mime_type = :mime, webp_path = :webp
+                    WHERE id = :id
+                ")->execute([
+                    ':name'  => $displayName,
+                    ':size'  => $size,
+                    ':mime'  => $mime,
+                    ':webp'  => $webpStored,
+                    ':id'    => (int) $existingRow['id'],
+                ]);
+            } else {
+                $db->prepare("
+                    INSERT INTO media (filename, filepath, mime_type, file_size, webp_path, user_id)
+                    VALUES (:name, :path, :mime, :size, :webp, :user)
+                ")->execute([
+                    ':name'  => $targetName,
+                    ':path'  => $newStored,
+                    ':mime'  => $mime,
+                    ':size'  => $size,
+                    ':webp'  => $webpStored,
+                    ':user'  => $userId,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // The edited file is already on disk. DB bookkeeping is best-effort
+            // and syncMissingMedia() can repair a missing row later.
+        }
+
+        self::deleteThumbnails($newStored);
+        try {
+            self::ensureThumbnails(
+                $newStored,
+                self::galleryThumbnailsAuto() ? self::thumbnailGenerationWidths() : self::THUMBNAIL_PREVIEW_WIDTHS
+            );
+        } catch (\Throwable $e) {
+            // Thumbnails can also be regenerated lazily on the next request.
+        }
+
         self::purgeCache();
 
-        return ['ok' => true];
+        return [
+            'ok'       => true,
+            'path'     => $newStored,
+            'url'      => self::urlForStoredPath($newStored),
+            'filename' => basename($target),
+        ];
+    }
+
+    private static function extensionForMime(string $mime): ?string
+    {
+        return match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            default      => null,
+        };
+    }
+
+    private static function mimeMatchesExtension(string $mime, string $extension): bool
+    {
+        $map = [
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png'  => 'image/png',
+            'webp' => 'image/webp',
+        ];
+
+        return ($map[$extension] ?? null) === $mime;
+    }
+
+    /**
+     * Rebuilds the automatic WebP sibling after an in-place edit. Returns the
+     * stored "/uploads/..." path, or null when WebP is disabled/unsupported.
+     */
+    private static function regenerateWebpSibling(string $absolute, string $extension): ?string
+    {
+        if (!in_array($extension, ['jpg', 'jpeg', 'png'], true)
+            || !class_exists(ImageOptimizer::class)
+            || !ImageOptimizer::isEnabled()
+            || !ImageOptimizer::isSupported()
+        ) {
+            self::removeStaleWebpSibling($absolute);
+            return null;
+        }
+
+        $converted = ImageOptimizer::convertToWebp($absolute);
+        if ($converted === null) {
+            self::removeStaleWebpSibling($absolute);
+            return null;
+        }
+
+        return self::storedPathForAbsolute($converted);
+    }
+
+    private static function removeStaleWebpSibling(string $absolute): void
+    {
+        $sibling = preg_replace('/\.[^.]+$/', '', $absolute) . '.webp';
+        if ($sibling === null || !is_file($sibling)) {
+            return;
+        }
+        if (realpath($sibling) === realpath($absolute)) {
+            return;
+        }
+        @unlink($sibling);
+    }
+
+    /**
+     * Quotes an absolute path without requiring the file to exist yet.
+     */
+    private static function storedPathForAbsolute(string $absolute): ?string
+    {
+        $root = realpath(self::rootPath());
+        $directory = realpath(dirname($absolute));
+        if ($root === false || $directory === false) {
+            return null;
+        }
+        if ($directory !== $root && !str_starts_with($directory, $root . DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        $relative = $directory === $root ? '' : substr($directory, strlen($root) + 1);
+        $relative = str_replace('\\', '/', $relative);
+
+        return '/uploads/' . ($relative !== '' ? $relative . '/' : '') . basename($absolute);
     }
 
     private static function purgeCache(): void
@@ -711,8 +979,16 @@ final class MediaLibrary
 
     private static function absoluteFromStoredPath(string $storedPath): ?string
     {
-        $path = parse_url($storedPath, PHP_URL_PATH) ?: $storedPath;
+        $path = rawurldecode((string) (parse_url($storedPath, PHP_URL_PATH) ?: $storedPath));
         $relative = ltrim(str_replace('\\', '/', $path), '/');
+
+        // Stored paths may include the installation's base sub-directory
+        // (e.g. /cms/uploads/photo.jpg on a sub-directory install).
+        $base = class_exists(Router::class) ? trim(Router::getBaseSubdirectory(), '/') : '';
+        if ($base !== '' && str_starts_with($relative, $base . '/')) {
+            $relative = substr($relative, strlen($base) + 1);
+        }
+
         if (!str_starts_with($relative, 'uploads/')) {
             return null;
         }
@@ -879,6 +1155,121 @@ final class MediaLibrary
     }
 
     /**
+     * Reads thumbnail-related settings once per request.
+     *
+     * @return array{enabled:bool,auto:bool,widths:array<int,int>,quality:int}
+     */
+    private static function thumbnailConfig(): array
+    {
+        if (self::$thumbnailConfig !== null) {
+            return self::$thumbnailConfig;
+        }
+
+        $enabled = true;
+        $auto = true;
+        $widthsRaw = '480,960';
+        $quality = 78;
+
+        try {
+            if (class_exists(Router::class)) {
+                $enabled = Router::getOption('gallery_thumbnails_enabled', '1') === '1';
+                $auto = Router::getOption('gallery_thumbnails_auto', '1') === '1';
+                $widthsRaw = Router::getOption('gallery_thumbnail_widths', '480,960');
+                $quality = (int) Router::getOption('gallery_thumbnail_quality', '78');
+            }
+        } catch (\Throwable $e) {
+            // Settings are optional; keep the defaults when the DB is unavailable.
+        }
+
+        return self::$thumbnailConfig = [
+            'enabled' => $enabled,
+            'auto'    => $auto,
+            'widths'  => self::parseThumbnailWidths($widthsRaw),
+            'quality' => max(1, min(100, $quality)),
+        ];
+    }
+
+    /**
+     * Parses a comma-separated width list into a sorted, unique array.
+     *
+     * @return array<int,int>
+     */
+    public static function parseThumbnailWidths(string $raw): array
+    {
+        $widths = [];
+        foreach (explode(',', $raw) as $part) {
+            $width = (int) trim($part);
+            if ($width >= 80 && $width <= 1920) {
+                $widths[$width] = $width;
+            }
+        }
+
+        $widths = array_values($widths);
+        sort($widths, SORT_NUMERIC);
+
+        return $widths === [] ? self::THUMBNAIL_GALLERY_WIDTHS : array_slice($widths, 0, 4);
+    }
+
+    /** Returns the canonical comma-separated list stored in the settings form. */
+    public static function normalizeThumbnailWidths(string $raw): string
+    {
+        return implode(',', self::parseThumbnailWidths($raw));
+    }
+
+    public static function galleryThumbnailsEnabled(): bool
+    {
+        return self::thumbnailConfig()['enabled'];
+    }
+
+    public static function galleryThumbnailsAuto(): bool
+    {
+        return self::thumbnailConfig()['auto'];
+    }
+
+    /** @return array<int,int> */
+    public static function galleryThumbnailWidths(): array
+    {
+        return self::thumbnailConfig()['widths'];
+    }
+
+    public static function thumbnailQuality(): int
+    {
+        return self::thumbnailConfig()['quality'];
+    }
+
+    /**
+     * Every width the admin thumbnail endpoint may serve.
+     *
+     * @return array<int,int>
+     */
+    public static function allowedThumbnailWidths(): array
+    {
+        $widths = array_merge(self::THUMBNAIL_WIDTHS, self::THUMBNAIL_PREVIEW_WIDTHS, self::galleryThumbnailWidths());
+        $widths = array_values(array_unique(array_map('intval', $widths)));
+        sort($widths, SORT_NUMERIC);
+
+        return $widths;
+    }
+
+    /**
+     * Widths that should exist on disk for previews and current galleries.
+     *
+     * @return array<int,int>
+     */
+    public static function thumbnailGenerationWidths(): array
+    {
+        $widths = self::THUMBNAIL_PREVIEW_WIDTHS;
+        if (self::galleryThumbnailsEnabled()) {
+            $widths = array_merge($widths, self::galleryThumbnailWidths());
+        }
+
+        $widths = array_values(array_unique(array_map('intval', $widths)));
+        sort($widths, SORT_NUMERIC);
+
+        return $widths;
+    }
+
+    /**
      * Detects the best available backend for generating admin thumbnails.
      * Returns "gd", "imagick", "cli" or "none".
      */
@@ -916,6 +1307,41 @@ final class MediaLibrary
         return self::thumbnailBackend() !== 'none';
     }
 
+    /** Whether PHP can write to the /uploads/thumbs cache directory. */
+    public static function thumbnailDirectoryWritable(): bool
+    {
+        $root = self::rootPath();
+        $dir = $root . '/thumbs';
+
+        return is_dir($dir) ? is_writable($dir) : is_writable($root);
+    }
+
+    /** Returns true when a cached thumbnail exists for the given width. */
+    public static function thumbnailExists(string $storedPath, int $width): bool
+    {
+        $absolute = self::absoluteFromStoredPath($storedPath);
+        if ($absolute === null || !self::isThumbnailSource($absolute)) {
+            return false;
+        }
+
+        return self::staticThumbnail($storedPath, $width, $absolute) !== null;
+    }
+
+    /** Whether a stored path points to a local image type we can resize. */
+    public static function canGenerateThumbnail(string $storedPath): bool
+    {
+        $absolute = self::absoluteFromStoredPath($storedPath);
+
+        return $absolute !== null && self::isThumbnailSource($absolute);
+    }
+
+    private static function logThumbnailFailure(string $storedPath, string $message): void
+    {
+        if (function_exists('error_log')) {
+            @error_log('[thumbnails] ' . $storedPath . ': ' . $message);
+        }
+    }
+
     /**
      * Returns a picker-friendly preview URL for a media file. Uses a static
      * cached thumbnail when one exists, the on-demand endpoint otherwise, and
@@ -927,11 +1353,11 @@ final class MediaLibrary
         $url = self::urlForStoredPath($storedPath);
         $fallback = function_exists('webp_url') ? \webp_url($url) : $url;
 
-        if (preg_match('#^https?://#i', $storedPath) === 1 || !self::thumbnailSupported()) {
+        if (!self::thumbnailSupported()) {
             return $fallback;
         }
 
-        $width = in_array($width, self::THUMBNAIL_WIDTHS, true) ? $width : 160;
+        $width = in_array($width, self::allowedThumbnailWidths(), true) ? $width : 160;
         $absolute = self::absoluteFromStoredPath($storedPath);
         if ($absolute === null || !self::isThumbnailSource($absolute)) {
             return $fallback;
@@ -939,8 +1365,7 @@ final class MediaLibrary
 
         $static = self::staticThumbnail($storedPath, $width, $absolute);
         if ($static !== null) {
-            return self::baseUrl() . '/uploads/thumbs/' . rawurlencode(basename($static))
-                . '?v=' . (int) @filemtime($absolute);
+            return self::staticThumbnailUrl($static, $absolute);
         }
 
         return self::baseUrl() . '/admin/thumb.php?' . http_build_query([
@@ -948,6 +1373,80 @@ final class MediaLibrary
             'w' => $width,
             'v' => (int) @filemtime($absolute),
         ]);
+    }
+
+    /**
+     * Returns a thumbnail-based src/srcset for public galleries. Unlike
+     * thumbnailUrl() this never points at the admin endpoint, so it is safe on
+     * the frontend; when a thumbnail is missing the original image is used.
+     *
+     * @param array<int,int>|null $widths
+     * @param string $fallbackUrl Fully resolved URL used when no thumbnail exists
+     * @return array{src:string,srcset:string}
+     */
+    public static function frontendImageSources(string $storedPath, ?array $widths = null, string $fallbackUrl = ''): array
+    {
+        $original = $fallbackUrl !== '' ? $fallbackUrl : self::urlForStoredPath($storedPath);
+        $optimized = function_exists('webp_url') ? \webp_url($original) : $original;
+        $fallback = ['src' => $optimized, 'srcset' => ''];
+
+        if ($storedPath === '' || !self::galleryThumbnailsEnabled()) {
+            return $fallback;
+        }
+
+        $absolute = self::absoluteFromStoredPath($storedPath);
+        if ($absolute === null || !self::isThumbnailSource($absolute)) {
+            return $fallback;
+        }
+
+        // Prefer the configured gallery widths but also reuse any existing
+        // preview thumbnail (240/320) so galleries benefit immediately after
+        // the update, before a full backfill has run.
+        $candidates = $widths ?? array_merge(self::THUMBNAIL_PREVIEW_WIDTHS, self::galleryThumbnailWidths());
+        $candidates = array_values(array_unique(array_map('intval', $candidates)));
+        sort($candidates, SORT_NUMERIC);
+
+        $available = [];
+        foreach ($candidates as $width) {
+            if ($width < 240) {
+                continue;
+            }
+
+            $file = self::staticThumbnail($storedPath, $width, $absolute);
+            if ($file === null) {
+                continue;
+            }
+
+            // Use the real file width so srcset descriptors stay accurate even
+            // when the original image is narrower than the requested size.
+            $info = @getimagesize($file);
+            $actualWidth = (int) ($info[0] ?? 0);
+            if ($actualWidth <= 0 || isset($available[$actualWidth])) {
+                continue;
+            }
+            $available[$actualWidth] = self::staticThumbnailUrl($file, $absolute);
+        }
+
+        if ($available === []) {
+            return $fallback;
+        }
+
+        ksort($available, SORT_NUMERIC);
+        // No-srcset browsers get 480px when available, otherwise the largest
+        // cached thumbnail — but never the full-size original.
+        $src = (string) reset($available);
+        foreach ($available as $actualWidth => $url) {
+            if ($actualWidth >= 480) {
+                $src = $url;
+                break;
+            }
+        }
+        $srcset = [];
+        foreach ($available as $actualWidth => $url) {
+            $srcset[] = $url . ' ' . $actualWidth . 'w';
+        }
+
+        return ['src' => $src, 'srcset' => implode(', ', $srcset)];
     }
 
     /**
@@ -959,13 +1458,14 @@ final class MediaLibrary
     public static function ensureThumbnails(string $storedPath, array $widths = [160, 240]): array
     {
         $backend = self::thumbnailBackend();
-        if ($backend === 'none' || preg_match('#^https?://#i', $storedPath) === 1) {
+        if ($backend === 'none') {
             return [];
         }
 
+        $allowed = self::allowedThumbnailWidths();
         $widths = array_values(array_unique(array_filter(
             array_map('intval', $widths),
-            static fn (int $width): bool => in_array($width, self::THUMBNAIL_WIDTHS, true)
+            static fn (int $width): bool => in_array($width, $allowed, true)
         )));
         if ($widths === []) {
             return [];
@@ -982,6 +1482,7 @@ final class MediaLibrary
         }
 
         if (self::ensureThumbnailDir() === null) {
+            self::logThumbnailFailure($storedPath, 'uploads/thumbs is not writable');
             return [];
         }
 
@@ -1000,14 +1501,45 @@ final class MediaLibrary
             return $result;
         }
 
+        // GD refuses very large images to protect memory. ImageMagick CLI can
+        // handle them, so use it as a per-image fallback instead of silently
+        // skipping the file.
+        $cli = self::cliConvertBinary();
+        $pixels = (int) $info[0] * (int) $info[1];
+        $largeForGd = $backend === 'gd' && $pixels > 20000000;
+        $useCli = $backend === 'cli' || ($largeForGd && $cli !== null);
+
         // Decoding is the expensive part, so every backend renders all missing
         // sizes from a single source image where possible.
-        if ($backend === 'gd') {
+        if ($backend === 'gd' && !$useCli) {
             self::generateGdThumbnails($source, $storedPath, $missing, $result);
         } elseif ($backend === 'imagick') {
             self::generateImagickThumbnails($source, $storedPath, $missing, $result);
-        } else {
+        }
+
+        if ($useCli) {
             self::generateCliThumbnails($source, $storedPath, $missing, $result);
+        } else {
+            // Fall back to CLI if GD/Imagick failed for any reason (unsupported
+            // colour profile, memory guard, broken image chunk, etc.).
+            $remaining = array_values(array_filter(
+                $missing,
+                static fn (int $width): bool => !isset($result[$width])
+            ));
+            if ($remaining !== [] && $cli !== null) {
+                self::generateCliThumbnails($source, $storedPath, $remaining, $result);
+            }
+        }
+
+        $stillMissing = array_values(array_filter(
+            $missing,
+            static fn (int $width): bool => !isset($result[$width])
+        ));
+        if ($stillMissing !== []) {
+            self::logThumbnailFailure(
+                $storedPath,
+                'could not generate widths: ' . implode(',', $stillMissing)
+            );
         }
 
         return $result;
@@ -1031,6 +1563,7 @@ final class MediaLibrary
 
         $missing = 0;
         $backend = self::thumbnailBackend();
+        $cli = self::cliConvertBinary();
         foreach (self::listImages() as $item) {
             $source = (string) ($item['absolute'] ?? '');
             if ($source === '' || !self::isThumbnailSource($source)) {
@@ -1040,8 +1573,8 @@ final class MediaLibrary
             if (!is_array($info) || (int) $info[0] <= 0 || (int) $info[1] <= 0) {
                 continue;
             }
-            if ($backend === 'gd' && (int) $info[0] * (int) $info[1] > 20000000) {
-                // generateGdThumbnails() refuses these to protect memory.
+            if ($backend === 'gd' && $cli === null && (int) $info[0] * (int) $info[1] > 20000000) {
+                // GD refuses these and no CLI fallback is available.
                 continue;
             }
             foreach (self::THUMBNAIL_PREVIEW_WIDTHS as $width) {
@@ -1063,7 +1596,7 @@ final class MediaLibrary
             if (!is_dir($dir)) {
                 continue;
             }
-            foreach ([80, 160, 240, 320] as $width) {
+            foreach (self::allowedThumbnailWidths() as $width) {
                 foreach (['webp', 'jpg'] as $extension) {
                     $file = $dir . '/' . $key . '-' . $width . '.' . $extension;
                     if (is_file($file)) {
@@ -1115,6 +1648,13 @@ final class MediaLibrary
             . '-' . $width . '.' . $format;
     }
 
+    /** Builds a cache-busted public URL for an existing static thumbnail. */
+    private static function staticThumbnailUrl(string $file, string $source): string
+    {
+        return self::baseUrl() . '/uploads/thumbs/' . rawurlencode(basename($file))
+            . '?v=' . (int) @filemtime($source);
+    }
+
     /**
      * Returns an existing, up-to-date static thumbnail or null. Stale files are
      * removed so the next request regenerates them.
@@ -1159,6 +1699,7 @@ final class MediaLibrary
         }
 
         $format = function_exists('imagewebp') ? 'webp' : 'jpg';
+        $quality = self::thumbnailQuality();
         foreach ($widths as $width) {
             $thumb = $sourceWidth <= $width
                 ? $image
@@ -1177,7 +1718,7 @@ final class MediaLibrary
                 }
                 imagealphablending($thumb, true);
                 imagesavealpha($thumb, true);
-                $saved = @imagewebp($thumb, $tmp, 75);
+                $saved = @imagewebp($thumb, $tmp, $quality);
             } else {
                 // JPEG has no alpha channel: flatten transparency onto white.
                 $flat = imagecreatetruecolor(imagesx($thumb), imagesy($thumb));
@@ -1185,7 +1726,7 @@ final class MediaLibrary
                     $white = imagecolorallocate($flat, 255, 255, 255);
                     imagefilledrectangle($flat, 0, 0, imagesx($flat) - 1, imagesy($flat) - 1, $white);
                     imagecopy($flat, $thumb, 0, 0, 0, 0, imagesx($thumb), imagesy($thumb));
-                    $saved = @imagejpeg($flat, $tmp, 80);
+                    $saved = @imagejpeg($flat, $tmp, $quality);
                     imagedestroy($flat);
                 }
             }
@@ -1228,6 +1769,7 @@ final class MediaLibrary
             }
 
             $useWebp = !empty(\Imagick::queryFormats('WEBP'));
+            $quality = self::thumbnailQuality();
 
             foreach ($widths as $width) {
                 $copy = clone $image;
@@ -1239,13 +1781,13 @@ final class MediaLibrary
 
                     if ($useWebp) {
                         $copy->setImageFormat('webp');
-                        $copy->setImageCompressionQuality(75);
+                        $copy->setImageCompressionQuality($quality);
                         $format = 'webp';
                     } else {
                         $copy->setImageBackgroundColor('white');
                         $copy->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
                         $copy->setImageFormat('jpeg');
-                        $copy->setImageCompressionQuality(80);
+                        $copy->setImageCompressionQuality($quality);
                         $format = 'jpg';
                     }
 
@@ -1283,7 +1825,8 @@ final class MediaLibrary
         }
         rsort($pending, SORT_NUMERIC);
 
-        foreach (['webp' => '75', 'jpg' => '80'] as $format => $quality) {
+        $quality = self::thumbnailQuality();
+        foreach (['webp', 'jpg'] as $format) {
             $pending = array_values(array_filter($pending, static fn (int $width): bool => !isset($result[$width])));
             if ($pending === []) {
                 return;
@@ -1303,7 +1846,7 @@ final class MediaLibrary
                 $tmp = $target . '.tmp-' . bin2hex(random_bytes(6));
                 $targets[$width] = [$tmp, $target];
                 $command .= ' -resize ' . escapeshellarg($width . 'x>')
-                    . ' -quality ' . escapeshellarg($quality)
+                    . ' -quality ' . escapeshellarg((string) $quality)
                     . ($index === count($pending) - 1
                         ? ' ' . escapeshellarg($format . ':' . $tmp)
                         : ' -write ' . escapeshellarg($format . ':' . $tmp));

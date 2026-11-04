@@ -25,7 +25,7 @@ $width = isset($_GET['w']) ? (int) $_GET['w'] : 160;
 
 if ($storedPath === ''
     || preg_match('#^https?://#i', $storedPath) === 1
-    || !in_array($width, MediaLibrary::THUMBNAIL_WIDTHS, true)
+    || !in_array($width, MediaLibrary::allowedThumbnailWidths(), true)
 ) {
     http_response_code(400);
     exit;

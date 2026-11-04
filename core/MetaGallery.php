@@ -168,6 +168,103 @@ final class MetaGallery
     }
 
     /**
+     * Generates cached thumbnails for every image in the gallery.
+     */
+    public static function warmThumbnails(mixed $raw): void
+    {
+        if (!class_exists('\\Core\\MediaLibrary') || !\Core\MediaLibrary::galleryThumbnailsEnabled()) {
+            return;
+        }
+
+        $data = self::normalize($raw);
+        $widths = \Core\MediaLibrary::galleryThumbnailWidths();
+        if ($data['items'] === [] || $widths === []) {
+            return;
+        }
+
+        foreach ($data['items'] as $item) {
+            \Core\MediaLibrary::ensureThumbnails($item['image'], $widths);
+        }
+    }
+
+    /**
+     * Returns unique image paths used by custom-field and plugin galleries.
+     *
+     * @return array<int,string>
+     */
+    public static function allGalleryImagePaths(): array
+    {
+        $paths = [];
+
+        if (!class_exists('\\Core\\Database')) {
+            return $paths;
+        }
+
+        try {
+            $db = \Core\Database::getConnection();
+            $rows = $db->query("SELECT meta_value FROM page_meta WHERE LOWER(meta_type) = 'gallery'")
+                ->fetchAll(\PDO::FETCH_COLUMN);
+            foreach ($rows as $raw) {
+                $data = self::normalize($raw);
+                foreach ($data['items'] as $item) {
+                    if ($item['image'] !== '') {
+                        $paths[$item['image']] = true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Page metadata is optional during upgrades.
+        }
+
+        try {
+            $db = \Core\Database::getConnection();
+            $rows = $db->query("SELECT items FROM modo_galleries")->fetchAll(\PDO::FETCH_COLUMN);
+            foreach ($rows as $raw) {
+                $items = json_decode((string) $raw, true);
+                if (!is_array($items)) {
+                    continue;
+                }
+                foreach ($items as $item) {
+                    if (is_array($item) && !empty($item['image'])) {
+                        $paths[(string) $item['image']] = true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Plugin galleries are optional.
+        }
+
+        return array_keys($paths);
+    }
+
+    /**
+     * Counts gallery images missing at least one configured gallery width.
+     */
+    public static function missingGalleryThumbnailCount(): int
+    {
+        if (!class_exists('\\Core\\MediaLibrary') || !\Core\MediaLibrary::galleryThumbnailsEnabled()) {
+            return 0;
+        }
+
+        $widths = \Core\MediaLibrary::galleryThumbnailWidths();
+        if ($widths === []) {
+            return 0;
+        }
+
+        $missing = 0;
+        foreach (self::allGalleryImagePaths() as $path) {
+            foreach ($widths as $width) {
+                if (!\Core\MediaLibrary::thumbnailExists($path, $width)) {
+                    $missing++;
+                    break;
+                }
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
      * Dependency-free renderer used when the Modo Gallery plugin is inactive.
      *
      * @param array<int,array{image:string,alt:string,caption:string,link:string}> $items
@@ -192,6 +289,8 @@ final class MetaGallery
             . 'display:grid;grid-template-columns:repeat(' . $columns . ',minmax(0,1fr));'
             . 'gap:' . $gap . 'px;margin:1.5rem 0;">';
 
+        $sizes = max(1, (int) round(100 / $columns)) . 'vw';
+
         foreach ($items as $item) {
             $src = self::mediaUrl($item['image']);
             if ($src === '') {
@@ -201,13 +300,21 @@ final class MetaGallery
             $caption = $item['caption'];
             $link    = $item['link'];
 
+            $sources = ['src' => $src, 'srcset' => ''];
+            if (class_exists('\\Core\\MediaLibrary') && is_callable(['\\Core\\MediaLibrary', 'frontendImageSources'])) {
+                $sources = \Core\MediaLibrary::frontendImageSources($item['image'], null, $src);
+            }
+
             $figureStyle = 'position:relative;display:block;overflow:hidden;border-radius:10px;'
                 . 'background:rgba(0,0,0,.04);text-decoration:none;color:inherit;';
             if ($ratio !== 'auto') {
                 $figureStyle .= 'aspect-ratio:' . $ratioCss . ';';
             }
 
-            $img = '<img src="' . $esc($src) . '" alt="' . $esc($alt) . '" loading="lazy" decoding="async"'
+            $srcset = (string) ($sources['srcset'] ?? '');
+            $img = '<img src="' . $esc((string) ($sources['src'] ?? $src)) . '"'
+                . ($srcset !== '' ? ' srcset="' . $esc($srcset) . '" sizes="' . $esc($sizes) . '"' : '')
+                . ' alt="' . $esc($alt) . '" loading="lazy" decoding="async"'
                 . ' style="width:100%;height:100%;object-fit:cover;display:block;">';
 
             $inner = $img;

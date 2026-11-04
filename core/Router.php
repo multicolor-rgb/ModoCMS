@@ -105,7 +105,11 @@ final class Router {
      * in "maintenance_allowed_ips" are never affected.
      */
     public static function maintenanceActive(): bool {
-        if (!Config::getBool('maintenance_mode', false)) {
+        // The updater briefly closes the public site while it replaces files.
+        // A stale flag is ignored by Updater::isUpdating() automatically.
+        $updating = class_exists(Updater::class) && Updater::isUpdating();
+
+        if (!$updating && !Config::getBool('maintenance_mode', false)) {
             return false;
         }
 

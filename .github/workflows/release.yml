@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.2.
+# Release notes for Modo CMS 3.0.4.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,21 +53,19 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.2
-            - **Optional theme editor styles:** a theme can ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE and Editor.js canvas only.
-            - **Automatic opt-in:** the file is detected by its existence — no new setting, no fallback to `style.css`, and no frontend changes.
-            - **Theme metadata:** optional `editor.body_class` and `editor.content_style` keys in `theme.json`.
-            - **Editor.js scoping:** relative URLs and `@import` are rewritten to theme URLs, while Customizer variables override defaults from `editor.css`.
-            - **Bundled examples:** `editor.css` files for the `default`, `default2` and `editorial` themes.
-            - **No database changes:** updating from 3.0.1 requires no migration — replacing the files is enough.
+            ### What's new in 3.0.4
+            - **TinyMCE only:** the Editor.js block editor and its settings/assets were removed; legacy JSON content is converted to HTML automatically on the first admin request (CLI: `tools/migrate-editorjs.php`).
+            - **Better grid editing:** dashed row/column guides, 10 px canvas padding, automatic `<p>` wrappers and normalisation so changing a block format no longer destroys the grid.
+            - **No horizontal scrollbar:** `box-sizing: border-box` for grid containers/columns and `overflow-x: hidden` in the editor canvas.
+            - **Dark mode:** the TinyMCE content canvas always stays white; only the toolbar and dialogs follow the dark theme.
+            - **No schema changes:** the updater only converts legacy content when such documents exist.
 
-            ### Najważniejsze zmiany w 3.0.2
-            - **Opcjonalne style motywu w edytorze:** motyw może dostarczyć `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE i Editor.js.
-            - **Automatyczne włączanie:** plik jest wykrywany po istnieniu — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie.
-            - **Metadane motywu:** opcjonalne klucze `editor.body_class` i `editor.content_style` w `theme.json`.
-            - **Scopowanie Editor.js:** względne URL-e i `@import` są zamieniane na URL-e motywu, a zmienne Customizera nadpisują wartości domyślne z `editor.css`.
-            - **Przykłady w motywach:** pliki `editor.css` dla motywów `default`, `default2` i `editorial`.
-            - **Bez zmian w bazie:** aktualizacja z 3.0.1 nie wymaga migracji — wystarczy podmienić pliki.
+            ### Najważniejsze zmiany w 3.0.4
+            - **Tylko TinyMCE:** edytor blokowy Editor.js oraz jego ustawienia i zasoby zostały usunięte; stara treść JSON jest automatycznie konwertowana do HTML przy pierwszym wejściu do panelu (CLI: `tools/migrate-editorjs.php`).
+            - **Lepsze edytowanie siatek:** przerywane prowadnice wierszy i kolumn, padding kanwy 10 px, automatyczne owijanie w `<p>` i normalizacja — zmiana formatu bloku nie niszczy już siatki.
+            - **Brak poziomego paska przewijania:** `box-sizing: border-box` dla kontenerów i kolumn siatek oraz `overflow-x: hidden` na kanwie edytora.
+            - **Tryb ciemny:** kanwa TinyMCE zawsze pozostaje biała; ciemny motyw obejmuje tylko pasek narzędzi i dialogi.
+            - **Bez zmian w schemacie bazy:** aktualizator konwertuje wyłącznie stare dokumenty, jeśli takie istnieją.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

@@ -366,6 +366,7 @@ final class Config {
             'availability' => 'Availability (maintenance / HTTPS / analytics)',
             'uploads'      => 'Uploads',
             'security'     => 'Security',
+            'updates'      => 'System updates',
             default        => ucfirst($group),
         };
     }
@@ -552,6 +553,14 @@ final class Config {
                 'group'   => 'security',
                 'label'   => 'Block direct PHP access to plugins/',
                 'help'    => 'Keeps a plugins/.htaccess that stops browsers from executing plugin entry points (they are included by the core, never requested directly). Disable it only if a third-party plugin ships its own web endpoint.',
+            ],
+            'update_github_token' => [
+                'type'        => 'text',
+                'default'     => '',
+                'group'       => 'updates',
+                'label'       => 'GitHub token for update checks',
+                'help'        => 'Optional fine-grained GitHub token used only to query api.github.com. It raises the update-check limit from 60 to 5000 requests per hour. Leave empty to use the public releases feed when the anonymous limit is reached.',
+                'placeholder' => 'github_pat_...',
             ],
         ];
 

@@ -15,13 +15,16 @@ $csrfToken = Security::generateCsrfToken();
 /**
  * Redirects back to the requested media view with a flash message code.
  */
-function mediaRedirect(?string $folder, string $key, bool $isError = false): void
+function mediaRedirect(?string $folder, string $key, bool $isError = false, ?int $page = null): void
 {
     $params = [];
     if ($folder === '') {
         $params['folder'] = 'root';
     } elseif ($folder !== null) {
         $params['folder'] = $folder;
+    }
+    if ($page !== null && $page > 1) {
+        $params['page'] = $page;
     }
     $params[$isError ? 'err' : 'msg'] = $key;
 
@@ -68,9 +71,10 @@ function mediaPostString(string $key, string $default = ''): string
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is_string($_POST['media_action'])) {
     $returnFolder = mediaReadFolder(mediaPostString('return_folder', 'all'));
+    $returnPage = max(1, (int) mediaPostString('return_page', '1'));
 
     if (!Security::verifyCsrfToken(mediaPostString('csrf'))) {
-        mediaRedirect($returnFolder, 'csrf', true);
+        mediaRedirect($returnFolder, 'csrf', true, $returnPage);
     }
 
     $action = $_POST['media_action'];
@@ -79,9 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
         case 'create_folder':
             $result = MediaLibrary::createFolder(mediaPostString('folder_name'));
             if (!empty($result['ok'])) {
-                mediaRedirect((string) ($result['name'] ?? $returnFolder), 'folder_created');
+                mediaRedirect((string) ($result['name'] ?? $returnFolder), 'folder_created', false, $returnPage);
             }
-            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed')), true);
+            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed')), true, $returnPage);
             break;
 
         case 'rename_folder':
@@ -90,9 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
                 mediaPostString('folder_name')
             );
             if (!empty($result['ok'])) {
-                mediaRedirect((string) ($result['name'] ?? $returnFolder), 'folder_renamed');
+                mediaRedirect((string) ($result['name'] ?? $returnFolder), 'folder_renamed', false, $returnPage);
             }
-            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed')), true);
+            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed')), true, $returnPage);
             break;
 
         case 'delete_folder':
@@ -101,17 +105,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
             if (!empty($result['ok'])) {
                 // Never redirect back into a folder that no longer exists.
                 $destination = $returnFolder === $folderName ? null : $returnFolder;
-                mediaRedirect($destination, 'folder_deleted');
+                mediaRedirect($destination, 'folder_deleted', false, null);
             }
-            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed')), true);
+            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed')), true, $returnPage);
             break;
 
         case 'delete_file':
             $result = MediaLibrary::deleteFile(mediaPostString('file_path'));
             if (!empty($result['ok'])) {
-                mediaRedirect($returnFolder, 'file_deleted');
+                mediaRedirect($returnFolder, 'file_deleted', false, $returnPage);
             }
-            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed'), true), true);
+            mediaRedirect($returnFolder, mediaErrorKey((string) ($result['error'] ?? 'failed'), true), true, $returnPage);
+            break;
+
+        case 'delete_files':
+            $paths = $_POST['paths'] ?? [];
+            if (!is_array($paths)) {
+                $paths = [];
+            }
+            $paths = array_values(array_filter($paths, static function ($path): bool {
+                return is_string($path) && $path !== '';
+            }));
+
+            $result = MediaLibrary::deleteFiles($paths);
+            if ((int) ($result['deleted'] ?? 0) === 0) {
+                mediaRedirect($returnFolder, 'delete_failed', true, $returnPage);
+            }
+            if ((int) ($result['failed'] ?? 0) > 0) {
+                mediaRedirect($returnFolder, 'delete_partial', true, $returnPage);
+            }
+            mediaRedirect($returnFolder, 'files_deleted', false, $returnPage);
+            break;
+
+        case 'delete_all':
+            $viewValue = mediaPostString('view_folder', 'all');
+            // "All files" spans the entire library; only the root uploads
+            // directory or a concrete folder can be cleared with this action.
+            if ($viewValue === 'all') {
+                mediaRedirect($returnFolder, 'invalid_folder', true, $returnPage);
+            }
+
+            $viewFolder = mediaReadFolder($viewValue);
+            if ($viewFolder === null) {
+                mediaRedirect($returnFolder, 'invalid_folder', true, $returnPage);
+            }
+
+            $paths = [];
+            foreach (MediaLibrary::listImages($viewFolder, $viewFolder !== '') as $item) {
+                $path = $item['path'] ?? null;
+                if (is_string($path) && $path !== '') {
+                    $paths[$path] = true;
+                }
+            }
+
+            // Also collect database rows for this folder so stale records whose
+            // files are already gone disappear together with the folder files.
+            try {
+                foreach ($db->query("SELECT filepath FROM media") as $row) {
+                    $filepath = (string) ($row['filepath'] ?? '');
+                    if ($filepath !== '' && MediaLibrary::folderOfStoredPath($filepath) === $viewFolder) {
+                        $paths[$filepath] = true;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Filesystem deletion can still proceed without the DB scan.
+            }
+
+            $result = MediaLibrary::deleteFiles(array_keys($paths));
+            if ((int) ($result['deleted'] ?? 0) === 0) {
+                mediaRedirect($returnFolder, 'delete_failed', true, $returnPage);
+            }
+            if ((int) ($result['failed'] ?? 0) > 0) {
+                mediaRedirect($returnFolder, 'delete_partial', true, $returnPage);
+            }
+            mediaRedirect($returnFolder, 'all_files_deleted', false, $returnPage);
             break;
 
         case 'move_files':
@@ -125,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
             if ($targetValue !== '' && $targetValue !== 'root') {
                 $resolved = MediaLibrary::resolveFolder($targetValue);
                 if ($resolved === null) {
-                    mediaRedirect($returnFolder, 'invalid_folder', true);
+                    mediaRedirect($returnFolder, 'invalid_folder', true, $returnPage);
                 }
                 $targetFolder = basename($resolved);
             }
@@ -145,16 +212,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
             }
 
             if ($moved === 0) {
-                mediaRedirect($returnFolder, 'move_failed', true);
+                mediaRedirect($returnFolder, 'move_failed', true, $returnPage);
             }
             if ($failed > 0) {
-                mediaRedirect($returnFolder, 'move_partial', true);
+                mediaRedirect($returnFolder, 'move_partial', true, $returnPage);
             }
-            mediaRedirect($returnFolder, 'moved');
+            mediaRedirect($returnFolder, 'moved', false, $returnPage);
             break;
     }
 
-    mediaRedirect($returnFolder, 'operation_failed', true);
+    mediaRedirect($returnFolder, 'operation_failed', true, $returnPage);
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +304,8 @@ $flashMessages = [
     'folder_deleted' => __('Folder deleted successfully.'),
     'moved'          => __('Files moved successfully.'),
     'file_deleted'   => __('Media asset removed successfully.'),
+    'files_deleted'  => __('Selected files deleted successfully.'),
+    'all_files_deleted' => __('All files in this folder were deleted.'),
 ];
 
 $flashErrors = [
@@ -248,7 +317,8 @@ $flashErrors = [
     'file_missing'     => __('File not found.'),
     'move_partial'     => __('Some files could not be moved.'),
     'move_failed'      => __('Could not move the selected files.'),
-    'delete_failed'    => __('Could not delete the file.'),
+    'delete_failed'    => __('Could not delete the selected files.'),
+    'delete_partial'   => __('Some files could not be deleted.'),
     'operation_failed' => __('The operation could not be completed.'),
 ];
 
@@ -338,16 +408,24 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
         <span style="margin-left: 6px;">(<?= $viewCount ?>)</span>
     </div>
 
-    <?php if ($currentFolder !== null && $currentFolder !== ''): ?>
-        <div style="display: flex; gap: 6px;">
-            <button type="button" class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;"
-                    onclick="openFolderModal('rename', <?= $jsonAttr($currentFolder) ?>)">
-                <?= _e('Rename') ?>
-            </button>
-            <button type="button" class="btn btn-danger-ghost" style="padding: 5px 10px; font-size: 12px;"
-                    onclick="requestDeleteFolder(<?= $jsonAttr($currentFolder) ?>, <?= $currentFolderCount ?>)">
-                <?= _e('Delete Folder') ?>
-            </button>
+    <?php if ($currentFolder !== null): ?>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <?php if ($currentFolder !== ''): ?>
+                <button type="button" class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;"
+                        onclick="openFolderModal('rename', <?= $jsonAttr($currentFolder) ?>)">
+                    <?= _e('Rename') ?>
+                </button>
+                <button type="button" class="btn btn-danger-ghost" style="padding: 5px 10px; font-size: 12px;"
+                        onclick="requestDeleteFolder(<?= $jsonAttr($currentFolder) ?>, <?= $currentFolderCount ?>)">
+                    <?= _e('Delete Folder') ?>
+                </button>
+            <?php endif; ?>
+            <?php if ($viewCount > 0): ?>
+                <button type="button" class="btn btn-danger-ghost" style="padding: 5px 10px; font-size: 12px;"
+                        onclick="deleteAllFiles(<?= $jsonAttr($returnFolderValue) ?>)">
+                    <?= _e('Delete all files') ?>
+                </button>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>
@@ -427,6 +505,9 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
             <button type="button" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openMoveModalFromSelection()">
                 <?= _e('Move selected') ?>
             </button>
+            <button type="button" class="btn btn-danger-ghost" style="padding: 5px 10px; font-size: 12px;" onclick="deleteSelectedFiles()">
+                <?= _e('Delete selected') ?>
+            </button>
         </div>
     </div>
 <?php endif; ?>
@@ -437,7 +518,7 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
             <?= _e('No media assets found in library.') ?>
         </div>
     <?php else: ?>
-        <?php foreach ($pageItems as $item):
+        <?php foreach ($pageItems as $itemIndex => $item):
             $filePath = (string) $item['filepath'];
             $fullUrl = MediaLibrary::urlForStoredPath($filePath);
             $thumbUrl = MediaLibrary::thumbnailUrl($filePath, 240);
@@ -447,8 +528,10 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
         ?>
             <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-sm); background: var(--bg-card, #111827);">
                 <div style="width: 100%; height: 140px; background: var(--bg-surface, #1e293b); display: flex; align-items: center; justify-content: center; position: relative;">
-                    <img src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES, 'UTF-8') ?>" alt="<?= Security::sanitize((string) $item['filename']) ?>" loading="lazy" decoding="async" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                    <label style="position: absolute; top: 8px; left: 8px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: rgba(15, 23, 42, 0.65); cursor: pointer;">
+                    <button type="button" class="media-thumb-button" onclick="openMediaLightbox(<?= (int) $itemIndex ?>)">
+                        <img src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES, 'UTF-8') ?>" alt="<?= Security::sanitize((string) $item['filename']) ?>" loading="lazy" decoding="async" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                    </button>
+                    <label class="media-thumb-check">
                         <input type="checkbox" class="media-select" value="<?= htmlspecialchars($filePath, ENT_QUOTES, 'UTF-8') ?>" style="margin: 0; cursor: pointer;">
                     </label>
                 </div>
@@ -467,7 +550,7 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
 
                     <div style="display: flex; gap: 6px; margin-top: 12px;">
                         <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; flex-grow: 1;"
-                                onclick="openImageEditor(<?= $jsonAttr($fullUrl) ?>, <?= $jsonAttr((string) $item['filename']) ?>, <?= $jsonAttr($itemFolder) ?>)">
+                                onclick="openImageEditor(<?= $jsonAttr($fullUrl) ?>, <?= $jsonAttr((string) $item['filename']) ?>, <?= $jsonAttr($itemFolder) ?>, <?= $jsonAttr($filePath) ?>, <?= $jsonAttr((string) $item['mime_type']) ?>)">
                             <?= _e('Edit') ?>
                         </button>
                         <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; flex-grow: 1;"
@@ -512,6 +595,7 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
             <input type="hidden" name="media_action" id="folder-action" value="create_folder">
             <input type="hidden" name="old_folder" id="folder-old" value="">
             <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
 
             <label for="folder-name-input" class="form-label" style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
                 <?= _e('Folder name') ?>
@@ -537,6 +621,7 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
             <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="media_action" value="move_files">
             <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
             <div id="move-paths"></div>
 
             <label for="move-target-folder" class="form-label" style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
@@ -575,6 +660,7 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
             <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="media_action" value="delete_file">
             <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
             <input type="hidden" name="file_path" id="delete-file-path" value="">
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button type="button" class="btn btn-secondary" style="flex: 1; padding: 9px;" onclick="closeDeleteModal()"><?= _e('Cancel') ?></button>
@@ -590,42 +676,156 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
     <input type="hidden" name="media_action" value="delete_folder">
     <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+    <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
     <input type="hidden" name="folder_name" id="delete-folder-name" value="">
 </form>
 
-<div id="image-editor-modal" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 1000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px);">
-    <div style="background: var(--bg-card, #111827); border-radius: var(--radius-md, 8px); max-width: 900px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid var(--border-subtle);">
-        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-main);"><?= _e('Canvas Image Editor') ?></h3>
-            <button type="button" onclick="closeImageEditor()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);">&times;</button>
+<form method="post" id="delete-files-form" style="display: none;">
+    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+    <input type="hidden" name="media_action" value="delete_files">
+    <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+    <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
+</form>
+
+<form method="post" id="delete-all-form" style="display: none;">
+    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+    <input type="hidden" name="media_action" value="delete_all">
+    <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+    <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
+    <input type="hidden" name="view_folder" id="delete-all-folder" value="">
+</form>
+
+<div id="image-editor-modal" class="media-editor-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="media-editor-title">
+    <div class="media-editor-dialog">
+        <div class="media-editor-header">
+            <h3 id="media-editor-title" class="media-editor-title"><?= _e('Edit Image') ?></h3>
+            <button type="button" class="media-editor-close" onclick="closeImageEditor()" aria-label="<?= _e('Cancel') ?>">&times;</button>
         </div>
 
-        <div style="padding: 14px 20px; background: var(--bg-surface, #1e293b); border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <button type="button" class="btn btn-secondary" onclick="rotateImage(90)"><?= _e('Rotate 90°') ?></button>
-            <button type="button" class="btn btn-secondary" onclick="flipImage('h')"><?= _e('Flip Horizontal') ?></button>
-            <button type="button" class="btn btn-secondary" onclick="flipImage('v')"><?= _e('Flip Vertical') ?></button>
-            <select id="aspect-ratio-selector" class="form-control" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="applyAspectCrop(this.value)">
-                <option value="free"><?= _e('Original Ratio') ?></option>
-                <option value="16:9">16:9 (Landscape)</option>
-                <option value="4:3">4:3 (Standard)</option>
-                <option value="1:1">1:1 (Square)</option>
+        <div class="media-editor-toolbar">
+            <button type="button" class="btn btn-secondary media-editor-tool" onclick="editorRotate(-90)">
+                <?= _e('Rotate left') ?>
+            </button>
+            <button type="button" class="btn btn-secondary media-editor-tool" onclick="editorRotate(90)">
+                <?= _e('Rotate right') ?>
+            </button>
+            <button type="button" class="btn btn-secondary media-editor-tool" onclick="editorFlip('x')">
+                <?= _e('Flip horizontal') ?>
+            </button>
+            <button type="button" class="btn btn-secondary media-editor-tool" onclick="editorFlip('y')">
+                <?= _e('Flip vertical') ?>
+            </button>
+            <button type="button" class="btn btn-secondary media-editor-tool" onclick="editorReset()">
+                <?= _e('Reset') ?>
+            </button>
+            <span class="media-editor-separator"></span>
+            <label for="editor-ratio" class="media-editor-label"><?= _e('Crop') ?></label>
+            <select id="editor-ratio" class="form-control media-editor-select" onchange="editorSetRatio(this.value)">
+                <option value="free"><?= _e('Free') ?></option>
+                <option value="original"><?= _e('Original') ?></option>
+                <option value="1:1">1:1</option>
+                <option value="4:3">4:3</option>
+                <option value="3:2">3:2</option>
+                <option value="16:9">16:9</option>
             </select>
         </div>
 
-        <div style="padding: 20px; overflow: auto; flex-grow: 1; display: flex; justify-content: center; align-items: center; background: #0b0f19;">
-            <canvas id="editor-canvas" style="max-width: 100%; max-height: 55vh; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"></canvas>
+        <div class="media-editor-stage">
+            <div id="editor-canvas-wrap" class="media-editor-canvas-wrap">
+                <canvas id="editor-canvas"></canvas>
+                <div id="editor-crop" class="media-editor-crop">
+                    <span class="media-editor-handle" data-handle="nw"></span>
+                    <span class="media-editor-handle" data-handle="n"></span>
+                    <span class="media-editor-handle" data-handle="ne"></span>
+                    <span class="media-editor-handle" data-handle="e"></span>
+                    <span class="media-editor-handle" data-handle="se"></span>
+                    <span class="media-editor-handle" data-handle="s"></span>
+                    <span class="media-editor-handle" data-handle="sw"></span>
+                    <span class="media-editor-handle" data-handle="w"></span>
+                </div>
+            </div>
         </div>
 
-        <div style="padding: 16px 20px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card, #111827);">
-            <span id="canvas-resolution" style="font-size: 12px; color: var(--text-muted);"></span>
-            <div style="display: flex; gap: 10px;">
+        <div class="media-editor-footer">
+            <div class="media-editor-meta">
+                <span id="canvas-resolution"></span>
+                <span id="editor-format"></span>
+            </div>
+            <div class="media-editor-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeImageEditor()"><?= _e('Cancel') ?></button>
-                <button type="button" id="save-canvas-btn" class="btn btn-primary" onclick="saveEditedImage()"><?= _e('Save as New Image') ?></button>
+                <button type="button" id="editor-save-copy" class="btn btn-secondary" onclick="saveEditedImage('copy')"><?= _e('Save as copy') ?></button>
+                <button type="button" id="editor-save" class="btn btn-primary" onclick="saveEditedImage('overwrite')"><?= _e('Save') ?></button>
             </div>
         </div>
     </div>
 </div>
 
+<?php
+$mediaToolsItems = [];
+foreach ($pageItems as $item) {
+    $storedPath = (string) $item['filepath'];
+    $mediaToolsItems[] = [
+        'url'    => MediaLibrary::urlForStoredPath($storedPath),
+        'path'   => $storedPath,
+        'name'   => (string) $item['filename'],
+        'folder' => MediaLibrary::folderOfStoredPath($storedPath),
+        'mime'   => (string) $item['mime_type'],
+        'size'   => (int) $item['file_size'],
+    ];
+}
+
+$mediaToolsCfg = [
+    'items'   => $mediaToolsItems,
+    'csrf'    => $csrfToken,
+    'saveUrl' => 'media-save.php',
+    'i18n'    => [
+        'close'                => __('Close'),
+        'imagePreview'         => __('Image preview'),
+        'zoomIn'               => __('Zoom in'),
+        'zoomOut'              => __('Zoom out'),
+        'resetZoom'            => __('Reset zoom'),
+        'openOriginal'         => __('Open original'),
+        'previousImage'        => __('Previous image'),
+        'nextImage'            => __('Next image'),
+        'edit'                 => __('Edit'),
+        'copyUrl'              => __('Copy URL'),
+        'editImage'            => __('Edit Image'),
+        'deleteSelected'       => __('Delete selected'),
+        'deleteSelectedTitle'  => __('Delete selected files?'),
+        'deleteSelectedMessage' => __('This will permanently delete the selected files. This action cannot be undone.'),
+        'deleteAllTitle'       => __('Delete all files in this folder?'),
+        'deleteAllMessage'     => sprintf(__('This will permanently delete all %d file(s) in this folder. This action cannot be undone.'), $viewCount),
+        'deleteFailed'         => __('Could not delete the selected files.'),
+        'delete'               => __('Delete'),
+        'cancel'               => __('Cancel'),
+        'selectAtLeastOne'     => __('Select at least one file.'),
+        'save'                 => __('Save'),
+        'saveAsCopy'           => __('Save as copy'),
+        'saving'               => __('Saving...'),
+        'replaceTitle'         => __('Replace original image?'),
+        'replaceMessage'       => __('The original file will be permanently replaced. This action cannot be undone.'),
+        'copyOnlyHint'         => __('This image format can only be saved as a copy.'),
+        'imageSaved'           => __('Image saved successfully.'),
+        'couldNotLoad'         => __('Could not load the image.'),
+        'saveError'            => __('Save Error'),
+        'errorMissing'         => __('File not found.'),
+        'errorInvalid'         => __('Invalid image.'),
+        'errorReadonly'        => __('This image format can only be saved as a copy.'),
+        'errorCsrf'            => __('Invalid security token. Please try again.'),
+        'errorFailed'          => __('Could not save the image.'),
+        'errorTooLarge'        => __('The image is too large to upload.'),
+        'linkCopied'           => __('Link copied to clipboard'),
+        'root'                 => __('Root'),
+    ],
+];
+$mediaToolsJsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    | JSON_INVALID_UTF8_SUBSTITUTE;
+?>
+<script>
+window.MEDIA_TOOLS_CFG = <?= json_encode($mediaToolsCfg, $mediaToolsJsonFlags) ?>;
+</script>
+<script src="assets/js/media-tools.js?v=<?= (int) @filemtime(__DIR__ . '/assets/js/media-tools.js') ?>"></script>
 <script>
 const MEDIA_CURRENT_FOLDER = <?= json_encode($currentFolder ?? '', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const MEDIA_I18N = {
@@ -633,7 +833,13 @@ const MEDIA_I18N = {
     deleteFolderTitle: <?= json_encode(__('Delete Folder')) ?>,
     deleteFolderMessage: <?= json_encode(__('Are you sure you want to delete this folder?')) ?>,
     folderNotEmpty: <?= json_encode(__('Folder is not empty. Move its files first.')) ?>,
-    selectAtLeastOne: <?= json_encode(__('Select at least one file.')) ?>
+    selectAtLeastOne: <?= json_encode(__('Select at least one file.')) ?>,
+    deleteSelectedTitle: <?= json_encode(__('Delete selected files?')) ?>,
+    deleteSelectedMessage: <?= json_encode(__('This will permanently delete the selected files. This action cannot be undone.')) ?>,
+    deleteAllTitle: <?= json_encode(__('Delete all files in this folder?')) ?>,
+    deleteAllMessage: <?= json_encode(sprintf(__('This will permanently delete all %d file(s) in this folder. This action cannot be undone.'), $viewCount)) ?>,
+    delete: <?= json_encode(__('Delete')) ?>,
+    cancel: <?= json_encode(__('Cancel')) ?>
 };
 
 // ---------------------------------------------------------------------------
@@ -752,6 +958,58 @@ function closeMoveModal() {
 if (moveModal) {
     moveModal.addEventListener('click', (e) => {
         if (e.target === moveModal) closeMoveModal();
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk deletion
+// ---------------------------------------------------------------------------
+const deleteFilesForm = document.getElementById('delete-files-form');
+const deleteAllForm = document.getElementById('delete-all-form');
+const deleteAllFolderInput = document.getElementById('delete-all-folder');
+
+function deleteSelectedFiles() {
+    const paths = Array.from(document.querySelectorAll('.media-select:checked')).map((cb) => cb.value);
+    if (!paths.length) {
+        UI.alert({ title: MEDIA_I18N.deleteSelectedTitle, message: MEDIA_I18N.selectAtLeastOne, danger: true });
+        return;
+    }
+    if (!deleteFilesForm) return;
+
+    UI.confirm({
+        title: MEDIA_I18N.deleteSelectedTitle,
+        message: MEDIA_I18N.deleteSelectedMessage,
+        okText: MEDIA_I18N.delete,
+        cancelText: MEDIA_I18N.cancel,
+        danger: true
+    }).then((ok) => {
+        if (!ok) return;
+
+        deleteFilesForm.querySelectorAll('input[name="paths[]"]').forEach((input) => input.remove());
+        paths.forEach((path) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'paths[]';
+            input.value = path;
+            deleteFilesForm.appendChild(input);
+        });
+        deleteFilesForm.submit();
+    });
+}
+
+function deleteAllFiles(folder) {
+    if (!deleteAllForm || !deleteAllFolderInput) return;
+
+    UI.confirm({
+        title: MEDIA_I18N.deleteAllTitle,
+        message: MEDIA_I18N.deleteAllMessage,
+        okText: MEDIA_I18N.delete,
+        cancelText: MEDIA_I18N.cancel,
+        danger: true
+    }).then((ok) => {
+        if (!ok) return;
+        deleteAllFolderInput.value = folder || 'root';
+        deleteAllForm.submit();
     });
 }
 
@@ -878,122 +1136,6 @@ function uploadFiles(files) {
     });
 }
 
-// ---------------------------------------------------------------------------
-// Canvas image editor
-// ---------------------------------------------------------------------------
-const editorModal = document.getElementById('image-editor-modal');
-const canvas = document.getElementById('editor-canvas');
-const ctx = canvas.getContext('2d');
-const resIndicator = document.getElementById('canvas-resolution');
-let originalImg = new Image();
-let currentAngle = 0;
-let scaleH = 1;
-let scaleV = 1;
-let activeFilename = 'edited.jpg';
-let activeFolder = '';
-
-function openImageEditor(imageUrl, filename, folder) {
-    activeFilename = filename;
-    activeFolder = folder || '';
-    originalImg.crossOrigin = 'anonymous';
-    originalImg.src = imageUrl;
-    originalImg.onload = () => {
-        currentAngle = 0;
-        scaleH = 1;
-        scaleV = 1;
-        document.getElementById('aspect-ratio-selector').value = 'free';
-        renderCanvas();
-        editorModal.style.display = 'flex';
-    };
-}
-
-function closeImageEditor() {
-    editorModal.style.display = 'none';
-}
-
-function renderCanvas() {
-    const isRotated = currentAngle % 180 !== 0;
-    const w = isRotated ? originalImg.naturalHeight : originalImg.naturalWidth;
-    const h = isRotated ? originalImg.naturalWidth : originalImg.naturalHeight;
-
-    canvas.width = w;
-    canvas.height = h;
-
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate((currentAngle * Math.PI) / 180);
-    ctx.scale(scaleH, scaleV);
-    ctx.drawImage(originalImg, -originalImg.naturalWidth / 2, -originalImg.naturalHeight / 2);
-    ctx.restore();
-
-    resIndicator.textContent = `${canvas.width} x ${canvas.height} px`;
-}
-
-function rotateImage(deg) {
-    currentAngle = (currentAngle + deg) % 360;
-    renderCanvas();
-}
-
-function flipImage(axis) {
-    if (axis === 'h') scaleH *= -1;
-    if (axis === 'v') scaleV *= -1;
-    renderCanvas();
-}
-
-function applyAspectCrop(ratio) {
-    if (ratio === 'free') {
-        renderCanvas();
-        return;
-    }
-    renderCanvas();
-    const [rw, rh] = ratio.split(':').map(Number);
-    let targetW = canvas.width;
-    let targetH = Math.round(targetW * (rh / rw));
-
-    if (targetH > canvas.height) {
-        targetH = canvas.height;
-        targetW = Math.round(targetH * (rw / rh));
-    }
-
-    const startX = Math.round((canvas.width - targetW) / 2);
-    const startY = Math.round((canvas.height - targetH) / 2);
-
-    const croppedData = ctx.getImageData(startX, startY, targetW, targetH);
-    canvas.width = targetW;
-    canvas.height = targetH;
-    ctx.putImageData(croppedData, 0, 0);
-    resIndicator.textContent = `${canvas.width} x ${canvas.height} px`;
-}
-
-function saveEditedImage() {
-    const saveBtn = document.getElementById('save-canvas-btn');
-    saveBtn.disabled = true;
-    saveBtn.textContent = <?= json_encode(__('Saving...')) ?>;
-
-    canvas.toBlob((blob) => {
-        const formData = new FormData();
-        formData.append('file', blob, 'edited_' + activeFilename.replace(/\.[^/.]+$/, '.jpg'));
-        formData.append('folder', activeFolder);
-
-        fetch('upload.php', { method: 'POST', body: formData })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.location) {
-                    window.location.reload();
-                } else {
-                    UI.alert({ title: <?= json_encode(__('Save Error')) ?>, message: data.error || <?= json_encode(__('Failed to save image.')) ?>, danger: true });
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = <?= json_encode(__('Save as New Image')) ?>;
-                }
-            })
-            .catch(() => {
-                UI.alert({ title: <?= json_encode(__('Save Error')) ?>, message: <?= json_encode(__('Upload failed due to network error.')) ?>, danger: true });
-                saveBtn.disabled = false;
-                saveBtn.textContent = <?= json_encode(__('Save as New Image')) ?>;
-            });
-    }, 'image/jpeg', 0.92);
-}
-
 // Generate missing thumbnails in small batches so the request never times out.
 (function () {
     const btn = document.getElementById('thumb-backfill-btn');
@@ -1010,6 +1152,7 @@ function saveEditedImage() {
 
         let offset = 0;
         let done = false;
+        let failed = 0;
         while (!done) {
             const body = new URLSearchParams();
             body.set('csrf', csrf);
@@ -1023,9 +1166,10 @@ function saveEditedImage() {
 
                 offset = Number(data.next) || 0;
                 done = !!data.done;
+                failed += Number(data.failed) || 0;
                 const percent = data.total > 0 ? Math.min(100, Math.round((offset / data.total) * 100)) : 100;
                 if (bar) bar.style.width = percent + '%';
-                if (status) status.textContent = offset + ' / ' + data.total;
+                if (status) status.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
             } catch (error) {
                 if (status) status.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
                 btn.disabled = false;
@@ -1033,7 +1177,7 @@ function saveEditedImage() {
             }
         }
 
-        if (status) status.textContent = <?= json_encode(__('Thumbnails generated.')) ?>;
+        if (status) status.textContent = <?= json_encode(__('Thumbnails generated.')) ?> + (failed > 0 ? ' · errors: ' + failed : '');
         window.location.reload();
     });
 

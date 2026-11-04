@@ -267,334 +267,48 @@ final class CssFramework
     }
 
     /**
-     * Returns the active grid CSS (bundled stylesheet + custom additions)
-     * scoped under a selector, so the grid classes only affect the given
-     * element instead of leaking into the surrounding admin UI.
+     * Editor-only guides that make grid rows and columns visible while editing.
      *
-     * Editor.js renders inline (no iframe like TinyMCE), hence the need for
-     * this scoped variant.
-     *
-     * @param string $scope CSS selector, e.g. "#editorjs".
+     * The rules are injected through TinyMCE's "content_style", so they never
+     * reach the published page. Only the active framework's selectors are used
+     * to avoid outlining unrelated content.
      */
-    public static function editorScopedCss(string $scope = '#editorjs'): string
+    public static function editorGuideCss(): string
     {
         if (!self::enabledFor('editor')) {
             return '';
         }
 
-        $scope = trim($scope);
-        if ($scope === '') {
+        [$row, $col] = self::guideSelectors(self::active());
+        if ($row === '' || $col === '') {
             return '';
         }
 
-        $css = '';
-        $root = dirname(__DIR__);
-        $framework = self::get(self::active());
-
-        if ($framework !== null && (string) $framework['css'] !== '') {
-            $file = $root . '/' . ltrim((string) $framework['css'], '/');
-            if (is_file($file)) {
-                $contents = file_get_contents($file);
-                if ($contents !== false) {
-                    $css .= $contents . "\n";
-                }
-            }
-        }
-
-        $css .= self::customCss();
-        if (trim($css) === '') {
-            return '';
-        }
-
-        return self::scopeCss($css, $scope);
+        return $row . '{outline:1px dashed rgba(37,99,235,.55);outline-offset:2px}' . "\n"
+            . $col . '{outline:1px dashed rgba(217,119,6,.55);outline-offset:-2px}' . "\n"
+            . $col . ':hover{outline-color:rgba(217,119,6,.9)}' . "\n";
     }
 
     /**
-     * Scopes every style rule under a selector.
+     * Row/column selectors used by the editor-only grid guides and by the
+     * client-side column normaliser.
      *
-     * Root-level selectors (:root, html, body) map directly onto the scope,
-     * while their descendants become "$scope X". Conditional at-rules such as
-     * @media are processed recursively; @keyframes and @font-face are left
-     * untouched so their inner selectors stay valid.
-     *
-     * @param string $css   Stylesheet contents.
-     * @param string $scope CSS selector, e.g. "#editorjs".
+     * @return array{0:string,1:string}
      */
-    public static function scopeCss(string $css, string $scope): string
+    private static function guideSelectors(string $id): array
     {
-        $scope = trim($scope);
-        if ($scope === '' || trim($css) === '') {
-            return '';
-        }
-
-        $css = self::stripCssComments($css);
-
-        return trim(self::scopeCssRules($css, $scope));
+        return match ($id) {
+            'bootstrap'  => ['.row', '.row > *'],
+            'bulma'      => ['.columns', '.columns > .column'],
+            'foundation' => ['.grid-x', '.grid-x > .cell'],
+            'modo'       => ['.modo-grid', '.modo-grid > *'],
+            'pico'       => ['.grid', '.grid > *'],
+            'uikit'      => ['.uk-grid', '.uk-grid > *'],
+            'tailwind'   => ['.grid', '.grid > *'],
+            default      => ['', ''],
+        };
     }
 
-    /**
-     * Recursively walks top-level rules and scopes their selectors.
-     */
-    private static function scopeCssRules(string $css, string $scope): string
-    {
-        $output = '';
-        $length = strlen($css);
-        $offset = 0;
-
-        while ($offset < $length) {
-            $delimiter = self::nextTopLevelDelimiter($css, $offset);
-            if ($delimiter === null) {
-                $output .= substr($css, $offset);
-                break;
-            }
-
-            [$position, $character] = $delimiter;
-            $prelude = trim(substr($css, $offset, $position - $offset));
-
-            if ($character === ';') {
-                $output .= $prelude !== '' ? $prelude . ';' : ';';
-                $offset = $position + 1;
-                continue;
-            }
-
-            $close = self::findMatchingBrace($css, $position);
-            if ($close === null) {
-                $output .= substr($css, $offset);
-                break;
-            }
-
-            $block = substr($css, $position + 1, $close - $position - 1);
-
-            if ($prelude === '') {
-                $output .= '{' . $block . '}';
-            } elseif (str_starts_with($prelude, '@')) {
-                $output .= self::isScopableAtRule($prelude)
-                    ? $prelude . '{' . self::scopeCssRules($block, $scope) . '}'
-                    : $prelude . '{' . $block . '}';
-            } else {
-                $output .= self::scopeCssSelectorList($prelude, $scope) . '{' . $block . '}';
-            }
-
-            $offset = $close + 1;
-        }
-
-        return $output;
-    }
-
-    /**
-     * Finds the next top-level "{" or ";" outside strings, parentheses and
-     * attribute selectors.
-     *
-     * @return array{0:int,1:string}|null
-     */
-    private static function nextTopLevelDelimiter(string $css, int $offset): ?array
-    {
-        $length = strlen($css);
-        $quote = '';
-        $escaped = false;
-        $parentheses = 0;
-        $brackets = 0;
-
-        for ($i = $offset; $i < $length; $i++) {
-            $character = $css[$i];
-
-            if ($quote !== '') {
-                if ($escaped) {
-                    $escaped = false;
-                } elseif ($character === '\\') {
-                    $escaped = true;
-                } elseif ($character === $quote) {
-                    $quote = '';
-                }
-                continue;
-            }
-
-            if ($character === '"' || $character === "'") {
-                $quote = $character;
-                continue;
-            }
-            if ($character === '(') {
-                $parentheses++;
-                continue;
-            }
-            if ($character === ')') {
-                $parentheses = max(0, $parentheses - 1);
-                continue;
-            }
-            if ($character === '[') {
-                $brackets++;
-                continue;
-            }
-            if ($character === ']') {
-                $brackets = max(0, $brackets - 1);
-                continue;
-            }
-            if ($parentheses === 0 && $brackets === 0 && ($character === '{' || $character === ';')) {
-                return [$i, $character];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Returns the index of the "}" matching the "{" at $open.
-     */
-    private static function findMatchingBrace(string $css, int $open): ?int
-    {
-        $length = strlen($css);
-        $depth = 0;
-        $quote = '';
-        $escaped = false;
-
-        for ($i = $open; $i < $length; $i++) {
-            $character = $css[$i];
-
-            if ($quote !== '') {
-                if ($escaped) {
-                    $escaped = false;
-                } elseif ($character === '\\') {
-                    $escaped = true;
-                } elseif ($character === $quote) {
-                    $quote = '';
-                }
-                continue;
-            }
-
-            if ($character === '"' || $character === "'") {
-                $quote = $character;
-                continue;
-            }
-            if ($character === '{') {
-                $depth++;
-                continue;
-            }
-            if ($character === '}') {
-                $depth--;
-                if ($depth === 0) {
-                    return $i;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Whether an at-rule contains regular style rules that must be scoped.
-     */
-    private static function isScopableAtRule(string $prelude): bool
-    {
-        return preg_match(
-            '/^@(?:media|supports|container|layer|document|-moz-document|scope|starting-style)\b/i',
-            $prelude
-        ) === 1;
-    }
-
-    /**
-     * Scopes a comma separated selector list.
-     */
-    private static function scopeCssSelectorList(string $selectors, string $scope): string
-    {
-        $mapped = [];
-        foreach (self::splitTopLevelSelectors($selectors) as $selector) {
-            $selector = trim($selector);
-            if ($selector === '') {
-                continue;
-            }
-            $mapped[] = self::scopeCssSelector($selector, $scope);
-        }
-
-        return implode(', ', $mapped);
-    }
-
-    /**
-     * Splits a selector list without breaking commas inside :is(), :where()
-     * or attribute values.
-     *
-     * @return array<int,string>
-     */
-    private static function splitTopLevelSelectors(string $selectors): array
-    {
-        $result = [];
-        $buffer = '';
-        $length = strlen($selectors);
-        $quote = '';
-        $escaped = false;
-        $parentheses = 0;
-        $brackets = 0;
-
-        for ($i = 0; $i < $length; $i++) {
-            $character = $selectors[$i];
-
-            if ($quote !== '') {
-                $buffer .= $character;
-                if ($escaped) {
-                    $escaped = false;
-                } elseif ($character === '\\') {
-                    $escaped = true;
-                } elseif ($character === $quote) {
-                    $quote = '';
-                }
-                continue;
-            }
-
-            if ($character === '"' || $character === "'") {
-                $quote = $character;
-                $buffer .= $character;
-                continue;
-            }
-            if ($character === '(') {
-                $parentheses++;
-            } elseif ($character === ')') {
-                $parentheses = max(0, $parentheses - 1);
-            } elseif ($character === '[') {
-                $brackets++;
-            } elseif ($character === ']') {
-                $brackets = max(0, $brackets - 1);
-            }
-
-            if ($character === ',' && $parentheses === 0 && $brackets === 0) {
-                $result[] = $buffer;
-                $buffer = '';
-                continue;
-            }
-
-            $buffer .= $character;
-        }
-
-        $result[] = $buffer;
-
-        return $result;
-    }
-
-    /**
-     * Maps one selector onto the scope.
-     */
-    private static function scopeCssSelector(string $selector, string $scope): string
-    {
-        if (in_array(strtolower($selector), [':root', 'html', 'body'], true)) {
-            return $scope;
-        }
-
-        if (preg_match('/^(?::root|html|body)([\s>+~].*)$/is', $selector, $match) === 1) {
-            return $scope . $match[1];
-        }
-
-        if (preg_match('/^(?::root|html|body)([.#\[\]:].*)$/is', $selector, $match) === 1) {
-            return $scope . $match[1];
-        }
-
-        return $scope . ' ' . $selector;
-    }
-
-    /**
-     * Removes CSS comments before parsing.
-     */
-    private static function stripCssComments(string $css): string
-    {
-        return preg_replace('#/\*.*?\*/#s', '', $css) ?? $css;
-    }
 
     // ---------------------------------------------------------------------
     // Grid markup
@@ -602,8 +316,8 @@ final class CssFramework
 
     /**
      * Builds framework correct grid markup. Mirrors the client side builder in
-     * admin/assets/js/grid-editor.js so grids authored in TinyMCE and in
-     * Editor.js render identically.
+     * admin/assets/js/grid-editor.js so grids authored in TinyMCE render the
+     * same way as legacy grid blocks converted during the Editor.js migration.
      *
      * @param array<string,mixed> $spec {
      *     framework  : framework id (defaults to the active one)
@@ -673,7 +387,15 @@ final class CssFramework
         $cells = [];
         for ($i = 0; $i < $columns; $i++) {
             $inner = trim((string) ($contents[$i] ?? ''));
-            $cells[] = $colOpen . ($inner === '' ? '&nbsp;' : $inner) . '</div>';
+            if ($inner === '') {
+                $inner = '<p>&nbsp;</p>';
+            } elseif (preg_match('/^<(?:address|article|aside|blockquote|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|main|nav|ol|p|pre|section|table|ul)\b/i', $inner) !== 1) {
+                // Bare text / inline markup must get a real block wrapper.
+                // Otherwise TinyMCE's FormatBlock converts the column <div>
+                // itself into <h1>/<p> and the grid structure is destroyed.
+                $inner = '<p>' . $inner . '</p>';
+            }
+            $cells[] = $colOpen . $inner . '</div>';
         }
 
         $containerOpen = '';
@@ -699,6 +421,7 @@ final class CssFramework
     {
         $id = self::active();
         $fw = self::$frameworks[$id];
+        [$guideRow, $guideCol] = self::guideSelectors($id);
 
         return [
             'id'          => $id,
@@ -710,6 +433,10 @@ final class CssFramework
             'count'       => (string) $fw['count'],
             'breakpoints' => array_values((array) $fw['breakpoints']),
             'cols'        => (int) $fw['cols'],
+            'guide'       => [
+                'row' => $guideRow,
+                'col' => $guideCol,
+            ],
             'labels'      => [
                 'title'      => __('Insert Grid / Columns'),
                 'columns'    => __('Columns'),

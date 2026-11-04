@@ -861,31 +861,6 @@ if (!class_exists('ModoCarousel')) {
                 }
             })();
             </script>
-            <script>
-            // Editor.js (Settings → Content): same picker through the editor bridge.
-            (function(){
-                if(!window.ModoEditor||typeof window.ModoEditor.registerButton!=="function") return;
-                window.ModoEditor.registerButton({
-                    id:"modo_carousel",
-                    label:cfg.labels.label||cfg.labels.title,
-                    icon:"<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"14\" height=\"14\" rx=\"2\"/><path d=\"M20 8v8\"/></svg>",
-                    insert:function(api){
-                        var list=cfg.items||[];
-                        api.pickFromList({
-                            title:cfg.labels.title,
-                            label:cfg.labels.label,
-                            items:list.map(function(c){return {text:c.name+" (#"+c.id+")",value:String(c.id)};}),
-                            submitText:cfg.labels.insert,
-                            cancelText:cfg.labels.cancel,
-                            emptyText:cfg.labels.none
-                        },function(cid){
-                            if(!cid){ return; }
-                            api.insertShortcode('[modo_carousel id="'+cid+'"]');
-                        });
-                    }
-                });
-            })();
-            </script>
             <?php
         }
 

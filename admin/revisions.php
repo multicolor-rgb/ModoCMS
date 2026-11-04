@@ -118,11 +118,9 @@ switch ($action) {
             'revision' => [
                 'id'         => (int) $rev['id'],
                 'title'      => (string) $rev['title'],
-                // Preview iframes inject this as HTML, so block documents are
-                // rendered the same way the frontend renders them.
-                'content'    => class_exists(\Core\EditorJs::class)
-                    ? \Core\EditorJs::render((string) $rev['content'])
-                    : (string) $rev['content'],
+                // Preview iframes inject this as HTML; legacy documents are
+                // converted the same way the frontend renders them.
+                'content'    => \Core\LegacyEditorContent::render((string) $rev['content']),
                 'type'       => (string) $rev['type'],
                 'status'     => (string) $rev['status'],
                 'source'     => (string) $rev['source'],

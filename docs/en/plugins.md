@@ -100,7 +100,7 @@ The third argument is the **priority** (default `10`). Lower numbers run first.
 | `10` | Default |
 | `20` | Late — after other plugins, e.g. rendering shortcodes |
 
-Example: `Core\EditorJs` converts block documents to HTML at priority `1`, before snippets (`5`) and plugin shortcodes (`20`) are expanded.
+Example: `Core\LegacyEditorContent` converts old block documents to HTML at priority `1`, before snippets (`5`) and plugin shortcodes (`20`) are expanded.
 
 ### Full `Hooks` API
 

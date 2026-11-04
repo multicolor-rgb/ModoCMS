@@ -5,7 +5,7 @@ use Core\Hooks;
 use Core\Router;
 use Core\Database;
 use Core\I18n;
-use Core\EditorJs;
+use Core\LegacyEditorContent;
 
 /**
  * Global state registry for active document, loop cursor, and SEO payload.
@@ -269,8 +269,8 @@ function post_excerpt(int $limit = 140, bool $echo = true): string {
     if (!empty($post['meta_description'])) {
         $excerpt = $post['meta_description'];
     } else {
-        // The content may be an Editor.js document (JSON), so render it first.
-        $clean = strip_tags(EditorJs::render($post['content'] ?? ''));
+        // Legacy Editor.js documents are rendered to HTML first.
+        $clean = strip_tags(LegacyEditorContent::render($post['content'] ?? ''));
         $clean = trim((string) preg_replace('/\s+/', ' ', html_entity_decode($clean, ENT_QUOTES, 'UTF-8')));
         $excerpt = mb_strlen($clean) > $limit ? mb_substr($clean, 0, $limit) . '...' : $clean;
     }
