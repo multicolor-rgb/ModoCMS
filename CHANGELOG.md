@@ -4,6 +4,22 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.6] — 2026-11-04
+
+### Dodane
+
+- **„Zaznacz wszystko” w oknie wyboru mediów** — checkbox w trybie wielokrotnego wyboru zaznacza wszystkie pliki pasujące do filtra folderu, także ukryte przez „Load more”.
+- **Masowa edycja w bibliotece mediów**:
+  - masowa zmiana ALT i podpisu dla zaznaczonych plików,
+  - masowa obróbka zdjęć: obrót, odbicie, zmiana rozmiaru i jakości; nadpisanie oryginałów lub zapis kopii,
+  - wymuszona regeneracja miniatur dla zaznaczonych plików.
+- **Wymuszone generowanie wszystkich miniatur** — nowy przycisk w Ustawieniach → Wydajność generuje ponownie podglądy 80/160/240 oraz miniatury galerii 480/960 dla całej biblioteki.
+- Nowe kolumny `alt_text` i `caption` w tabeli `media`; migracja istniejącej bazy jest automatyczna.
+
+### Naprawione
+
+- Po edycji zdjęcia miniatury są od razu odtwarzane we wszystkich skonfigurowanych rozmiarach, także galeryjnych — bez czekania na backfill.
+
 ## [3.0.5] — 2026-11-04
 
 ### Naprawione

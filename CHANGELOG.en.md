@@ -4,6 +4,22 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.6] — 2026-11-04
+
+### Added
+
+- **"Select all" in the media picker** — a checkbox in multi-select mode selects every file matching the current folder filter, including items hidden by "Load more".
+- **Bulk editing in the media library**:
+  - bulk ALT text and caption updates for selected files,
+  - bulk image processing: rotate, flip, resize and quality; overwrite originals or save copies,
+  - forced thumbnail regeneration for selected files.
+- **Force-regenerate all thumbnails** — a new button in Settings → Performance rebuilds 80/160/240 previews and 480/960 gallery thumbnails for the whole library.
+- New `alt_text` and `caption` columns in the `media` table; existing databases are migrated automatically.
+
+### Fixed
+
+- Editing an image now rebuilds thumbnails in every configured size immediately, including gallery sizes — no backfill wait required.
+
 ## [3.0.5] — 2026-11-04
 
 ### Fixed

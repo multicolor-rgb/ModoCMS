@@ -43,6 +43,16 @@
 
 ---
 
+## 🆕 Co nowego w 3.0.6
+
+* **Zaznacz wszystko w oknie wyboru mediów:** tryb wielokrotnego wyboru ma checkbox „Zaznacz wszystkie”, który respektuje aktualny filtr folderu.
+* **Masowa edycja mediów:** zmiana ALT i podpisów, obróbka zaznaczonych zdjęć (obrót, odbicie, rozmiar, jakość) oraz regeneracja ich miniatur.
+* **Wymuszone generowanie wszystkich miniatur:** Ustawienia → Wydajność może odtworzyć wszystkie podglądy i miniatury galerii dla całej biblioteki.
+* **Automatyczna migracja ALT/podpis:** nowe kolumny w tabeli `media` są dodawane przy aktualizacji.
+* **Natychmiastowe odtwarzanie miniatur po edycji:** edycja zdjęcia generuje ponownie wszystkie rozmiary, w tym galeryjne.
+
+---
+
 ## 🆕 Co nowego w 3.0.5
 
 * **Podgląd galerii w panelu:** elementy pola gallery korzystają teraz z systemowych miniatur (`thumb.php`, 160 px) zamiast ładować oryginalne obrazy.

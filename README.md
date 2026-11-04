@@ -43,6 +43,16 @@
 
 ---
 
+## 🆕 What's new in 3.0.6
+
+* **Select all in the media picker:** multi-select mode now has a "Select all" checkbox that respects the current folder filter.
+* **Bulk media editing:** update ALT text and captions, transform selected images (rotate, flip, resize, quality) and regenerate their thumbnails.
+* **Force-regenerate all thumbnails:** Settings → Performance can rebuild every preview and gallery thumbnail for the whole library.
+* **Automatic ALT/caption schema migration:** new `media` columns are added automatically on update.
+* **Instant thumbnail rebuild after editing:** image edits regenerate all configured sizes, including gallery widths.
+
+---
+
 ## 🆕 What's new in 3.0.5
 
 * **Gallery preview in the admin panel:** gallery field items now use the system-generated thumbnails (`thumb.php`, 160 px) instead of loading full-size originals.
