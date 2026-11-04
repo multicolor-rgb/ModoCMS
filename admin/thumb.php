@@ -33,6 +33,15 @@ if ($storedPath === ''
 
 // Only files below uploads/ may be previewed, and never via path traversal.
 $relative = ltrim(str_replace('\\', '/', (string) (parse_url($storedPath, PHP_URL_PATH) ?: $storedPath)), '/');
+
+// Admin URLs may include the installation's base sub-directory (e.g.
+// /cms/uploads/photo.jpg); MediaLibrary::absoluteFromStoredPath() already
+// strips it, so the validation must do the same.
+$base = trim((string) \Core\Router::getBaseSubdirectory(), '/');
+if ($base !== '' && str_starts_with($relative, $base . '/')) {
+    $relative = substr($relative, strlen($base) + 1);
+}
+
 if (!str_starts_with($relative, 'uploads/') || in_array('..', explode('/', $relative), true)) {
     http_response_code(400);
     exit;

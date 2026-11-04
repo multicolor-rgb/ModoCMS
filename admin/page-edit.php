@@ -1895,6 +1895,27 @@ mediaItems.forEach(item => {
         if (captions) captions.checked = state.options.captions === '1';
     }
 
+    /**
+     * Builds the admin thumbnail URL for a gallery item. Gallery items store
+     * public image URLs, while thumb.php expects the path below uploads/.
+     * Remote images are left untouched.
+     */
+    function cfGalleryThumbUrl(url, width = 160) {
+        if (!url) return '';
+
+        try {
+            const parsed = new URL(String(url), window.location.origin);
+            if (parsed.origin !== window.location.origin) return String(url);
+
+            const stored = parsed.pathname.replace(/^\/+/, '');
+            if (!stored) return String(url);
+
+            return 'thumb.php?p=' + encodeURIComponent(stored) + '&w=' + encodeURIComponent(String(width));
+        } catch (e) {
+            return String(url);
+        }
+    }
+
     function renderGallery(row) {
         const state = galleryState(row);
         applyGalleryOptions(row, state);
@@ -1909,7 +1930,11 @@ mediaItems.forEach(item => {
                 node.setAttribute('data-index', String(index));
 
                 const img = q(node, 'img');
-                if (img) img.src = item.image;
+                if (img) {
+                    img.src = cfGalleryThumbUrl(item.image);
+                    img.loading = 'lazy';
+                    img.decoding = 'async';
+                }
 
                 const alt = q(node, '.cf-gallery-alt');
                 if (alt) {
