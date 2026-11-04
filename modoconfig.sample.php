@@ -84,6 +84,14 @@ return [
     // 'upload_max_size' => 0,
 
     // ----------------------------------------------------------------------
+    // System updates
+    // ----------------------------------------------------------------------
+    // Optional fine-grained GitHub token used only to query api.github.com. It
+    // raises the update-check limit from 60 to 5000 requests per hour. Leave
+    // empty to use the public releases feed when the anonymous limit is reached.
+    // 'update_github_token' => '',
+
+    // ----------------------------------------------------------------------
     // Security
     // ----------------------------------------------------------------------
     // automatic: mark the session cookie as Secure whenever the request arrives

@@ -13,6 +13,7 @@ use Core\Setup;
 use Core\Config;
 use Core\Analytics;
 use Core\MediaLibrary;
+use Core\Updater;
 
 Auth::requireCapability('manage_settings');
 
@@ -58,6 +59,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'results' => Setup::deployHtaccess(isset($_POST['force_custom'])),
         ];
         header('Location: settings.php?tab=system&htaccess_deployed=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'update_check') {
+        // Settings -> System: query GitHub for the latest published release.
+        $_SESSION['update_report'] = [
+            'mode'   => 'check',
+            'result' => Updater::check(true),
+        ];
+        header('Location: settings.php?tab=system&update_checked=1');
+        exit;
+    } elseif (($_POST['action'] ?? '') === 'update_run') {
+        // Settings -> System: download, back up and install the latest release.
+        $_SESSION['update_report'] = [
+            'mode'   => 'update',
+            'result' => Updater::update(),
+        ];
+        header('Location: settings.php?tab=system&update_done=1');
         exit;
     } elseif (($_POST['action'] ?? '') === 'config_save') {
         // Settings -> System: persist the hardening options in modoconfig.php.
@@ -333,6 +350,12 @@ $advancedFile = [
 
 $configReport = $_SESSION['config_report'] ?? null;
 unset($_SESSION['config_report']);
+
+// System tab: updater state from the local cache (no network request on every
+// page load) and the report from the last check/update action.
+$updateState = Updater::state();
+$updateReport = $_SESSION['update_report'] ?? null;
+unset($_SESSION['update_report']);
 
 // Tab the admin asked for through the URL (e.g. after the repair redirect).
 $settingsTabs = ['general', 'content', 'seo', 'security', 'performance', 'email', 'analytics', 'tools', 'system'];
@@ -1406,6 +1429,7 @@ require_once __DIR__ . '/views/header.php';
 
 
 
+<?php require __DIR__ . '/views/update-panel.php'; ?>
 <?php require __DIR__ . '/views/system-panel.php'; ?>
 <?php require __DIR__ . '/views/hardening-panel.php'; ?>
 
