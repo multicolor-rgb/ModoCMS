@@ -6,15 +6,15 @@ namespace Core;
 /**
  * Single source of truth for the installed ModoCMS version.
  *
- * Bump CURRENT in the release commit (for example "3.1.0-dev" while developing
- * and "3.1.0" for the tagged release). The updater compares only the numeric
+ * Bump CURRENT in the release commit (for example "3.0.3-dev" while developing
+ * and "3.0.3" for the tagged release). The updater compares only the numeric
  * part, so a "-dev" build of the upcoming release is never offered as an update
  * to itself once that release has been published.
  */
 final class Version
 {
     /** Currently installed application version. */
-    public const CURRENT = '3.1.0';
+    public const CURRENT = '3.0.3-dev';
 
     public static function current(): string
     {
@@ -22,7 +22,7 @@ final class Version
     }
 
     /**
-     * Version reduced to its comparable numeric part, e.g. "3.1.0-dev" -> "3.1.0".
+     * Version reduced to its comparable numeric part, e.g. "3.0.3-dev" -> "3.0.3".
      */
     public static function comparable(?string $version = null): string
     {

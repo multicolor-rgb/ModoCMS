@@ -113,7 +113,6 @@ final class Updater
             'plugins'   => self::pathWritable($root . '/plugins'),
             'data'      => self::pathWritable($data),
             'backups'   => self::pathWritable($backups),
-            'updates'   => self::pathWritable($data . '/updates'),
         ];
     }
 

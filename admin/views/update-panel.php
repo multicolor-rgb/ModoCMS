@@ -39,8 +39,7 @@ if (!$requirements['root']
     || !$requirements['themes']
     || !$requirements['plugins']
     || !$requirements['data']
-    || !$requirements['backups']
-    || !$requirements['updates']) {
+    || !$requirements['backups']) {
     $missing[] = __('The installation is not writable. Check the file permissions in Settings -> System.');
 }
 
