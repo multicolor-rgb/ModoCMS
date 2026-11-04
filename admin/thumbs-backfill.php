@@ -127,6 +127,15 @@ foreach ($slice as $item) {
         // A single broken file must not stop the whole batch.
     }
 
+    if ($force) {
+        try {
+            // Also rebuild the WebP sibling with the corrected EXIF orientation.
+            MediaLibrary::regenerateWebpSiblingForPath($path);
+        } catch (\Throwable $e) {
+            // WebP is optional; thumbnail generation still counts.
+        }
+    }
+
     $missing = [];
     foreach ($widths as $width) {
         if (!MediaLibrary::thumbnailExists($path, $width)) {

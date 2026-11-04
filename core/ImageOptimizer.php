@@ -58,6 +58,11 @@ final class ImageOptimizer
             return null;
         }
 
+        // Phone photos often carry the rotation in EXIF only. Browsers apply
+        // it to the original, so the WebP sibling must be physically rotated
+        // as well or it would appear landscape (16:9 instead of 9:16).
+        $image = ImageOrientation::applyGd($image, $sourcePath);
+
         imagealphablending($image, true);
         imagesavealpha($image, true);
 

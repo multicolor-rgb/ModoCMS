@@ -24,6 +24,9 @@ final class MediaLibrary
     /** Widths generated eagerly for the admin previews. */
     public const THUMBNAIL_PREVIEW_WIDTHS = [80, 160, 240];
 
+    /** Bump when the thumbnail pipeline changes (e.g. EXIF orientation). */
+    private const THUMBNAIL_CACHE_VERSION = '2';
+
     /** Per-request cache for filesystem listings. */
     private static array $listImagesCache = [];
 
@@ -993,6 +996,51 @@ final class MediaLibrary
      * Rebuilds the automatic WebP sibling after an in-place edit. Returns the
      * stored "/uploads/..." path, or null when WebP is disabled/unsupported.
      */
+    /**
+     * Rebuilds the generated WebP sibling for a stored image.
+     *
+     * Used by the forced thumbnail refresh so old phone photos that were
+     * converted before EXIF orientation support are corrected too.
+     */
+    public static function regenerateWebpSiblingForPath(string $storedPath): ?string
+    {
+        $absolute = self::absoluteFromStoredPath($storedPath);
+        if ($absolute === null) {
+            return null;
+        }
+
+        $extension = strtolower((string) pathinfo($absolute, PATHINFO_EXTENSION));
+        if (!in_array($extension, ['jpg', 'jpeg', 'png'], true)) {
+            return null;
+        }
+        if (!class_exists(ImageOptimizer::class)
+            || !ImageOptimizer::isEnabled()
+            || !ImageOptimizer::isSupported()
+        ) {
+            return null;
+        }
+
+        $converted = ImageOptimizer::convertToWebp($absolute);
+        if ($converted === null) {
+            return null;
+        }
+
+        $stored = self::storedPathForAbsolute($converted);
+        if ($stored === null) {
+            return null;
+        }
+
+        try {
+            Database::getConnection()->prepare(
+                'UPDATE media SET webp_path = :webp WHERE filepath = :path'
+            )->execute([':webp' => $stored, ':path' => $storedPath]);
+        } catch (\Throwable $e) {
+            // The file is correct even if the optional DB row is missing.
+        }
+
+        return $stored;
+    }
+
     private static function regenerateWebpSibling(string $absolute, string $extension): ?string
     {
         if (!in_array($extension, ['jpg', 'jpeg', 'png'], true)
@@ -1456,6 +1504,21 @@ final class MediaLibrary
     }
 
     /**
+     * Returns a public thumbnail URL of the requested width, with a fallback
+     * to the original (or WebP) image when the thumbnail is missing.
+     */
+    public static function frontendThumbnailUrl(string $storedPath, int $width = 480, string $fallbackUrl = ''): string
+    {
+        $fallback = $fallbackUrl !== '' ? $fallbackUrl : self::urlForStoredPath($storedPath);
+        if ($storedPath === '') {
+            return $fallback;
+        }
+
+        $sources = self::frontendImageSources($storedPath, [$width], $fallback, false);
+        return (string) ($sources['src'] ?? $fallback);
+    }
+
+    /**
      * Returns a thumbnail-based src/srcset for public galleries. Unlike
      * thumbnailUrl() this never points at the admin endpoint, so it is safe on
      * the frontend; when a thumbnail is missing the original image is used.
@@ -1464,13 +1527,13 @@ final class MediaLibrary
      * @param string $fallbackUrl Fully resolved URL used when no thumbnail exists
      * @return array{src:string,srcset:string}
      */
-    public static function frontendImageSources(string $storedPath, ?array $widths = null, string $fallbackUrl = ''): array
+    public static function frontendImageSources(string $storedPath, ?array $widths = null, string $fallbackUrl = '', bool $requireGallerySetting = true): array
     {
         $original = $fallbackUrl !== '' ? $fallbackUrl : self::urlForStoredPath($storedPath);
         $optimized = function_exists('webp_url') ? \webp_url($original) : $original;
         $fallback = ['src' => $optimized, 'srcset' => ''];
 
-        if ($storedPath === '' || !self::galleryThumbnailsEnabled()) {
+        if ($storedPath === '' || ($requireGallerySetting && !self::galleryThumbnailsEnabled())) {
             return $fallback;
         }
 
@@ -1697,7 +1760,7 @@ final class MediaLibrary
     {
         $path = parse_url($storedPath, PHP_URL_PATH) ?: $storedPath;
         $relative = ltrim(str_replace('\\', '/', (string) $path), '/');
-        return sha1($relative);
+        return sha1($relative . '|v' . self::THUMBNAIL_CACHE_VERSION);
     }
 
     private static function isThumbnailSource(string $absolute): bool
@@ -1776,7 +1839,7 @@ final class MediaLibrary
             return;
         }
 
-        $image = self::applyExifOrientation($image, $source);
+        $image = \Core\ImageOrientation::applyGd($image, $source);
         $sourceWidth = imagesx($image);
         $sourceHeight = imagesy($image);
         if ($sourceWidth <= 0 || $sourceHeight <= 0) {
@@ -2010,39 +2073,4 @@ final class MediaLibrary
         };
     }
 
-    /**
-     * @param resource|\GdImage $image
-     * @return resource|\GdImage
-     */
-    private static function applyExifOrientation($image, string $source)
-    {
-        if (!function_exists('exif_read_data')) {
-            return $image;
-        }
-
-        $extension = strtolower((string) pathinfo($source, PATHINFO_EXTENSION));
-        if (!in_array($extension, ['jpg', 'jpeg'], true)) {
-            return $image;
-        }
-
-        $exif = @exif_read_data($source);
-        $orientation = is_array($exif) ? (int) ($exif['Orientation'] ?? 1) : 1;
-        $angle = match ($orientation) {
-            3 => 180,
-            6 => -90,
-            8 => 90,
-            default => 0,
-        };
-        if ($angle === 0) {
-            return $image;
-        }
-
-        $rotated = @imagerotate($image, $angle, 0);
-        if ($rotated === false) {
-            return $image;
-        }
-        imagedestroy($image);
-
-        return $rotated;
-    }
 }

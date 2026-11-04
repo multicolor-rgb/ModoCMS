@@ -4,6 +4,22 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.7] — 2026-11-04
+
+### Dodane
+
+- **`page_thumbnail_image()` / `post_thumbnail_image()`** — zwracają URL miniatury obrazka wyróżniającego (domyślnie 480 px, z parametrem szerokości).
+- **`page_image_srcset()` / `post_image_srcset()`** — responsywny `srcset` z dostępnych miniatur.
+- **Audyt tłumaczeń** — `tools/i18n-audit.php` wykrywa brakujące i puste klucze we wszystkich językach.
+- Uzupełniono wszystkie brakujące tłumaczenia w `en`, `pl`, `de` i `es`.
+
+### Naprawione
+
+- **Orientacja zdjęć z telefonu** — EXIF Orientation jest teraz stosowany również przy generowaniu WebP, nie tylko miniatur. Zdjęcia 9:16 nie są już obracane do 16:9.
+- **Stare miniatury i WebP** — wersja cache miniatur została podniesiona, a przycisk wymuszonego generowania odtwarza także kopie WebP.
+- **`webp_url()`** — nie zwraca starej kopii WebP, jeśli jej wymiary nie zgadzają się z orientacją oryginału; wtedy używa oryginału.
+- **Edycja i masowa obróbka** — odtwarzają miniatury i WebP z poprawną orientacją.
+
 ## [3.0.6] — 2026-11-04
 
 ### Dodane

@@ -933,7 +933,7 @@ require_once __DIR__ . '/views/header.php';
                 </button>
                 <button type="button" id="gallery-thumb-force-btn" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"
                         data-csrf="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
-                    <?= _e('Force regenerate all thumbnails') ?>
+                    <?= _e('Force regenerate thumbnails and WebP copies') ?>
                 </button>
                 <span id="gallery-thumb-status" style="font-size: 11px; color: var(--text-muted);">
                     <?= htmlspecialchars(sprintf(__('Missing gallery thumbnails: %d'), $missingGalleryThumbs), ENT_QUOTES, 'UTF-8') ?>
@@ -1523,7 +1523,7 @@ filePicker.addEventListener('change', () => {
 
     if (forceBtn) {
         forceBtn.addEventListener('click', function () {
-            var ok = window.confirm(<?= json_encode(__('This will delete and regenerate every configured thumbnail for all media. Continue?')) ?>);
+            var ok = window.confirm(<?= json_encode(__('This will delete and regenerate every configured thumbnail and WebP copy for all media. Continue?')) ?>);
             if (!ok) return;
             runBackfill(forceBtn, 'all', true);
         });

@@ -121,6 +121,21 @@ URL obrazka wyróżniającego (świadomy podkatalogu). Escapowany. Przechodzi pr
 <?php endif; ?>
 ```
 
+### `page_thumbnail_image(int $width = 480, bool $echo = true): string`
+
+URL miniatury obrazka wyróżniającego bieżącej strony. Korzysta z miniatur wygenerowanych przez bibliotekę mediów (domyślnie **480 px**, można podać `240`, `480`, `960`, …), a gdy miniatury brak — wraca do oryginału/WebP. Przechodzi przez filtr `featured_thumbnail_url`.
+
+```php
+<img src="<?php page_thumbnail_image(480); ?>"
+     srcset="<?php page_image_srcset(); ?>"
+     sizes="(max-width: 600px) 100vw, 33vw"
+     alt="<?php page_title(); ?>" loading="lazy">
+```
+
+### `page_image_srcset(bool $echo = true): string`
+
+Responsywny `srcset` z dostępnych rozmiarów miniatur. Pusty, gdy miniatury nie istnieją. Przechodzi przez filtr `featured_image_srcset`.
+
 ### `page_url(?array $page = null, bool $echo = true): string`
 
 Buduje pełny URL aktualnej strony albo dowolnego wiersza strony, który podasz. Sam obsługuje hierarchię rodzic/dziecko i permalinki bloga.
@@ -163,6 +178,8 @@ Przechodzi do kolejnego wpisu w pętli i czyni go „aktualną stroną”, więc
 ### `post_title()` / `post_url()` / `post_image()`
 
 Skróty dla wpisu w bieżącej pętli (delegują do `page_title()` / `page_url()` / `page_image()`).
+
+`post_thumbnail_image(int $width = 480, bool $echo = true)` oraz `post_image_srcset(bool $echo = true)` to odpowiedniki miniatury i `srcset` dla wpisu w pętli.
 
 ### `post_excerpt(int $limit = 140, bool $echo = true): string`
 
@@ -499,7 +516,7 @@ To samo, ale wypisuje z escapowaniem.
 
 ## Szybki indeks
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 

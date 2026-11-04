@@ -43,6 +43,15 @@
 
 ---
 
+## 🆕 What's new in 3.0.7
+
+* **Thumbnail template helpers:** `post_thumbnail_image()` / `page_thumbnail_image()` and `post_image_srcset()` / `page_image_srcset()` use the selected featured image's generated thumbnails.
+* **Phone photo orientation fixed:** EXIF Orientation is applied to WebP copies as well as thumbnails, so portrait 9:16 photos stay portrait.
+* **Existing media corrected:** the force regeneration action rebuilds thumbnails and WebP copies; `webp_url()` falls back to the original when an old WebP has the wrong orientation.
+* **Complete translations:** all missing EN/PL/DE/ES keys were filled and `tools/i18n-audit.php` now reports future gaps.
+
+---
+
 ## 🆕 What's new in 3.0.6
 
 * **Select all in the media picker:** multi-select mode now has a "Select all" checkbox that respects the current folder filter.

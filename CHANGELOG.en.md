@@ -4,6 +4,22 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.7] — 2026-11-04
+
+### Added
+
+- **`page_thumbnail_image()` / `post_thumbnail_image()`** — return the featured image thumbnail URL (480 px by default, with a width parameter).
+- **`page_image_srcset()` / `post_image_srcset()`** — responsive `srcset` built from available thumbnails.
+- **Translation audit** — `tools/i18n-audit.php` detects missing and empty keys in every language.
+- Filled all missing translations in `en`, `pl`, `de` and `es`.
+
+### Fixed
+
+- **Phone photo orientation** — EXIF Orientation is now applied when generating WebP too, not only thumbnails. Portrait 9:16 photos are no longer turned into 16:9.
+- **Old thumbnails and WebP copies** — the thumbnail cache version is bumped, and the force regeneration button rebuilds WebP copies as well.
+- **`webp_url()`** — no longer returns an old WebP copy whose dimensions do not match the original orientation; it falls back to the original.
+- **Editing and bulk transforms** — regenerate thumbnails and WebP copies with the correct orientation.
+
 ## [3.0.6] — 2026-11-04
 
 ### Added

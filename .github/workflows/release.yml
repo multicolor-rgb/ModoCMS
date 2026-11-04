@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.6.
+# Release notes for Modo CMS 3.0.7.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,19 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.6
-            - **Select all in the media picker:** multi-select mode now has a "Select all" checkbox that respects the current folder filter.
-            - **Bulk media editing:** update ALT text and captions, transform selected images (rotate, flip, resize, quality) and regenerate their thumbnails.
-            - **Force-regenerate all thumbnails:** Settings → Performance rebuilds every preview and gallery thumbnail for the whole library.
-            - **Instant thumbnail rebuild:** editing an image regenerates every configured size, including gallery widths.
-            - **Automatic schema migration:** new `alt_text` and `caption` columns are added automatically.
+            ### What's new in 3.0.7
+            - **Thumbnail template helpers:** `post_thumbnail_image()` / `page_thumbnail_image()` and `post_image_srcset()` / `page_image_srcset()` use the selected featured image's generated thumbnails.
+            - **Phone photo orientation fixed:** EXIF Orientation is now applied to WebP copies too, so portrait 9:16 photos stay portrait instead of becoming 16:9.
+            - **Old media corrected:** force regeneration rebuilds thumbnails and WebP copies; `webp_url()` falls back to the original when an old WebP has the wrong orientation.
+            - **Complete translations:** all missing EN/PL/DE/ES keys were filled; `tools/i18n-audit.php` reports future gaps.
 
-            ### Najważniejsze zmiany w 3.0.6
-            - **Zaznacz wszystko w oknie mediów:** tryb wielokrotnego wyboru ma checkbox respektujący filtr folderu.
-            - **Masowa edycja mediów:** ALT/podpisy, obrót/odbicie/resize/jakość dla zaznaczonych zdjęć oraz regeneracja ich miniatur.
-            - **Wymuszone generowanie wszystkich miniatur:** Ustawienia → Wydajność odtwarza wszystkie podglądy i miniatury galerii.
-            - **Natychmiastowe odtwarzanie miniatur:** edycja zdjęcia generuje ponownie wszystkie rozmiary, w tym galeryjne.
-            - **Automatyczna migracja schematu:** nowe kolumny `alt_text` i `caption` są dodawane automatycznie.
+            ### Najważniejsze zmiany w 3.0.7
+            - **Helpery miniatur w motywie:** `post_thumbnail_image()` / `page_thumbnail_image()` oraz `post_image_srcset()` / `page_image_srcset()` korzystają z miniatur wybranego obrazka wyróżniającego.
+            - **Poprawiona orientacja zdjęć z telefonu:** EXIF Orientation jest stosowany także przy WebP, więc pionowe zdjęcia 9:16 pozostają pionowe.
+            - **Poprawka istniejących mediów:** wymuszone generowanie odtwarza miniatury i kopie WebP; `webp_url()` wraca do oryginału przy złej orientacji starej kopii.
+            - **Kompletne tłumaczenia:** uzupełniono brakujące klucze EN/PL/DE/ES; `tools/i18n-audit.php` raportuje przyszłe braki.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

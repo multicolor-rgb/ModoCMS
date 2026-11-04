@@ -43,6 +43,15 @@
 
 ---
 
+## 🆕 Co nowego w 3.0.7
+
+* **Helpery miniatur w motywie:** `post_thumbnail_image()` / `page_thumbnail_image()` oraz `post_image_srcset()` / `page_image_srcset()` korzystają z miniatur wybranego obrazka wyróżniającego.
+* **Poprawiona orientacja zdjęć z telefonu:** EXIF Orientation jest stosowany także przy tworzeniu WebP, więc pionowe zdjęcia 9:16 pozostają pionowe.
+* **Poprawka istniejących mediów:** wymuszone generowanie odtwarza miniatury i kopie WebP; `webp_url()` wraca do oryginału, gdy stara kopia WebP ma złą orientację.
+* **Kompletne tłumaczenia:** uzupełniono brakujące klucze EN/PL/DE/ES, a `tools/i18n-audit.php` raportuje przyszłe braki.
+
+---
+
 ## 🆕 Co nowego w 3.0.6
 
 * **Zaznacz wszystko w oknie wyboru mediów:** tryb wielokrotnego wyboru ma checkbox „Zaznacz wszystkie”, który respektuje aktualny filtr folderu.

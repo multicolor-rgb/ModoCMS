@@ -119,6 +119,21 @@ The featured image URL (base-subfolder aware). Escaped. Runs through the `featur
 <?php endif; ?>
 ```
 
+### `page_thumbnail_image(int $width = 480, bool $echo = true): string`
+
+The thumbnail URL of the current page's featured image. Uses the media library's generated thumbnail (default **480 px**, can be `240`, `480`, `960`, …) and falls back to the original/WebP file when it is missing. Runs through `featured_thumbnail_url`.
+
+```php
+<img src="<?php page_thumbnail_image(480); ?>"
+     srcset="<?php page_image_srcset(); ?>"
+     sizes="(max-width: 600px) 100vw, 33vw"
+     alt="<?php page_title(); ?>" loading="lazy">
+```
+
+### `page_image_srcset(bool $echo = true): string`
+
+A responsive `srcset` built from the available thumbnail sizes. Empty when no thumbnails exist. Runs through `featured_image_srcset`.
+
 ### `page_url(?array $page = null, bool $echo = true): string`
 
 Builds the full URL of the current page, or of any page row you pass in. Handles parent/child hierarchy and blog permalinks automatically.
@@ -159,6 +174,8 @@ Moves the loop to the next post and makes it the “current page”, so the func
 ### `post_title()` / `post_url()` / `post_image()`
 
 Shortcuts for the current loop post (they delegate to `page_title()` / `page_url()` / `page_image()`).
+
+`post_thumbnail_image(int $width = 480, bool $echo = true)` and `post_image_srcset(bool $echo = true)` are the matching thumbnail and `srcset` shortcuts for the loop post.
 
 ### `post_excerpt(int $limit = 140, bool $echo = true): string`
 
@@ -485,7 +502,7 @@ Same, but prints it escaped.
 
 ## Quick index
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 
