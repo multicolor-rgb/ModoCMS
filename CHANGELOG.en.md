@@ -32,6 +32,19 @@ All notable changes to Modo CMS. Format based on
   `thumbnailGenerationWidths()`, `thumbnailExists()` and
   `canGenerateThumbnail()` methods, plus `MetaGallery::warmThumbnails()`,
   `allGalleryImagePaths()` and `missingGalleryThumbnailCount()`.
+- **System updater** under `Settings → System`:
+  - checks the latest public release through the GitHub API (with a cache and
+    a manual refresh button),
+  - one-click installation of the latest release with HTTPS download,
+  - SHA-256 package verification, zip-slip protection and size limits,
+  - automatic database snapshot and a copy of every replaced file in
+    `data/backups/` before updating,
+  - skips `data/`, `uploads/`, `modoconfig.php` and `install.php`, and preserves
+    a custom root `.htaccess`,
+  - temporary maintenance mode while files are replaced, cache/OPcache purge and
+    automatic rollback on failure.
+- `core/Version.php` as the single source of the installed version.
+- PL/EN/DE/ES translations and documentation for the new panel messages.
 
 ### Fixed
 
@@ -46,6 +59,15 @@ All notable changes to Modo CMS. Format based on
   (`Invalid image.`, `The image is too large to upload.`,
   `Could not save the image.`, `Original`, and `Reset` in DE/ES) and preserved
   the display filename when overwriting an image.
+- **System updater**: when the GitHub API limit is exhausted (HTTP 403/429), the
+  latest release is read from the public `releases.atom` feed, so update checks
+  no longer fail. Added an optional GitHub token (`update_github_token`) that
+  raises the API limit from 60 to 5000 requests per hour, and extended the
+  update-check cache to 12 hours.
+- **Cookie Consent**: the banner no longer blocks page scrolling in the `bar`,
+  `card`, `bottom-left` and `bottom-right` layouts; scrolling is locked only by
+  the full-screen modal, whose content remains scrollable. Plugin bumped to
+  `1.0.1`.
 
 ### No database changes
 

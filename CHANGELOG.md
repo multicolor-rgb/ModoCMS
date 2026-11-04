@@ -32,6 +32,19 @@ z [Semantic Versioning](https://semver.org/lang/pl/).
   `thumbnailExists()`, `canGenerateThumbnail()` oraz
   `MetaGallery::warmThumbnails()`, `allGalleryImagePaths()` i
   `missingGalleryThumbnailCount()`.
+- **Aktualizator systemu** w `Ustawienia → System`:
+  - sprawdzanie najnowszego publicznego wydania przez GitHub API (z cache
+    i przyciskiem wymuszonego odświeżenia),
+  - jednoklikowa instalacja najnowszego wydania z pobieraniem po HTTPS,
+  - weryfikacja SHA-256 paczki, ochrona przed zip-slip i limitami rozmiaru,
+  - automatyczna kopia bazy danych i kopia każdego podmienianego pliku
+    w `data/backups/` przed aktualizacją,
+  - pomijanie `data/`, `uploads/`, `modoconfig.php` i `install.php`, zachowanie
+    własnego głównego `.htaccess`,
+  - tymczasowy tryb konserwacji na czas podmiany plików, czyszczenie cache
+    i OPcache oraz automatyczny rollback w razie błędu.
+- `core/Version.php` z bieżącą wersją aplikacji.
+- Tłumaczenia PL/EN/DE/ES oraz dokumentacja nowych komunikatów w panelu.
 
 ### Poprawione
 
@@ -46,6 +59,14 @@ z [Semantic Versioning](https://semver.org/lang/pl/).
   wersję paczki (`Invalid image.`, `The image is too large to upload.`,
   `Could not save the image.`, `Original`, a w DE/ES także `Reset`) i zachowano
   nazwę wyświetlaną pliku przy nadpisywaniu obrazu.
+- **Aktualizator systemu**: po wyczerpaniu limitu GitHub API (HTTP 403/429)
+  najnowsze wydanie jest odczytywane z publicznego kanału `releases.atom`, więc
+  sprawdzanie aktualizacji nie kończy się błędem. Dodano opcjonalny token GitHub
+  (`update_github_token`), który podnosi limit API z 60 do 5000 zapytań na
+  godzinę, oraz wydłużono cache sprawdzeń do 12 godzin.
+- **Cookie Consent**: baner nie blokuje przewijania strony w układach `bar`,
+  `card`, `bottom-left` i `bottom-right`; blokada działa tylko w pełnoekranowym
+  modalu, którego treść można przewijać. Plugin podniesiony do `1.0.1`.
 
 ### Bez zmian w bazie
 
