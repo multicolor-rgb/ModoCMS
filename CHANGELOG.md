@@ -12,23 +12,36 @@ z [Semantic Versioning](https://semver.org/lang/pl/).
   - galerie pól niestandardowych i plugin Modo Gallery ładują miniatury przez
     `srcset`/`sizes` (domyślnie 480 i 960 px) zamiast pełnych obrazów,
   - lightbox nadal otwiera oryginalny plik,
-  - miniatury generują się przy uploadzie, edycji obrazu i zapisie pola galerii;
-    istniejące zdjęcia uzupełnia **Wygeneruj brakujące miniatury**,
+  - istniejące miniatury 240/320 px są wykorzystywane od razu, więc galerie
+    korzystają z miniaturek jeszcze przed pełnym backfillem,
+  - miniatury generują się przy uploadzie, edycji obrazu i zapisie pola galerii,
   - nowe ustawienia **Ustawienia → Wydajność → Miniatury galerii**: włączanie,
     automatyczne generowanie, szerokości (domyślnie `480,960`) i jakość
     (domyślnie `78`),
-  - po zmianie szerokości należy ponownie uruchomić backfill, aby powstały nowe
-    rozmiary,
+  - przycisk **Generuj miniatury galerii** przetwarza wyłącznie zdjęcia używane
+    w galeriach, a panel pokazuje licznik brakujących miniaturek,
+  - po zmianie szerokości należy ponownie uruchomić backfill galerii, aby
+    powstały nowe rozmiary,
+  - gdy obraz przekracza limit 20 MP GD, używany jest ImageMagick CLI
+    (`/usr/bin/convert`), jeśli jest dostępny,
+  - lokalne pełne URL-e (`https://domena/uploads/...`) i ścieżki z podkatalogiem
+    (`/cms/uploads/...`) są rozpoznawane poprawnie,
   - brak GD, Imagicka lub ImageMagick CLI oznacza powrót do oryginalnych obrazów.
 - Nowe metody `MediaLibrary::frontendImageSources()`,
-  `galleryThumbnailWidths()`, `thumbnailGenerationWidths()` oraz
-  `MetaGallery::warmThumbnails()`.
+  `galleryThumbnailWidths()`, `thumbnailGenerationWidths()`,
+  `thumbnailExists()`, `canGenerateThumbnail()` oraz
+  `MetaGallery::warmThumbnails()`, `allGalleryImagePaths()` i
+  `missingGalleryThumbnailCount()`.
 
 ### Poprawione
 
 - **Lightbox galerii**: kontener `.modo-gallery` nie jest już traktowany jako
   trigger lightboxa motywu, więc na wpisach „Realizacje” działa tylko GLightbox
   z pola niestandardowego.
+- **Diagnostyka miniaturek**: backfill zwraca liczbę wygenerowanych, pominiętych
+  i nieudanych plików; panel pokazuje błędy zamiast fałszywego sukcesu oraz
+  ostrzega o braku backendu grafiki lub braku zapisu do `uploads/thumbs`; błędy
+  generowania trafiają do logu PHP.
 - Przywrócono klucze tłumaczeń edytora obrazów usunięte przez wcześniejszą
   wersję paczki (`Invalid image.`, `The image is too large to upload.`,
   `Could not save the image.`, `Original`, a w DE/ES także `Reset`) i zachowano

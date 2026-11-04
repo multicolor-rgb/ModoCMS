@@ -12,22 +12,36 @@ All notable changes to Modo CMS. Format based on
   - custom-field galleries and the Modo Gallery plugin load thumbnails through
     `srcset`/`sizes` (480 and 960 px by default) instead of full-size images,
   - the lightbox still opens the original file,
-  - thumbnails are generated on upload, image edit and gallery-field save;
-    existing images can be completed with **Generate missing thumbnails**,
+  - existing 240/320 px previews are reused immediately, so galleries benefit
+    before a full backfill,
+  - thumbnails are generated on upload, image edit and gallery-field save,
   - new settings under **Settings → Performance → Gallery thumbnails**:
     enable/disable, automatic generation, widths (default `480,960`) and
     quality (default `78`),
-  - after changing the widths, run the backfill again to create the new sizes,
+  - the **Generate gallery thumbnails** button processes only images used by
+    galleries, and the panel shows a missing-thumbnail counter,
+  - after changing the widths, run the gallery backfill again to create the new
+    sizes,
+  - images above GD's 20 MP limit use the ImageMagick CLI (`/usr/bin/convert`)
+    when available,
+  - local full URLs (`https://domain/uploads/...`) and subdirectory paths
+    (`/cms/uploads/...`) are recognised correctly,
   - without GD, Imagick or the ImageMagick CLI, galleries fall back to the
     original images.
 - New `MediaLibrary::frontendImageSources()`, `galleryThumbnailWidths()`,
-  `thumbnailGenerationWidths()` and `MetaGallery::warmThumbnails()` methods.
+  `thumbnailGenerationWidths()`, `thumbnailExists()` and
+  `canGenerateThumbnail()` methods, plus `MetaGallery::warmThumbnails()`,
+  `allGalleryImagePaths()` and `missingGalleryThumbnailCount()`.
 
 ### Fixed
 
 - **Gallery lightbox**: the `.modo-gallery` container is no longer treated as a
   theme lightbox trigger, so on “Realizacje” posts only the GLightbox from the
   custom field handles gallery images.
+- **Thumbnail diagnostics**: the backfill reports generated, skipped and failed
+  files; the interface shows errors instead of a false success and warns when
+  the image backend is missing or `uploads/thumbs` is not writable; generation
+  failures are written to the PHP error log.
 - Restored image-editor translation keys removed by an earlier package version
   (`Invalid image.`, `The image is too large to upload.`,
   `Could not save the image.`, `Original`, and `Reset` in DE/ES) and preserved

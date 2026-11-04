@@ -45,10 +45,13 @@
 
 ## 🆕 Co nowego w 3.1.0
 
-* **Miniatury galerii:** galerie pól niestandardowych i plugin Modo Gallery ładują teraz miniatury przez `srcset`/`sizes` (domyślnie 480 i 960 px) zamiast pełnych obrazów, a lightbox nadal otwiera oryginał. Miniatury generują się przy uploadzie, edycji obrazu i zapisie galerii; istniejące zdjęcia uzupełnia **Wygeneruj brakujące miniatury**.
-* **Ustawienia miniatur galerii:** *Ustawienia → Wydajność → Miniatury galerii* pozwalają włączyć lub wyłączyć miniatury, przełączyć automatyczne generowanie, ustawić szerokości (domyślnie `480,960`) oraz jakość (domyślnie `78`). Po zmianie szerokości uruchom ponownie backfill, aby powstały nowe rozmiary.
+* **Miniatury galerii:** galerie pól niestandardowych i plugin Modo Gallery ładują teraz miniatury przez `srcset`/`sizes` (domyślnie 480 i 960 px) zamiast pełnych obrazów, a lightbox nadal otwiera oryginał. Istniejące miniatury 240/320 px są wykorzystywane od razu, więc galerie korzystają z miniaturek jeszcze przed pełnym backfillem.
+* **Ustawienia miniatur galerii:** *Ustawienia → Wydajność → Miniatury galerii* pozwalają włączyć lub wyłączyć miniatury, przełączyć automatyczne generowanie, ustawić szerokości (domyślnie `480,960`) oraz jakość (domyślnie `78`). Panel pokazuje też licznik brakujących miniaturek galerii i przycisk **Generuj miniatury galerii**, który przetwarza wyłącznie zdjęcia używane w galeriach.
+* **Duże zdjęcia:** gdy obraz przekracza limit 20 MP GD, automatycznie używany jest ImageMagick CLI (`/usr/bin/convert`), jeśli jest dostępny — dzięki temu zdjęcia 6000×8000 również dostają miniatury.
+* **Diagnostyka:** backfill zwraca liczbę wygenerowanych, pominiętych i nieudanych plików; interfejs pokazuje błędy zamiast fałszywego sukcesu, a błędy generowania trafiają do logu PHP.
+* **Pełne URL-e i podkatalogi:** lokalne ścieżki typu `https://example.com/uploads/...` oraz instalacje w podkatalogu (`/cms/uploads/...`) są rozpoznawane poprawnie.
 * **Poprawka lightboxa:** kontener `.modo-gallery` nie jest już traktowany jako trigger lightboxa motywu, więc na wpisach „Realizacje” działa tylko GLightbox z pola niestandardowego.
-* **Bezpieczny fallback:** bez GD, Imagicka lub ImageMagick CLI galerie korzystają z oryginalnych obrazów i nic się nie psuje.
+* **Bezpieczny fallback:** bez GD, Imagicka lub ImageMagick CLI galerie korzystają z oryginalnych obrazów i nic się nie psuje. Panel ostrzega, gdy brakuje backendu lub katalog `uploads/thumbs` nie jest zapisywalny.
 
 ---
 
