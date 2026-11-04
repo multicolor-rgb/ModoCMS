@@ -1074,6 +1074,134 @@
     }
 
     // =======================================================================
+    // Bulk image transformation (used by the Media tab)
+    // =======================================================================
+    function loadBulkImage(url) {
+        return new Promise(function (resolve, reject) {
+            var image = new Image();
+            image.onload = function () { resolve(image); };
+            image.onerror = function () { reject(new Error('load')); };
+            image.src = url;
+        });
+    }
+
+    function canvasToBlob(canvas, mime, quality) {
+        return new Promise(function (resolve, reject) {
+            if (typeof canvas.toBlob !== 'function') {
+                reject(new Error('blob'));
+                return;
+            }
+            canvas.toBlob(function (blob) {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('blob'));
+                }
+            }, mime, quality);
+        });
+    }
+
+    async function bulkTransform(paths, options, onProgress) {
+        options = options || {};
+        var mode = options.mode === 'copy' ? 'copy' : 'overwrite';
+        var rotate = [0, 90, 180, 270].indexOf(Number(options.rotate)) === -1 ? 0 : Number(options.rotate);
+        var maxWidth = Math.max(0, Number(options.maxWidth) || 0);
+        var maxHeight = Math.max(0, Number(options.maxHeight) || 0);
+        var quality = Math.min(1, Math.max(0.01, (Number(options.quality) || 82) / 100));
+        var byPath = {};
+        items.forEach(function (item) {
+            if (item && item.path) {
+                byPath[item.path] = item;
+            }
+        });
+
+        var result = { total: paths.length, done: 0, failed: 0, errors: [] };
+
+        for (var index = 0; index < paths.length; index++) {
+            var path = paths[index];
+            var item = byPath[path];
+            var error = '';
+
+            try {
+                if (!item || !item.url || !item.mime) {
+                    throw new Error(t('errorMissing', 'File not found.'));
+                }
+                if (['image/jpeg', 'image/png', 'image/webp'].indexOf(item.mime) === -1) {
+                    throw new Error('unsupported');
+                }
+
+                var image = await loadBulkImage(item.url);
+                var format = outputFormatFor(item.mime);
+                if (mode === 'overwrite' && format.copyOnly) {
+                    throw new Error(t('errorReadonly', 'This image format can only be saved as a copy.'));
+                }
+
+                var rotated = rotate === 90 || rotate === 270;
+                var sourceWidth = rotated ? image.naturalHeight : image.naturalWidth;
+                var sourceHeight = rotated ? image.naturalWidth : image.naturalHeight;
+                if (sourceWidth <= 0 || sourceHeight <= 0) {
+                    throw new Error(t('errorInvalid', 'Invalid image.'));
+                }
+
+                var scale = 1;
+                if (maxWidth > 0 && sourceWidth * scale > maxWidth) {
+                    scale = maxWidth / sourceWidth;
+                }
+                if (maxHeight > 0 && sourceHeight * scale > maxHeight) {
+                    scale = Math.min(scale, maxHeight / sourceHeight);
+                }
+                if (!isFinite(scale) || scale <= 0) {
+                    scale = 1;
+                }
+
+                var drawWidth = image.naturalWidth * scale;
+                var drawHeight = image.naturalHeight * scale;
+                var canvasWidth = Math.max(1, Math.round(rotated ? drawHeight : drawWidth));
+                var canvasHeight = Math.max(1, Math.round(rotated ? drawWidth : drawHeight));
+
+                var canvas = document.createElement('canvas');
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                var context = canvas.getContext('2d');
+                context.translate(canvasWidth / 2, canvasHeight / 2);
+                context.rotate((rotate * Math.PI) / 180);
+                context.scale(options.flipX ? -1 : 1, options.flipY ? -1 : 1);
+                context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+
+                var blob = await canvasToBlob(canvas, format.mime, quality);
+                var extension = format.ext;
+                var filename = String(item.name || 'image').replace(/\.[^.]+$/, '') + '.' + extension;
+
+                var body = new FormData();
+                body.append('csrf', csrf);
+                body.append('path', path);
+                body.append('mode', mode);
+                body.append('file', blob, filename);
+
+                var response = await fetch(saveUrl, { method: 'POST', body: body });
+                var data = await response.json().catch(function () { return {}; });
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || t('errorFailed', 'Could not save the image.'));
+                }
+
+                result.done++;
+            } catch (err) {
+                error = err && err.message ? err.message : 'failed';
+                result.failed++;
+                if (result.errors.length < 20) {
+                    result.errors.push({ path: path, error: error });
+                }
+            }
+
+            if (typeof onProgress === 'function') {
+                onProgress(index + 1, paths.length, { path: path, error: error });
+            }
+        }
+
+        return result;
+    }
+
+    // =======================================================================
     // Global keyboard shortcuts
     // =======================================================================
     document.addEventListener('keydown', function (event) {
@@ -1133,4 +1261,7 @@
     window.editorReset = editorReset;
     window.editorSetRatio = editorSetRatio;
     window.saveEditedImage = saveEditedImage;
+    window.ModoMediaBulk = {
+        transform: bulkTransform
+    };
 })();

@@ -300,6 +300,87 @@ final class MediaLibrary
     }
 
     /**
+     * Returns ALT text and captions for the given stored media paths.
+     *
+     * @param array<int,string> $paths
+     * @return array<string,array{alt_text:string,caption:string}>
+     */
+    public static function metadataForPaths(array $paths): array
+    {
+        $paths = array_values(array_unique(array_filter(
+            array_map(static fn ($path): string => trim((string) $path), $paths),
+            static fn (string $path): bool => $path !== ''
+        )));
+        if ($paths === []) {
+            return [];
+        }
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($paths), '?'));
+            $stmt = Database::getConnection()->prepare(
+                "SELECT filepath, alt_text, caption FROM media WHERE filepath IN ({$placeholders})"
+            );
+            $stmt->execute($paths);
+
+            $metadata = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+                $metadata[(string) $row['filepath']] = [
+                    'alt_text' => (string) ($row['alt_text'] ?? ''),
+                    'caption'  => (string) ($row['caption'] ?? ''),
+                ];
+            }
+            return $metadata;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Updates ALT text / caption for stored media paths.
+     *
+     * A null value leaves the existing field unchanged; an empty string clears
+     * it. Returns the number of updated media rows.
+     *
+     * @param array<int,string> $paths
+     */
+    public static function updateMetadata(array $paths, ?string $alt, ?string $caption): int
+    {
+        $paths = array_values(array_unique(array_filter(
+            array_map(static fn ($path): string => trim((string) $path), $paths),
+            static fn (string $path): bool => $path !== ''
+        )));
+        if ($paths === [] || ($alt === null && $caption === null)) {
+            return 0;
+        }
+
+        try {
+            // Make sure every file on disk has a media row before updating it.
+            self::syncMissingMedia();
+
+            $sets = [];
+            $values = [];
+            if ($alt !== null) {
+                $sets[] = 'alt_text = ?';
+                $values[] = trim($alt);
+            }
+            if ($caption !== null) {
+                $sets[] = 'caption = ?';
+                $values[] = trim($caption);
+            }
+
+            $placeholders = implode(',', array_fill(0, count($paths), '?'));
+            $stmt = Database::getConnection()->prepare(
+                'UPDATE media SET ' . implode(', ', $sets) . ' WHERE filepath IN (' . $placeholders . ')'
+            );
+            $stmt->execute(array_merge($values, $paths));
+
+            return $stmt->rowCount();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
      * Inserts media rows for images found on disk but missing from the media
      * table (for example files copied over FTP). Generated WebP siblings are
      * skipped automatically.
@@ -869,10 +950,9 @@ final class MediaLibrary
 
         self::deleteThumbnails($newStored);
         try {
-            self::ensureThumbnails(
-                $newStored,
-                self::galleryThumbnailsAuto() ? self::thumbnailGenerationWidths() : self::THUMBNAIL_PREVIEW_WIDTHS
-            );
+            // An explicit edit must rebuild every configured size immediately,
+            // including gallery widths when galleries are enabled.
+            self::ensureThumbnails($newStored, self::thumbnailGenerationWidths());
         } catch (\Throwable $e) {
             // Thumbnails can also be regenerated lazily on the next request.
         }
@@ -1589,14 +1669,20 @@ final class MediaLibrary
     }
 
     /** Removes every cached thumbnail variant of a stored media path. */
-    public static function deleteThumbnails(string $storedPath): void
+    public static function deleteThumbnails(string $storedPath, ?array $widths = null): void
     {
         $key = self::thumbnailCacheKey($storedPath);
+        $widths = $widths ?? self::allowedThumbnailWidths();
+        $widths = array_values(array_unique(array_map('intval', $widths)));
+        if ($widths === []) {
+            return;
+        }
+
         foreach ([self::rootPath() . '/thumbs', self::rootPath() . '/cache/thumbs'] as $dir) {
             if (!is_dir($dir)) {
                 continue;
             }
-            foreach (self::allowedThumbnailWidths() as $width) {
+            foreach ($widths as $width) {
                 foreach (['webp', 'jpg'] as $extension) {
                     $file = $dir . '/' . $key . '-' . $width . '.' . $extension;
                     if (is_file($file)) {

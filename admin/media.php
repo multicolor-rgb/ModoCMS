@@ -181,6 +181,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
             mediaRedirect($returnFolder, 'all_files_deleted', false, $returnPage);
             break;
 
+        case 'bulk_metadata':
+            $paths = $_POST['paths'] ?? [];
+            if (!is_array($paths)) {
+                $paths = [];
+            }
+            $paths = array_values(array_filter($paths, static function ($path): bool {
+                return is_string($path) && $path !== '';
+            }));
+
+            $applyAlt = isset($_POST['apply_alt']);
+            $applyCaption = isset($_POST['apply_caption']);
+            if ($paths === [] || (!$applyAlt && !$applyCaption)) {
+                mediaRedirect($returnFolder, 'metadata_failed', true, $returnPage);
+            }
+
+            MediaLibrary::syncMissingMedia(Auth::id());
+            MediaLibrary::updateMetadata(
+                $paths,
+                $applyAlt ? mediaPostString('bulk_alt') : null,
+                $applyCaption ? mediaPostString('bulk_caption') : null
+            );
+            mediaRedirect($returnFolder, 'metadata_updated', false, $returnPage);
+            break;
+
         case 'move_files':
             $paths = $_POST['paths'] ?? [];
             if (!is_array($paths)) {
@@ -285,6 +309,10 @@ $totalPages = max(1, (int) ceil($viewCount / $perPage));
 $mediaPage = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
 $mediaPage = min($mediaPage, $totalPages);
 $pageItems = array_slice($mediaItems, ($mediaPage - 1) * $perPage, $perPage);
+$pageMetadata = MediaLibrary::metadataForPaths(array_map(
+    static fn (array $item): string => (string) ($item['filepath'] ?? ''),
+    $pageItems
+));
 $pageUrl = static function (int $page) use ($currentFolder): string {
     $params = [];
     if ($currentFolder !== null) {
@@ -306,6 +334,7 @@ $flashMessages = [
     'file_deleted'   => __('Media asset removed successfully.'),
     'files_deleted'  => __('Selected files deleted successfully.'),
     'all_files_deleted' => __('All files in this folder were deleted.'),
+    'metadata_updated' => __('ALT text and/or caption updated for the selected files.'),
 ];
 
 $flashErrors = [
@@ -319,6 +348,7 @@ $flashErrors = [
     'move_failed'      => __('Could not move the selected files.'),
     'delete_failed'    => __('Could not delete the selected files.'),
     'delete_partial'   => __('Some files could not be deleted.'),
+    'metadata_failed'  => __('Could not update the metadata. Select at least one file and a field to change.'),
     'operation_failed' => __('The operation could not be completed.'),
 ];
 
@@ -502,6 +532,15 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
         </label>
         <div id="bulk-actions" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span id="bulk-count" style="font-size: 12px; color: var(--text-muted);"></span>
+            <button type="button" class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="openBulkMetadataModal()">
+                <?= _e('Edit selected') ?>
+            </button>
+            <button type="button" class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="openBulkTransformModal()">
+                <?= _e('Transform selected') ?>
+            </button>
+            <button type="button" class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="regenerateSelectedThumbnails()">
+                <?= _e('Regenerate thumbnails') ?>
+            </button>
             <button type="button" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openMoveModalFromSelection()">
                 <?= _e('Move selected') ?>
             </button>
@@ -525,11 +564,13 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
             $itemFolder = MediaLibrary::folderOfStoredPath($filePath);
             $itemFolderLabel = $itemFolder === '' ? __('Root') : $itemFolder;
             $fileSizeKb = round((int) $item['file_size'] / 1024, 1);
+            $altText = (string) ($pageMetadata[$filePath]['alt_text'] ?? '');
+            $captionText = (string) ($pageMetadata[$filePath]['caption'] ?? '');
         ?>
             <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-sm); background: var(--bg-card, #111827);">
                 <div style="width: 100%; height: 140px; background: var(--bg-surface, #1e293b); display: flex; align-items: center; justify-content: center; position: relative;">
                     <button type="button" class="media-thumb-button" onclick="openMediaLightbox(<?= (int) $itemIndex ?>)">
-                        <img src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES, 'UTF-8') ?>" alt="<?= Security::sanitize((string) $item['filename']) ?>" loading="lazy" decoding="async" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES, 'UTF-8') ?>" alt="<?= Security::sanitize($altText !== '' ? $altText : (string) $item['filename']) ?>" loading="lazy" decoding="async" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                     </button>
                     <label class="media-thumb-check">
                         <input type="checkbox" class="media-select" value="<?= htmlspecialchars($filePath, ENT_QUOTES, 'UTF-8') ?>" style="margin: 0; cursor: pointer;">
@@ -541,6 +582,16 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
                             <?= Security::sanitize((string) $item['filename']) ?>
                         </span>
                         <span style="font-size: 11px; color: var(--text-muted);"><?= $fileSizeKb ?> KB</span>
+                        <?php if ($altText !== ''): ?>
+                            <span style="display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?= Security::sanitize($altText) ?>">
+                                ALT: <?= Security::sanitize($altText) ?>
+                            </span>
+                        <?php endif; ?>
+                        <?php if ($captionText !== ''): ?>
+                            <span style="display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?= Security::sanitize($captionText) ?>">
+                                <?= Security::sanitize($captionText) ?>
+                            </span>
+                        <?php endif; ?>
                         <?php if ($currentFolder === null): ?>
                             <span style="display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 <?= _e('Folder') ?>: <?= Security::sanitize((string) $itemFolderLabel) ?>
@@ -641,6 +692,100 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
                 <button type="submit" class="btn btn-primary"><?= _e('Move') ?></button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Bulk metadata -->
+<div id="bulk-metadata-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px);">
+    <div class="card" style="width: 100%; max-width: 520px; padding: 24px; background: var(--bg-card, #111827); border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid var(--border-subtle);">
+        <h3 style="font-size: 17px; font-weight: 700; margin: 0 0 16px; color: var(--text-main);"><?= _e('Edit selected media') ?></h3>
+        <form method="post" id="bulk-metadata-form">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="media_action" value="bulk_metadata">
+            <input type="hidden" name="return_folder" value="<?= htmlspecialchars($returnFolderValue, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_page" value="<?= (int) $mediaPage ?>">
+            <div id="bulk-metadata-paths"></div>
+
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); margin-bottom: 6px;">
+                <input type="checkbox" name="apply_alt" value="1" style="margin: 0;">
+                <?= _e('Update ALT text') ?>
+            </label>
+            <input class="form-control" type="text" name="bulk_alt" placeholder="<?= _e('ALT text') ?>" style="margin-bottom: 14px;">
+
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); margin-bottom: 6px;">
+                <input type="checkbox" name="apply_caption" value="1" style="margin: 0;">
+                <?= _e('Update caption') ?>
+            </label>
+            <input class="form-control" type="text" name="bulk_caption" placeholder="<?= _e('Caption') ?>" style="margin-bottom: 14px;">
+
+            <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px;">
+                <?= _e('Only checked fields are changed. Leave a field empty to clear it for the selected files.') ?>
+            </p>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeBulkMetadataModal()"><?= _e('Cancel') ?></button>
+                <button type="submit" class="btn btn-primary"><?= _e('Save') ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk transform -->
+<div id="bulk-transform-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px);">
+    <div class="card" style="width: 100%; max-width: 560px; padding: 24px; background: var(--bg-card, #111827); border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid var(--border-subtle);">
+        <h3 style="font-size: 17px; font-weight: 700; margin: 0 0 16px; color: var(--text-main);"><?= _e('Transform selected images') ?></h3>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="bulk-rotate"><?= _e('Rotation') ?></label>
+                <select class="form-control" id="bulk-rotate">
+                    <option value="0"><?= _e('None') ?></option>
+                    <option value="90"><?= _e('90° clockwise') ?></option>
+                    <option value="180"><?= _e('180°') ?></option>
+                    <option value="270"><?= _e('90° counter-clockwise') ?></option>
+                </select>
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="bulk-quality"><?= _e('Quality (JPEG/WebP)') ?></label>
+                <input class="form-control" type="number" id="bulk-quality" min="1" max="100" value="82">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="bulk-max-width"><?= _e('Max width (px, 0 = keep)') ?></label>
+                <input class="form-control" type="number" id="bulk-max-width" min="0" value="0">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" for="bulk-max-height"><?= _e('Max height (px, 0 = keep)') ?></label>
+                <input class="form-control" type="number" id="bulk-max-height" min="0" value="0">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 18px; flex-wrap: wrap; margin: 16px 0;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main);">
+                <input type="checkbox" id="bulk-flip-x" style="margin: 0;"> <?= _e('Flip horizontal') ?>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main);">
+                <input type="checkbox" id="bulk-flip-y" style="margin: 0;"> <?= _e('Flip vertical') ?>
+            </label>
+        </div>
+
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); margin-bottom: 8px;">
+            <input type="radio" name="bulk-mode" value="overwrite" checked style="margin: 0;">
+            <?= _e('Overwrite original files') ?>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); margin-bottom: 12px;">
+            <input type="radio" name="bulk-mode" value="copy" style="margin: 0;">
+            <?= _e('Save as new copies') ?>
+        </label>
+
+        <p style="font-size: 11px; color: var(--danger, #ef4444); margin: 0 0 16px;">
+            <?= _e('Overwriting permanently replaces the originals. GIF/SVG files are skipped.') ?>
+        </p>
+        <p id="bulk-transform-status" style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px;"></p>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closeBulkTransformModal()"><?= _e('Cancel') ?></button>
+            <button type="button" class="btn btn-primary" id="bulk-transform-apply"><?= _e('Apply to selected') ?></button>
+        </div>
     </div>
 </div>
 
@@ -949,6 +1094,172 @@ function openMoveModal(paths) {
 
 function openMoveModalFromSelection() {
     openMoveModal(Array.from(document.querySelectorAll('.media-select:checked')).map((cb) => cb.value));
+}
+
+function selectedMediaPaths() {
+    return Array.from(document.querySelectorAll('.media-select:checked')).map((cb) => cb.value);
+}
+
+function fillHiddenPaths(container, paths) {
+    if (!container) return;
+    container.innerHTML = '';
+    paths.forEach((path) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'paths[]';
+        input.value = path;
+        container.appendChild(input);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk metadata
+// ---------------------------------------------------------------------------
+const bulkMetadataModal = document.getElementById('bulk-metadata-modal');
+const bulkMetadataPaths = document.getElementById('bulk-metadata-paths');
+
+function openBulkMetadataModal() {
+    const paths = selectedMediaPaths();
+    if (!paths.length) {
+        UI.alert({ title: <?= json_encode(__('Edit selected media')) ?>, message: MEDIA_I18N.selectAtLeastOne, danger: true });
+        return;
+    }
+    fillHiddenPaths(bulkMetadataPaths, paths);
+    if (bulkMetadataModal) bulkMetadataModal.style.display = 'flex';
+}
+
+function closeBulkMetadataModal() {
+    if (bulkMetadataModal) bulkMetadataModal.style.display = 'none';
+}
+
+if (bulkMetadataModal) {
+    bulkMetadataModal.addEventListener('click', (e) => {
+        if (e.target === bulkMetadataModal) closeBulkMetadataModal();
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk transform
+// ---------------------------------------------------------------------------
+const bulkTransformModal = document.getElementById('bulk-transform-modal');
+const bulkTransformApply = document.getElementById('bulk-transform-apply');
+const bulkTransformStatus = document.getElementById('bulk-transform-status');
+
+function openBulkTransformModal() {
+    if (!selectedMediaPaths().length) {
+        UI.alert({ title: <?= json_encode(__('Transform selected images')) ?>, message: MEDIA_I18N.selectAtLeastOne, danger: true });
+        return;
+    }
+    if (bulkTransformModal) bulkTransformModal.style.display = 'flex';
+}
+
+function closeBulkTransformModal() {
+    if (bulkTransformModal) bulkTransformModal.style.display = 'none';
+}
+
+if (bulkTransformModal) {
+    bulkTransformModal.addEventListener('click', (e) => {
+        if (e.target === bulkTransformModal) closeBulkTransformModal();
+    });
+}
+
+if (bulkTransformApply) {
+    bulkTransformApply.addEventListener('click', async () => {
+        const paths = selectedMediaPaths();
+        if (!paths.length) return;
+
+        const modeInput = document.querySelector('input[name="bulk-mode"]:checked');
+        const mode = modeInput ? modeInput.value : 'overwrite';
+        if (mode === 'overwrite') {
+            const ok = await UI.confirm({
+                title: <?= json_encode(__('Overwrite original files?')) ?>,
+                message: <?= json_encode(__('Selected images will be permanently overwritten. This action cannot be undone.')) ?>,
+                okText: <?= json_encode(__('Overwrite')) ?>,
+                cancelText: MEDIA_I18N.cancel,
+                danger: true
+            });
+            if (!ok) return;
+        }
+
+        if (!window.ModoMediaBulk || typeof window.ModoMediaBulk.transform !== 'function') {
+            UI.alert({ title: <?= json_encode(__('Transform selected images')) ?>, message: MEDIA_I18N.selectAtLeastOne, danger: true });
+            return;
+        }
+
+        const options = {
+            rotate: parseInt(document.getElementById('bulk-rotate')?.value || '0', 10) || 0,
+            flipX: !!document.getElementById('bulk-flip-x')?.checked,
+            flipY: !!document.getElementById('bulk-flip-y')?.checked,
+            maxWidth: Math.max(0, parseInt(document.getElementById('bulk-max-width')?.value || '0', 10) || 0),
+            maxHeight: Math.max(0, parseInt(document.getElementById('bulk-max-height')?.value || '0', 10) || 0),
+            quality: Math.min(100, Math.max(1, parseInt(document.getElementById('bulk-quality')?.value || '82', 10) || 82)),
+            mode
+        };
+
+        bulkTransformApply.disabled = true;
+        if (bulkTransformStatus) bulkTransformStatus.textContent = <?= json_encode(__('Processing...')) ?>;
+
+        try {
+            const result = await window.ModoMediaBulk.transform(paths, options, (done, total, item) => {
+                if (bulkTransformStatus) {
+                    bulkTransformStatus.textContent = done + ' / ' + total + (item && item.error ? ' · ' + item.error : '');
+                }
+            });
+            const failed = result.failed || 0;
+            UI.alert({
+                title: <?= json_encode(__('Transform selected images')) ?>,
+                message: <?= json_encode(__('Processed')) ?> + ': ' + (result.done || 0) + ' / ' + (result.total || 0) + (failed ? ' · ' + <?= json_encode(__('errors')) ?> + ': ' + failed : ''),
+                danger: failed > 0
+            });
+            window.location.reload();
+        } catch (error) {
+            if (bulkTransformStatus) bulkTransformStatus.textContent = <?= json_encode(__('The operation could not be completed.')) ?>;
+            bulkTransformApply.disabled = false;
+        }
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk thumbnail regeneration
+// ---------------------------------------------------------------------------
+async function regenerateSelectedThumbnails() {
+    const paths = selectedMediaPaths();
+    if (!paths.length) {
+        UI.alert({ title: <?= json_encode(__('Regenerate thumbnails')) ?>, message: MEDIA_I18N.selectAtLeastOne, danger: true });
+        return;
+    }
+
+    const csrf = <?= json_encode($csrfToken) ?>;
+    let offset = 0;
+    let done = false;
+    let failed = 0;
+    bulkCount.textContent = <?= json_encode(__('Generating thumbnails...')) ?>;
+
+    while (!done) {
+        const body = new URLSearchParams();
+        body.set('csrf', csrf);
+        body.set('scope', 'selection');
+        body.set('force', '1');
+        body.set('paths', JSON.stringify(paths));
+        body.set('offset', String(offset));
+        body.set('limit', '5');
+
+        try {
+            const response = await fetch('thumbs-backfill.php', { method: 'POST', body });
+            const data = await response.json();
+            if (!data.ok) throw new Error(data.error || 'failed');
+            offset = Number(data.next) || 0;
+            done = !!data.done;
+            failed += Number(data.failed) || 0;
+            bulkCount.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
+        } catch (error) {
+            UI.alert({ title: <?= json_encode(__('Regenerate thumbnails')) ?>, message: <?= json_encode(__('Thumbnail generation failed.')) ?>, danger: true });
+            return;
+        }
+    }
+
+    UI.alert({ title: <?= json_encode(__('Regenerate thumbnails')) ?>, message: <?= json_encode(__('Thumbnails generated.')) ?>, danger: failed > 0 });
+    window.location.reload();
 }
 
 function closeMoveModal() {

@@ -923,13 +923,17 @@ require_once __DIR__ . '/views/header.php';
             </div>
 
             <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px;">
-                <?= _e('Admin previews always use 80/160/240 px. Existing images can be regenerated in Media → Generate missing thumbnails.') ?>
+                <?= _e('Admin previews always use 80/160/240 px. Use the force button below to delete and regenerate every configured size for all media.') ?>
             </small>
 
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
                 <button type="button" id="gallery-thumb-backfill-btn" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"
                         data-csrf="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                     <?= _e('Generate gallery thumbnails') ?>
+                </button>
+                <button type="button" id="gallery-thumb-force-btn" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"
+                        data-csrf="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
+                    <?= _e('Force regenerate all thumbnails') ?>
                 </button>
                 <span id="gallery-thumb-status" style="font-size: 11px; color: var(--text-muted);">
                     <?= htmlspecialchars(sprintf(__('Missing gallery thumbnails: %d'), $missingGalleryThumbs), ENT_QUOTES, 'UTF-8') ?>
@@ -1444,17 +1448,20 @@ filePicker.addEventListener('change', () => {
 
 <script>
 (function () {
-    var btn = document.getElementById('gallery-thumb-backfill-btn');
-    if (!btn) return;
+    var backfillBtn = document.getElementById('gallery-thumb-backfill-btn');
+    var forceBtn = document.getElementById('gallery-thumb-force-btn');
+    if (!backfillBtn && !forceBtn) return;
 
     var status = document.getElementById('gallery-thumb-status');
     var progress = document.getElementById('gallery-thumb-progress');
     var bar = document.getElementById('gallery-thumb-bar');
-    var csrf = btn.getAttribute('data-csrf') || '';
-    var originalLabel = btn.textContent;
 
-    btn.addEventListener('click', async function () {
+    async function runBackfill(btn, scope, force) {
+        var csrf = btn.getAttribute('data-csrf') || '';
+        var originalLabel = btn.textContent;
         btn.disabled = true;
+        if (backfillBtn) backfillBtn.disabled = true;
+        if (forceBtn) forceBtn.disabled = true;
         btn.textContent = <?= json_encode(__('Generating thumbnails...')) ?>;
         if (progress) progress.style.display = 'block';
 
@@ -1466,7 +1473,8 @@ filePicker.addEventListener('change', () => {
         while (!done) {
             var body = new URLSearchParams();
             body.set('csrf', csrf);
-            body.set('scope', 'gallery');
+            body.set('scope', scope);
+            body.set('force', force ? '1' : '0');
             body.set('offset', String(offset));
             body.set('limit', '5');
 
@@ -1488,8 +1496,10 @@ filePicker.addEventListener('change', () => {
                     status.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
                 }
             } catch (error) {
-                btn.disabled = false;
                 btn.textContent = originalLabel;
+                btn.disabled = false;
+                if (backfillBtn) backfillBtn.disabled = false;
+                if (forceBtn) forceBtn.disabled = false;
                 if (status) status.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
                 return;
             }
@@ -1497,11 +1507,27 @@ filePicker.addEventListener('change', () => {
 
         btn.textContent = originalLabel;
         btn.disabled = false;
+        if (backfillBtn) backfillBtn.disabled = false;
+        if (forceBtn) forceBtn.disabled = false;
         if (status) {
             status.textContent = <?= json_encode(__('Thumbnails generated.')) ?> + ' (' + generated + (failed > 0 ? ', errors: ' + failed : '') + ')';
         }
         window.setTimeout(function () { window.location.reload(); }, 900);
-    });
+    }
+
+    if (backfillBtn) {
+        backfillBtn.addEventListener('click', function () {
+            runBackfill(backfillBtn, 'gallery', false);
+        });
+    }
+
+    if (forceBtn) {
+        forceBtn.addEventListener('click', function () {
+            var ok = window.confirm(<?= json_encode(__('This will delete and regenerate every configured thumbnail for all media. Continue?')) ?>);
+            if (!ok) return;
+            runBackfill(forceBtn, 'all', true);
+        });
+    }
 })();
 </script>
 

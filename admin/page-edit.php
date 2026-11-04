@@ -1240,6 +1240,10 @@ require_once __DIR__ . '/views/header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <label id="media-select-all-wrap" style="display: none; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; color: var(--text-muted); cursor: pointer;">
+                        <input type="checkbox" id="media-select-all" style="margin: 0; cursor: pointer;">
+                        <?= _e('Select all') ?>
+                    </label>
                 </div>
                 <div id="media-picker-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 16px;">
                     <?php foreach ($existingMedia as $media): ?>
@@ -1531,6 +1535,8 @@ const cancelModalBtn = document.getElementById('cancel-modal-btn');
 const insertMediaBtn = document.getElementById('insert-media-btn');
 const mediaItems = document.querySelectorAll('.media-pick-item');
 const mediaLoadMore = document.getElementById('media-load-more');
+const mediaSelectAll = document.getElementById('media-select-all');
+const mediaSelectAllWrap = document.getElementById('media-select-all-wrap');
 
 const MEDIA_PAGE_SIZE = 24;
 let mediaPageSize = MEDIA_PAGE_SIZE;
@@ -1546,9 +1552,31 @@ const setMediaItemSelected = (item, selected) => {
     item.style.boxShadow = selected ? '0 0 0 2px rgba(59, 130, 246, .35)' : 'none';
 };
 
+const mediaItemMatchesFolder = (item) => {
+    if (!mediaFolderFilter) return true;
+    const value = mediaFolderFilter.value;
+    return value === '__all__' || (item.getAttribute('data-folder') || '') === value;
+};
+
+const updateMediaSelectAll = () => {
+    if (!mediaSelectAll) return;
+
+    const matching = Array.from(mediaItems).filter(mediaItemMatchesFolder);
+    const selected = matching.filter((item) => item.classList.contains('selected')).length;
+
+    if (mediaSelectAllWrap) {
+        mediaSelectAllWrap.style.display = mediaPickerMultiple && matching.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    mediaSelectAll.disabled = !mediaPickerMultiple || matching.length === 0;
+    mediaSelectAll.checked = matching.length > 0 && selected === matching.length;
+    mediaSelectAll.indeterminate = selected > 0 && selected < matching.length;
+};
+
 const resetMediaSelection = () => {
     mediaPickerSelected.clear();
     mediaItems.forEach((item) => setMediaItemSelected(item, false));
+    updateMediaSelectAll();
 };
 
 const mediaFolderFilter = document.getElementById('media-folder-filter');
@@ -1574,12 +1602,32 @@ const applyMediaFolderFilter = () => {
         mediaLoadMore.style.display = remaining > 0 ? 'inline-flex' : 'none';
         mediaLoadMore.textContent = <?= json_encode(__('Load more')) ?> + ' (' + remaining + ')';
     }
+
+    updateMediaSelectAll();
 };
 
 if (mediaLoadMore) {
     mediaLoadMore.addEventListener('click', () => {
         mediaPageSize += MEDIA_PAGE_SIZE;
         applyMediaFolderFilter();
+    });
+}
+
+if (mediaSelectAll) {
+    mediaSelectAll.addEventListener('change', () => {
+        const matching = Array.from(mediaItems).filter(mediaItemMatchesFolder);
+        matching.forEach((item) => {
+            const url = item.getAttribute('data-url') || '';
+            if (!url) return;
+            if (mediaSelectAll.checked) {
+                mediaPickerSelected.add(url);
+                setMediaItemSelected(item, true);
+            } else {
+                mediaPickerSelected.delete(url);
+                setMediaItemSelected(item, false);
+            }
+        });
+        updateMediaSelectAll();
     });
 }
 
@@ -1598,6 +1646,7 @@ const openModal = () => {
         mediaFolderFilter.value = '__all__';
     }
     applyMediaFolderFilter();
+    updateMediaSelectAll();
 };
 const hideModal = () => {
     if (modal) modal.style.display = 'none';
@@ -1606,6 +1655,7 @@ const hideModal = () => {
     mediaPickerMultiple = false;
     mediaPickerCallback = null;
     resetMediaSelection();
+    updateMediaSelectAll();
     if (insertMediaBtn) insertMediaBtn.style.display = 'none';
 };
 
@@ -1717,6 +1767,7 @@ mediaItems.forEach(item => {
                 mediaPickerSelected.add(selectedUrl);
                 setMediaItemSelected(item, true);
             }
+            updateMediaSelectAll();
             return;
         }
 

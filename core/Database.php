@@ -241,6 +241,8 @@ final class Database {
                 mime_type TEXT NOT NULL,
                 file_size INTEGER NOT NULL,
                 webp_path TEXT,
+                alt_text TEXT,
+                caption TEXT,
                 user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -510,6 +512,8 @@ final class Database {
         self::ensureColumn($db, 'users', 'totp_secret', 'TEXT');
         self::ensureColumn($db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'media', 'webp_path', 'TEXT');
+        self::ensureColumn($db, 'media', 'alt_text', 'TEXT');
+        self::ensureColumn($db, 'media', 'caption', 'TEXT');
         self::ensureColumn($db, 'pages', 'page_type_id', 'INTEGER');
         self::ensureColumn($db, 'page_meta', 'meta_label', 'TEXT');
         self::ensureColumn($db, 'page_revisions', 'page_type_id', 'INTEGER');
