@@ -9,6 +9,14 @@
     --bs-gutter-y: 0;
 }
 
+/* Percentage widths and gutters only fit on one row with border-box. */
+.container,
+.container-fluid,
+.row,
+.row > * {
+    box-sizing: border-box;
+}
+
 .container,
 .container-fluid {
     width: 100%;

@@ -565,11 +565,6 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://'
 
 $postsPageSlug = Router::getPostsPageSlug();
 
-// --- Content editor (TinyMCE or Editor.js, Settings → Content) -------------
-$useEditorJs = class_exists(\Core\EditorJs::class) && \Core\EditorJs::isActive();
-$editorJsConfig = $useEditorJs ? \Core\EditorJs::clientConfig() : [];
-$editorJsToolAssets = $useEditorJs ? \Core\EditorJs::toolAssets() : [];
-
 // --- Revision history (backups) -------------------------------------------
 $revisionsEnabled = class_exists(\Core\Revisions::class) && \Core\Revisions::isEnabled();
 $revisionList  = [];
@@ -703,47 +698,16 @@ require_once __DIR__ . '/views/header.php';
 
 <script src="assets/vendor/tinymce/tinymce.min.js"></script>
 <script src="assets/js/grid-editor.js"></script>
-<script src="assets/js/editor-bridge.js"></script>
-<?php if ($useEditorJs): ?>
-<!-- Editor.js block editor (bundled locally, MIT - see admin/assets/vendor/editorjs/licenses) -->
-<script src="<?= htmlspecialchars(\Core\EditorJs::coreAsset(), ENT_QUOTES, 'UTF-8') ?>"></script>
-<?php foreach ($editorJsToolAssets as $editorJsAsset): ?>
-<script src="<?= htmlspecialchars($editorJsAsset, ENT_QUOTES, 'UTF-8') ?>"></script>
-<?php endforeach; ?>
-<script src="assets/js/editorjs-grid-tool.js"></script>
-<?php endif; ?>
 <script>
     window.MODO_GRID_CSS = <?= json_encode(\Core\CssFramework::editorContentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID_STYLE = <?= json_encode(\Core\CssFramework::editorContentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_GRID_GUIDE = <?= json_encode(\Core\CssFramework::editorGuideCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.MODO_EDITOR_BASE_STYLE = <?= json_encode('*,*::before,*::after{box-sizing:border-box}html,body{overflow-x:hidden}body{padding:10px}', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_GRID = <?= json_encode(\Core\CssFramework::gridConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_THEME_CSS = <?= json_encode(\Core\ThemeEditorStyles::contentCss(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_THEME_STYLE = <?= json_encode(\Core\ThemeEditorStyles::contentStyle(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.MODO_THEME_BODY_CLASS = <?= json_encode(\Core\ThemeEditorStyles::bodyClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-    <?php if ($useEditorJs): ?>
-    window.MODO_EDITORJS = <?= json_encode($editorJsConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-    <?php endif; ?>
 </script>
-<?php if ($useEditorJs): ?>
-<style>
-    /* The Editor.js canvas is inline, so the grid CSS is scoped to it instead
-       of leaking into the admin UI. Customised block skins follow below.
-       Theme styles go first so their @import rules stay at the top. */
-    <?= \Core\ThemeEditorStyles::scopedCss('#editorjs') ?>
-    <?= \Core\CssFramework::editorScopedCss('#editorjs') ?>
-    #editorjs {
-        padding: 24px 20px 40px;
-        min-height: 420px;
-        background: #ffffff;
-        color: #0f172a;
-        border: 1px solid #e2e8f0;
-        border-radius: var(--radius-sm, 8px);
-    }
-    #editorjs .ce-block__content, #editorjs .ce-toolbar__content { max-width: 100%; }
-    #editorjs .cdx-block { font-size: 15px; line-height: 1.65; color: #0f172a; }
-    #editorjs [data-placeholder]:empty::before { color: #94a3b8; }
-    #editorjs .modo-image img { max-width: 100%; height: auto; }
-</style>
-<?php endif; ?>
 
 <link rel="stylesheet" href="assets/vendor/codemirror/codemirror.min.css">
 <link rel="stylesheet" href="assets/vendor/codemirror/theme/dracula.min.css">
@@ -939,13 +903,7 @@ require_once __DIR__ . '/views/header.php';
                 </div>
 
                 <div class="form-group" style="margin-bottom: 0;">
-                    <?php if ($useEditorJs): ?>
-                        <div id="editorjs-toolbar"></div>
-                        <div id="editorjs"></div>
-                        <textarea id="editor" name="content" style="display: none;"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
-                    <?php else: ?>
-                        <textarea id="editor" name="content"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
-                    <?php endif; ?>
+                    <textarea id="editor" name="content"><?= htmlspecialchars($item['content'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
             </div>
 
@@ -1485,14 +1443,14 @@ const isDarkActive = () => {
 
 function initCleanTinyMCE() {
     if (typeof tinymce === 'undefined') return;
-    // The Editor.js block editor owns the content field on this screen.
-    if (window.MODO_EDITORJS && document.getElementById('editorjs')) return;
     const isDark = isDarkActive();
     const gridCss = (window.MODO_GRID_CSS || []).slice();
     const gridStyle = window.MODO_GRID_STYLE || '';
     const themeCss = (window.MODO_THEME_CSS || []).slice();
     const themeStyle = window.MODO_THEME_STYLE || '';
-    const contentCss = [(isDark ? 'dark' : 'default')].concat(gridCss, themeCss);
+    // The content canvas stays light in every admin theme; only the UI skin
+    // (toolbar, dialogs) follows dark mode.
+    const contentCss = ['default'].concat(gridCss, themeCss);
 
     tinymce.init({
         selector: '#editor',
@@ -1502,7 +1460,7 @@ function initCleanTinyMCE() {
         toolbar: <?= json_encode($resolvedToolbar) ?>,
         skin: isDark ? 'oxide-dark' : 'oxide',
         content_css: contentCss,
-        content_style: themeStyle + gridStyle,
+        content_style: (window.MODO_EDITOR_BASE_STYLE || '') + themeStyle + (window.MODO_GRID_GUIDE || '') + gridStyle,
         body_class: window.MODO_THEME_BODY_CLASS || '',
         images_upload_url: 'upload.php',
         automatic_uploads: true,
@@ -1644,7 +1602,6 @@ const openModal = () => {
 const hideModal = () => {
     if (modal) modal.style.display = 'none';
     tinymceFilePickerCallback = null;
-    window.__modoMediaCallback = null;
     currentMediaTarget = 'featured';
     mediaPickerMultiple = false;
     mediaPickerCallback = null;
@@ -1784,10 +1741,6 @@ mediaItems.forEach(item => {
         } else if (currentMediaTarget === 'tinymce_direct') {
             if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
                 tinymce.activeEditor.insertContent(`<img src="${selectedUrl}" alt="${altText}" />`);
-            }
-        } else if (currentMediaTarget === 'editorjs') {
-            if (typeof window.__modoMediaCallback === 'function') {
-                window.__modoMediaCallback(selectedUrl, altText);
             }
         }
 
@@ -2194,8 +2147,8 @@ mediaItems.forEach(item => {
                 plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen table wordcount',
                 toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
                 skin: isDark ? 'oxide-dark' : 'oxide',
-                content_css: [(isDark ? 'dark' : 'default')].concat(window.MODO_GRID_CSS || [], window.MODO_THEME_CSS || []),
-                content_style: (window.MODO_THEME_STYLE || '') + (window.MODO_GRID_STYLE || ''),
+                content_css: ['default'].concat(window.MODO_GRID_CSS || [], window.MODO_THEME_CSS || []),
+                content_style: (window.MODO_EDITOR_BASE_STYLE || '') + (window.MODO_THEME_STYLE || '') + (window.MODO_GRID_GUIDE || '') + (window.MODO_GRID_STYLE || ''),
                 body_class: window.MODO_THEME_BODY_CLASS || '',
                 relative_urls: false,
                 remove_script_host: false,
@@ -2847,12 +2800,6 @@ mediaItems.forEach(item => {
     function autosave() {
         if (!form || !dirty) return;
         if (window.tinymce && typeof window.tinymce.triggerSave === 'function') { try { window.tinymce.triggerSave(); } catch (e) {} }
-        // Editor.js writes the document back asynchronously, so the form is only
-        // snapshotted after the current state has reached the textarea.
-        if (window.ModoEditorJs && typeof window.ModoEditorJs.serialize === 'function') {
-            window.ModoEditorJs.serialize().then(sendAutosave).catch(function () {});
-            return;
-        }
         sendAutosave();
     }
 
@@ -2881,12 +2828,6 @@ mediaItems.forEach(item => {
 </script>
 
 <script>
-    window.ModoOpenMediaPicker = function (callback) {
-        window.__modoMediaCallback = callback;
-        currentMediaTarget = 'editorjs';
-        openModal();
-    };
-
     // Generate missing preview thumbnails in small batches. The page is not
     // reloaded so unsaved document changes are preserved.
     (function () {
@@ -2947,8 +2888,5 @@ mediaItems.forEach(item => {
         }
     })();
 </script>
-<?php if ($useEditorJs): ?>
-<script src="assets/js/editorjs-init.js"></script>
-<?php endif; ?>
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>

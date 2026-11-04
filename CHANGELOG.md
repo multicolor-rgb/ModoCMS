@@ -4,6 +4,35 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.4] — 2026-11-04
+
+### Dodane
+
+- **Prowadnice siatek w TinyMCE** — wiersze i kolumny są widoczne w edytorze dzięki przerywanym ramkom; prowadnice nie trafiają na frontend.
+- **Wygodniejsze edytowanie siatek** — treść każdej kolumny jest automatycznie owijana w `<p>`, a stare siatki są normalizowane przy otwarciu edytora. Zmiana formatu bloku (np. `h1 → p`) nie zamienia już `<div>` kolumny w nagłówek i nie niszczy struktury.
+- **Automatyczna migracja treści Editor.js** — stare dokumenty JSON są jednorazowo konwertowane do HTML (strony, snippety, rewizje) przy pierwszym wejściu do panelu; dostępny jest też skrypt CLI `tools/migrate-editorjs.php`.
+- **Padding kanwy edytora** — wewnętrzny odstęp 10 px w TinyMCE.
+
+### Zmienione
+
+- **TinyMCE jedynym edytorem treści** — Editor.js został usunięty z panelu, ustawień, wtyczek i paczki.
+- **Kanwa edytora zawsze jasna** — tryb ciemny panelu zmienia tylko pasek narzędzi i dialogi; treść jest edytowana na białym tle.
+- **`box-sizing: border-box`** — poprawione szerokości kontenerów i kolumn siatek (bundled CSS + kanwa TinyMCE).
+- **`editor.css` tylko dla TinyMCE** — usunięto scopowanie CSS dla inline'owego edytora blokowego.
+
+### Naprawione
+
+- Brak poziomego paska przewijania w edytorze.
+- Kolumny siatek nie zawijają się już pod siebie z powodu paddingów.
+- Zmiana formatu bloku wewnątrz siatki nie niszczy wrappera kolumny.
+- Ciemny tekst na ciemnym tle w trybie ciemnym.
+
+### Usunięte
+
+- **Edytor blokowy Editor.js** — kod, bundle, ustawienia, mostek `editor-bridge.js`, narzędzia i integracje w Gallery/Form/Carousel.
+- Nieużywane helpery scopowania CSS (`scopeCss()`, `editorScopedCss()`, `ThemeEditorStyles::scopedCss()`).
+- Testowe `robots.txt` / `sitemap.xml` z repozytorium (są generowane w runtime).
+
 ## [3.0.3] — 2026-11-04
 
 ### Dodane

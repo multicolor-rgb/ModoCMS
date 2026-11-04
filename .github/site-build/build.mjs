@@ -101,8 +101,8 @@ const DOCS = [
     en: 'theme-editor-styles.md',
     title: { pl: 'Styl motywu w edytorze', en: 'Theme editor styles' },
     desc: {
-      pl: 'Opcjonalna typografia TinyMCE i Editor.js z pliku editor.css.',
-      en: 'Optional TinyMCE and Editor.js typography from editor.css.'
+      pl: 'Opcjonalna typografia TinyMCE z pliku editor.css.',
+      en: 'Optional TinyMCE typography from editor.css.'
     },
     icon: 'code'
   },

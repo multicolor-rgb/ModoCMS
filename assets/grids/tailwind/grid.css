@@ -5,6 +5,16 @@
    frontend and inside the content editor.
    ========================================================================== */
 
+/* Padding on a full-width container and percentage columns must not add to
+   their declared width. */
+.container,
+.grid,
+.grid > *,
+.inline-grid,
+.inline-grid > * {
+    box-sizing: border-box;
+}
+
 .container {
     width: 100%;
     margin-right: auto;

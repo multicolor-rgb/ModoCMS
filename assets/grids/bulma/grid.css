@@ -4,6 +4,13 @@
    identically on the frontend and inside the content editor.
    ========================================================================== */
 
+/* Percentage widths and gutters only fit on one row with border-box. */
+.container,
+.columns,
+.column {
+    box-sizing: border-box;
+}
+
 .container {
     flex-grow: 1;
     margin: 0 auto;

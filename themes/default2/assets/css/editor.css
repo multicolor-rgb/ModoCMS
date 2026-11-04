@@ -1,5 +1,5 @@
 /* Modo Bootstrap Dark — content editor typography.
-   Loaded only inside the TinyMCE / Editor.js canvas when this file exists.
+   Loaded only inside the TinyMCE canvas when this file exists.
    The canvas itself stays light, so text keeps a readable dark colour. */
 
 body {

@@ -29,7 +29,7 @@ What actually happens.
 - PHP version: …
 - Web server: Apache / Nginx / PHP built-in
 - Installation location: root / subdirectory (`/name/`)
-- Content editor: TinyMCE / Editor.js
+- Content editor: TinyMCE
 - Browser + version: …
 
 **Logs**
@@ -58,7 +58,7 @@ Co się dzieje w rzeczywistości.
 - Wersja PHP: …
 - Serwer WWW: Apache / Nginx / wbudowany PHP
 - Lokalizacja instalacji: root / podkatalog (`/nazwa/`)
-- Edytor treści: TinyMCE / Editor.js
+- Edytor treści: TinyMCE
 - Przeglądarka + wersja: …
 
 **Logi**

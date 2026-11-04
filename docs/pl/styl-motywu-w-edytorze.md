@@ -10,7 +10,7 @@ Funkcja jest **opcjonalna** i włącza się tylko wtedy, gdy istnieje plik:
 themes/<motyw>/assets/css/editor.css
 ```
 
-- Brak pliku oznacza zero zmian: TinyMCE i Editor.js działają dokładnie tak jak wcześniej.
+- Brak pliku oznacza zero zmian: TinyMCE działa dokładnie tak jak wcześniej.
 - Nie ma fallbacku na `style.css` ani na inne arkusze motywu.
 - Nie ma nowego ustawienia w **Settings**.
 - Styl jest wstrzykiwany wyłącznie do kanwy edytora, nie do frontendu.
@@ -27,18 +27,11 @@ Gdy `editor.css` istnieje, edytor otrzymuje:
 
 Kolejność arkuszy w `content_css` to: skórka TinyMCE → CSS siatki → CSS motywu. Dzięki temu typografia motywu może nadpisać ustawienia siatki.
 
-## Editor.js
+Kanwa treści zawsze startuje od jasnego arkusza zawartości TinyMCE (`default`), niezależnie od ciemnego trybu panelu. Tryb ciemny zmienia wyłącznie interfejs edytora (skórka `oxide-dark`: pasek narzędzi i dialogi), więc treść jest podglądana na białym tle — tak jak na frontendzie. Motyw, który świadomie chce innego tła kanwy, nadal może je nadpisać w `editor.css`.
 
-Editor.js renderuje się bezpośrednio w panelu, więc CSS motywu jest scopowany do kanwy:
+## Editor.js (usunięty)
 
-- `#editorjs` na stronie edycji treści,
-- `#snippet-editorjs` na stronie snippetów.
-
-Selektory `:root`, `html` i `body` są mapowane na sam scope, a `:root X`, `html X` i `body X` na `<scope> X`. Reguły `@media` są przetwarzane rekurencyjnie.
-
-Względne adresy `url(...)` oraz `@import` są zamieniane na bezwzględne URL-e motywu, ponieważ CSS jest wklejany inline do strony administracyjnej. Reguły `@import` trafiają na początek bloku `<style>`, przed CSS siatki.
-
-Zmienne Customizera są dodawane **na końcu** zascopowanego CSS, aby nadpisały wartości domyślne zadeklarowane w `editor.css`.
+Opcjonalny edytor blokowy Editor.js został usunięty. Stare dokumenty są automatycznie konwertowane do HTML, a `editor.css` jest teraz używany wyłącznie przez TinyMCE. Reguły zapisane dla starej kanwy inline nadal działają, ponieważ TinyMCE ładuje ten sam plik wewnątrz swojego iframe.
 
 ## Opcjonalny blok `editor` w `theme.json`
 
@@ -118,7 +111,7 @@ Jeśli motyw ma `themes/<motyw>/assets/fonts/fonts.css`, można go dołączyć n
 @import url("../fonts/fonts.css");
 ```
 
-Ścieżka jest względna wobec `editor.css` i zostanie automatycznie zamieniona na bezwzględny URL motywu w Editor.js.
+Ścieżka jest względna wobec `editor.css` i rozwiązywana względem katalogu motywu; TinyMCE ładuje ją wewnątrz własnego iframe.
 
 ## Wdrożenie w innym motywie
 
@@ -126,14 +119,13 @@ Jeśli motyw ma `themes/<motyw>/assets/fonts/fonts.css`, można go dołączyć n
 2. Dodaj plik `editor.css` z typografią treści.
 3. Nie kopiuj do niego layoutu nagłówka, stopki, hero ani sekcji — tylko style treści.
 4. Opcjonalnie dodaj blok `"editor"` w `theme.json`.
-5. Sprawdź edytor przy wybranym motywie w **Settings → Content** dla TinyMCE i Editor.js.
+5. Sprawdź edytor przy wybranym motywie w **Settings → Content**.
 
 ## Zmienione pliki
 
-- `core/ThemeEditorStyles.php` — nowa klasa `Core\ThemeEditorStyles`,
-- `core/Customizer.php` — nowa metoda `cssVariables()`,
-- `core/CssFramework.php` — nowa metoda `scopeCss()`,
-- `admin/page-edit.php` — payload i konfiguracja obu edytorów,
+- `core/ThemeEditorStyles.php` — klasa `Core\ThemeEditorStyles`,
+- `core/Customizer.php` — metoda `cssVariables()`,
+- `admin/page-edit.php` — payload i konfiguracja TinyMCE,
 - `admin/snippets.php` — payload i konfiguracja edytora snippetów,
 - `themes/default/assets/css/editor.css`,
 - `themes/default2/assets/css/editor.css`,
@@ -144,14 +136,12 @@ Jeśli motyw ma `themes/<motyw>/assets/fonts/fonts.css`, można go dołączyć n
 
 1. **Bez `editor.css`** — otwórz edycję strony i snippet; wygląd edytora nie może się zmienić.
 2. **Z `editor.css`** — typografia w TinyMCE powinna odpowiadać plikowi.
-3. **Editor.js** — styl ma działać tylko w `#editorjs` / `#snippet-editorjs`, bez wycieku do panelu.
-4. **`@import`** — w źródle strony reguła `@import` musi być pierwszą regułą w bloku `<style>`, przed CSS siatki.
-5. **Customizer** — zmiana koloru lub rozmiaru czcionki w Customizerze musi nadpisać wartość domyślną z `editor.css`.
-6. **Frontend** — strona publiczna nie może się zmienić.
+3. **`@import`** — importowany arkusz fontów musi wczytać się wewnątrz iframe TinyMCE.
+4. **Customizer** — zmiana koloru lub rozmiaru czcionki w Customizerze musi nadpisać wartość domyślną z `editor.css`.
+5. **Frontend** — strona publiczna nie może się zmienić.
 
 ## Rozwiązywanie problemów
 
 - Styl się nie pojawia — sprawdź dokładną ścieżkę `themes/<motyw>/assets/css/editor.css` i czy plik jest czytelny.
-- Styl pojawia się tylko w TinyMCE — upewnij się, że w Editor.js wybrany jest właściwy motyw i odśwież cache przeglądarki.
 - Klasa `body_class` nie działa — sprawdź, czy `theme.json` jest poprawnym JSON-em i czy plik `editor.css` istnieje.
 - Złe ścieżki do fontów/obrazów — używaj ścieżek względnych wobec `editor.css`; Modo CMS zamieni je na URL-e motywu.

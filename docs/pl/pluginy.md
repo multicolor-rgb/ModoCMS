@@ -102,7 +102,7 @@ Trzeci argument to **priorytet** (domyślnie `10`). Niższe liczby wykonują si�
 | `10` | Domyślnie |
 | `20` | Późno — po innych pluginach, np. renderowanie shortcode'ów |
 
-Przykład: `Core\EditorJs` zamienia dokumenty blokowe na HTML z priorytetem `1`, zanim rozwiną się snippety (`5`) i shortcode'y wtyczek (`20`).
+Przykład: `Core\LegacyEditorContent` zamienia stare dokumenty blokowe na HTML z priorytetem `1`, zanim rozwiną się snippety (`5`) i shortcode'y wtyczek (`20`).
 
 ### Pełne API `Hooks`
 

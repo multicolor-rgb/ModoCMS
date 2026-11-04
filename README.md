@@ -37,9 +37,18 @@
 * **Built-in Custom Fields:** Support for various field types (text, textarea, rich text / TinyMCE, galleries with columns, gap, lightbox and captions, number, checkbox, color, image).
 * **Page types:** Create reusable content presets for pages and posts with default custom fields, available from the editor and exposed to themes via `get_page_type()` / `is_page_type()`.
 * **Plugin architecture (Hooks):** A system of actions and filters that makes it easy to extend the admin panel and the frontend.
-* **Content editor choice (no CDN):** classic WYSIWYG (TinyMCE 6.8.3) or a block editor (Editor.js 2.31.7) — both bundled locally. Content keeps the format in which it was saved, so you can switch editors at any time without losing existing pages.
+* **Content editor (no CDN):** classic WYSIWYG (TinyMCE 6.8.3) bundled locally. Toolbar presets, media library, grid builder and plugin buttons work out of the box.
 * **CSS grids / frameworks (no CDN):** choose a popular grid system (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, a custom "Modo Grid" or Custom). The same bundled CSS is used on the frontend and in the content editor, so a grid laid out in the editor looks identical on the site.
 * **Security:** Protection against SQL Injection (PDO Prepared Statements), CSRF, permission verification and output sanitisation.
+
+---
+
+## 🆕 What's new in 3.0.4
+
+* **TinyMCE is now the only content editor:** the Editor.js block editor and its settings, assets and plugin bridge were removed. Legacy JSON content is converted to HTML automatically on the first admin request; `tools/migrate-editorjs.php` is available for CLI use.
+* **Better grid editing:** dashed row/column guides in the editor, 10 px canvas padding, automatic `<p>` wrappers and normalisation so changing `h1 → p` no longer breaks the grid.
+* **No horizontal scrollbar:** `box-sizing: border-box` on grid containers/columns and `overflow-x: hidden` in the editor canvas.
+* **Dark mode fix:** the TinyMCE content canvas always stays white; only the toolbar and dialogs follow dark mode.
 
 ---
 
@@ -61,7 +70,7 @@
 
 ## 🆕 What's new in 3.0.2
 
-* **Optional theme styles in the content editor:** a theme can now ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE and Editor.js canvas only. The file is detected automatically — no new setting, no fallback to `style.css`, and no frontend changes. Optional `editor.body_class` and `editor.content_style` metadata can be added to `theme.json`. See [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
+* **Optional theme styles in the content editor:** a theme can now ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE canvas only. The file is detected automatically — no new setting, no fallback to `style.css`, and no frontend changes. Optional `editor.body_class` and `editor.content_style` metadata can be added to `theme.json`. See [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
 
 ---
 
@@ -310,51 +319,22 @@ Controls with a `css_var` key are automatically emitted in `<head>` as `:root` C
 
 ---
 
-## ✍️ Content editor choice (TinyMCE / Editor.js)
+## ✍️ Content editor (TinyMCE)
 
-In the panel **Settings → "Content" tab → Content Editor** you choose the editor used for pages, posts and snippets:
+Pages, posts and snippets use the bundled **TinyMCE 6.8.3** visual editor. Everything ships locally — no CDN and no build step.
 
-* **Classic (TinyMCE, WYSIWYG)** — the default classic visual editor (TinyMCE 6.8.3, bundled locally).
-* **Blocks (Editor.js)** — a block editor (Editor.js 2.31.7) with a tool set bundled locally in `admin/assets/vendor/editorjs/`.
-
-### How it works
-
-* Content is stored in the `content` field in the format it was written in: HTML (TinyMCE) or an Editor.js document JSON. **Changing the editor does not destroy existing content** — both formats can coexist in one installation.
-* Block documents are converted to HTML at display time (`Core\EditorJs::render()`, the `the_content` filter at priority 1 — before snippets and plugin shortcodes are expanded).
-* A page saved as HTML and opened in the block editor is automatically converted to blocks (unknown markup goes into a "Raw HTML" block, so nothing is lost).
-* `post_excerpt()` and the `content_to_text()` / `content_excerpt()` tags return plain text regardless of the editor used.
-
-### Available blocks
-
-Heading, paragraph, list, checklist, quote, delimiter, table, image, raw HTML, shortcode, plus inline tools: highlight and inline code. Additionally, to be enabled: **warning**, **code**, **embed** and the **"Insert grid / columns"** builder. The set is chosen with checkboxes in Settings — unchecking a block only hides it in the editor (already-saved blocks are still rendered on the site).
-
-### Plugins and grids
-
-* Plugins register buttons through the `window.ModoEditor.registerButton()` bridge (`admin/assets/js/editor-bridge.js`), so "Gallery / Form / Carousel" work in both editors. In TinyMCE the previous mechanism remains — zero regressions.
-* The grid builder in Editor.js uses the same code as the TinyMCE button (`window.ModoGrid` in `grid-editor.js`), so the markup is identical to the table below. The grid CSS sheet is scoped to the editor canvas (`CssFramework::editorScopedCss()`), because Editor.js renders inline (no iframe).
-* Images are uploaded via `admin/upload.php`, and the media-library button uses the existing modal.
-
-### Editor interface language (i18n)
-
-The block editor has no language switch of its own — **it uses the admin panel language** (Profile → "Admin Panel Language", the global `admin_language` value).
-
-* The Editor.js interface dictionary is built by `Core\EditorJs::i18n()` (`core/EditorJs.php`): the `messages()` method is a copy of the default dictionary from `editorjs.umd.js` (tool names, block menu, popovers, `tools.<id>` for tools), and `translateTree()` passes every text through `__()`. Text direction (`i18n.direction`) is set by `direction()` — it returns `rtl` for `ar, fa, he, ur…`.
-* Editor text translations live in the same files as the rest of the panel: `languages/{pl,en,de,es}.json`. **The key is the English source text** (e.g. `"Click to tune": "Kliknij, aby ustawić"`), and `languages/en.json` maps the key to itself. An empty or missing entry never blanks a label — `__()` falls back to `en.json`, and if it is missing there too, Editor.js shows the English source text.
-* Values that bundles read only from `config` (field placeholders, image caption) are returned by `Core\EditorJs::toolConfig()` — the dictionary will not handle them. Messages injected by the bootstrap (`editorjs-init.js`) are in `clientConfig()['labels']`.
-
-**Adding a new tool:** add the bundle to the `EditorJs::TOOLS` registry (label → translation key), and its own texts to `messages()` in the `'tools.' + id` namespace (the namespace name is determined by the tool identifier in the registry — Editor.js does the same). Add all keys to `languages/*.json`. The `embed` block has `'toolbox' => false` in the registry because `embed.umd.js` 2.8.0 does not export `static get toolbox()` — `admin/assets/js/editorjs-init.js` then wraps the class and adds a translated title and icon, so the block can be inserted from the "+" menu.
-
-**Known limitation:** the *Confirm* / *Cancel* buttons in popovers are hard-coded in the Editor.js bundle (they do not pass through `api.i18n.t()`), so they remain English — changing them would require editing the `editorjs.umd.js` file itself.
-
-### Licenses
-
-All Editor.js bundles (MIT) are bundled locally — **no requests are sent to a CDN**. License texts are in `admin/assets/vendor/editorjs/licenses/`.
+* Content is stored as HTML in the `content` field.
+* Toolbar presets and a custom toolbar string are configured in **Settings → "Content" tab → Content Editor**.
+* Plugins add their toolbar buttons through `tinymce.init` patches: **Gallery / Form / Carousel** insert their shortcodes at the cursor.
+* Images are uploaded via `admin/upload.php`, and the media-library button opens the existing modal.
+* A theme can ship `themes/<theme>/assets/css/editor.css` to style the editor canvas only; see [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
+* Legacy content saved by the removed Editor.js block editor is converted to HTML automatically on the first admin request after the update.
 
 ---
 
 ## 🧮 CSS grids / frameworks (no CDN)
 
-Modo CMS can load a popular grid system **locally (no CDN)** and use it both on the frontend and in the content editor — so a grid laid out in TinyMCE or the block editor looks exactly the same on the published page.
+Modo CMS can load a popular grid system **locally (no CDN)** and use it both on the frontend and in the content editor — so a grid laid out in TinyMCE looks exactly the same on the published page.
 
 ### Choosing a framework
 
@@ -386,7 +366,9 @@ The same sheet is passed to TinyMCE as `content_css`, and additionally the **"In
 | Modo Grid  | `.modo-grid`       | `.modo-col-md-6`                 |
 | Custom     | `.grid-row`        | `.grid-col`                      |
 
-The builder lets you choose the number of columns, a responsive breakpoint, an optional container and column content (one line = one column). The scripts handling the button: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (server-provided configuration). The same builder and the same markup are handled by the block editor — the "Insert grid / columns" button on the bar above the canvas and the **Grid / Columns** block (`admin/assets/js/editorjs-grid-tool.js`), while the server-side HTML generation is done by `CssFramework::gridMarkup()`.
+The builder lets you choose the number of columns, a responsive breakpoint, an optional container and column content (one line = one column). The scripts handling the button: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (server-provided configuration). The server-side HTML generation used while converting legacy grid blocks is done by `CssFramework::gridMarkup()`.
+
+In the editor the grid is visible through dashed guides: the row gets a blue outline and columns an amber one (editor canvas only, never on the frontend). Every column's content is wrapped in `<p>` automatically — including existing grids when the editor opens — so changing a block format (e.g. `h1 → p`) no longer turns the column `<div>` into a heading and destroys the grid structure. The TinyMCE canvas also has 10 px of inner padding.
 
 ### Changing the framework
 

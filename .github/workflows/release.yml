@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.3.
+# Release notes for Modo CMS 3.0.4.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,23 +53,19 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.3
-            - **Gallery thumbnails:** galleries load 480/960 px thumbnails through `srcset`/`sizes`, reuse existing 240/320 px previews and keep the lightbox on the original image.
-            - **Gallery backfill:** *Settings → Performance* shows missing thumbnail counts and a button that processes only images used by galleries; large photos fall back to the ImageMagick CLI.
-            - **Media library tools:** bulk deletion, a media lightbox with zoom/navigation, and a browser image editor with rotate, flip, crop and save-as-copy/overwrite.
-            - **One-click updater:** *Settings → System* checks GitHub, downloads over HTTPS, verifies SHA-256 when available, creates database and file backups, and rolls back on failure.
-            - **Update diagnostics:** GitHub API rate limits fall back to the public `releases.atom` feed; an optional `update_github_token` raises the limit and the check cache lasts 12 hours.
-            - **Cookie Consent 1.0.1:** only the full-screen modal locks page scrolling; bars and cards no longer block the page.
-            - **No database changes:** updating from 3.0.2 requires no migration — replacing the files is enough.
+            ### What's new in 3.0.4
+            - **TinyMCE only:** the Editor.js block editor and its settings/assets were removed; legacy JSON content is converted to HTML automatically on the first admin request (CLI: `tools/migrate-editorjs.php`).
+            - **Better grid editing:** dashed row/column guides, 10 px canvas padding, automatic `<p>` wrappers and normalisation so changing a block format no longer destroys the grid.
+            - **No horizontal scrollbar:** `box-sizing: border-box` for grid containers/columns and `overflow-x: hidden` in the editor canvas.
+            - **Dark mode:** the TinyMCE content canvas always stays white; only the toolbar and dialogs follow the dark theme.
+            - **No schema changes:** the updater only converts legacy content when such documents exist.
 
-            ### Najważniejsze zmiany w 3.0.3
-            - **Miniatury galerii:** galerie ładują miniatury 480/960 px przez `srcset`/`sizes`, wykorzystują istniejące podglądy 240/320 px, a lightbox nadal otwiera oryginał.
-            - **Backfill galerii:** *Ustawienia → Wydajność* pokazuje licznik brakujących miniaturek i przycisk przetwarzający wyłącznie zdjęcia z galerii; duże zdjęcia obsługuje ImageMagick CLI.
-            - **Narzędzia biblioteki mediów:** zbiorcze usuwanie, lightbox z zoomem i nawigacją oraz edytor obrazów z obrotem, odbiciem, kadrowaniem i zapisem kopii/nadpisaniem.
-            - **Aktualizator jednym kliknięciem:** *Ustawienia → System* sprawdza GitHub, pobiera paczkę po HTTPS, weryfikuje SHA-256, tworzy kopie bazy i plików oraz wykonuje rollback w razie błędu.
-            - **Diagnostyka aktualizacji:** po limicie GitHub API używany jest publiczny kanał `releases.atom`; opcjonalny token `update_github_token` podnosi limit, a cache sprawdzeń wynosi 12 godzin.
-            - **Cookie Consent 1.0.1:** przewijanie blokuje wyłącznie pełnoekranowy modal; banery i karty nie blokują już strony.
-            - **Bez zmian w bazie:** aktualizacja z 3.0.2 nie wymaga migracji — wystarczy podmienić pliki.
+            ### Najważniejsze zmiany w 3.0.4
+            - **Tylko TinyMCE:** edytor blokowy Editor.js oraz jego ustawienia i zasoby zostały usunięte; stara treść JSON jest automatycznie konwertowana do HTML przy pierwszym wejściu do panelu (CLI: `tools/migrate-editorjs.php`).
+            - **Lepsze edytowanie siatek:** przerywane prowadnice wierszy i kolumn, padding kanwy 10 px, automatyczne owijanie w `<p>` i normalizacja — zmiana formatu bloku nie niszczy już siatki.
+            - **Brak poziomego paska przewijania:** `box-sizing: border-box` dla kontenerów i kolumn siatek oraz `overflow-x: hidden` na kanwie edytora.
+            - **Tryb ciemny:** kanwa TinyMCE zawsze pozostaje biała; ciemny motyw obejmuje tylko pasek narzędzi i dialogi.
+            - **Bez zmian w schemacie bazy:** aktualizator konwertuje wyłącznie stare dokumenty, jeśli takie istnieją.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

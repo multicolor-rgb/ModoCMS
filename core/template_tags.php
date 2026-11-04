@@ -607,8 +607,8 @@ if (!function_exists('snippet_content')) {
         }
 
         $rendering[$name] = true;
-        // A snippet may also be authored with the Editor.js block editor.
-        $out = \Core\EditorJs::render((string) $cache[$name]);
+        // A snippet may still contain a legacy Editor.js document.
+        $out = \Core\LegacyEditorContent::render((string) $cache[$name]);
         $out = render_snippets($out);
         unset($rendering[$name]);
 
@@ -645,13 +645,11 @@ if (!function_exists('the_snippet')) {
 
 /**
  * Renders a content value and returns it as plain text, truncated to $limit
- * characters. Safe for content authored with TinyMCE or Editor.js.
+ * characters. Legacy Editor.js documents are converted first.
  */
 if (!function_exists('content_to_text')) {
     function content_to_text(?string $content, int $limit = 0): string {
-        return class_exists('Core\\EditorJs')
-            ? \Core\EditorJs::toPlainText($content, $limit)
-            : trim(strip_tags((string) $content));
+        return \Core\LegacyEditorContent::toPlainText($content, $limit);
     }
 }
 

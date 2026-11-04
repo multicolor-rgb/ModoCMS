@@ -65,7 +65,7 @@ Hooks::addAction('modo_customize_register', function () {
 
 | Filtr | Dostaje | Dodatkowe argumenty | Odpala się w |
 |---|---|---|---|
-| `the_content` | HTML wpisu/strony (string) | — | `page_content()` (`core/frontend.php`). Rdzeń słucha z priorytetem `1` (`EditorJs`) i `5` (`render_snippets`). |
+| `the_content` | HTML wpisu/strony (string) | — | `page_content()` (`core/frontend.php`). Rdzeń słucha z priorytetem `1` (`LegacyEditorContent`) i `5` (`render_snippets`). |
 | `the_title` | Tytuł (string) | — | `page_title()` |
 | `the_excerpt` | Wyciąg (string) | — | `post_excerpt()` |
 | `page_date` | Sformatowana data (string) | — | `page_date()` |

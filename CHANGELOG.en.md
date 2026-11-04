@@ -4,6 +4,35 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.4] — 2026-11-04
+
+### Added
+
+- **Grid guides in TinyMCE** — rows and columns are visible in the editor through dashed outlines; the guides never reach the frontend.
+- **Easier grid editing** — every column's content is wrapped in `<p>` automatically and existing grids are normalised when the editor opens. Changing a block format (e.g. `h1 → p`) no longer turns the column `<div>` into a heading and destroys the structure.
+- **Automatic Editor.js migration** — legacy JSON documents are converted to HTML once (pages, snippets, revisions) on the first admin request; the CLI script `tools/migrate-editorjs.php` is also available.
+- **Editor canvas padding** — 10 px inner spacing in TinyMCE.
+
+### Changed
+
+- **TinyMCE is the only content editor** — Editor.js was removed from the panel, settings, plugins and the release package.
+- **The editor canvas is always light** — dark mode only changes the toolbar and dialogs; content is edited on a white background.
+- **`box-sizing: border-box`** — fixed widths for grid containers and columns (bundled CSS + TinyMCE canvas).
+- **`editor.css` is TinyMCE-only** — CSS scoping for the inline block editor was removed.
+
+### Fixed
+
+- No horizontal scrollbar in the editor.
+- Grid columns no longer wrap under each other because of padding.
+- Changing a block format inside a grid no longer destroys the column wrapper.
+- Dark text on a dark background in dark mode.
+
+### Removed
+
+- **Editor.js block editor** — code, bundles, settings, the `editor-bridge.js` bridge, tools and Gallery/Form/Carousel integrations.
+- Unused CSS scoping helpers (`scopeCss()`, `editorScopedCss()`, `ThemeEditorStyles::scopedCss()`).
+- Test `robots.txt` / `sitemap.xml` from the repository (they are generated at runtime).
+
 ## [3.0.3] — 2026-11-04
 
 ### Added

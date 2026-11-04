@@ -146,8 +146,10 @@ if (defined('IN_ADMIN') && IN_ADMIN === true
 // CSS grid / framework support (frontend + editor, bundled locally, no CDN).
 \Core\CssFramework::init();
 
-// Optional Editor.js block editor: renders stored JSON documents on output.
-\Core\EditorJs::init();
+// Legacy Editor.js content: keep old JSON documents readable and migrate them
+// to HTML on the first admin request after the update.
+\Core\LegacyEditorContent::init();
+\Core\EditorJsMigration::maybeRun();
 
 // Frontend admin toolbar for logged-in users.
 \Core\AdminBar::init();

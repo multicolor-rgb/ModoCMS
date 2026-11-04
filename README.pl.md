@@ -37,9 +37,18 @@
 * **Wbudowane pola niestandardowe (Custom Fields):** Obsługa różnych typów pól (tekst, textarea, tekst sformatowany / TinyMCE, galerie z kolumnami, odstępem, lightboxem i podpisami, liczba, checkbox, kolor, obrazek).
 * **Typy stron:** Twórz gotowe szablony treści dla stron i wpisów z domyślnymi polami niestandardowymi, dostępne w edytorze i udostępniane motywom przez `get_page_type()` / `is_page_type()`.
 * **Architektura wtyczek (Hooks):** System akcji i filtrów pozwalający na łatwą rozbudowę panelu admina oraz frontendu.
-* **Wybór edytora treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) albo edytor blokowy (Editor.js 2.31.7) — oba dołączone lokalnie. Treść zachowuje format, w jakim została zapisana, więc edytor można zmienić w każdej chwili bez utraty istniejących stron.
+* **Edytor treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) dołączony lokalnie. Presety paska narzędzi, biblioteka mediów, kreator siatek i przyciski wtyczek działają od razu.
 * **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
+
+---
+
+## 🆕 Co nowego w 3.0.4
+
+* **TinyMCE jest teraz jedynym edytorem treści:** edytor blokowy Editor.js oraz jego ustawienia, zasoby i mostek dla wtyczek zostały usunięte. Stara treść JSON jest automatycznie konwertowana do HTML przy pierwszym wejściu do panelu; dostępny jest też skrypt CLI `tools/migrate-editorjs.php`.
+* **Wygodniejsze edytowanie siatek:** przerywane prowadnice wierszy i kolumn w edytorze, padding kanwy 10 px, automatyczne owijanie treści w `<p>` i normalizacja, dzięki czemu zmiana `h1 → p` nie psuje siatki.
+* **Brak poziomego paska przewijania:** `box-sizing: border-box` dla kontenerów i kolumn siatek oraz `overflow-x: hidden` na kanwie edytora.
+* **Poprawka trybu ciemnego:** kanwa TinyMCE zawsze pozostaje biała; ciemny motyw obejmuje tylko pasek narzędzi i dialogi.
 
 ---
 
@@ -61,7 +70,7 @@
 
 ## 🆕 Co nowego w 3.0.2
 
-* **Opcjonalne style motywu w edytorze treści:** motyw może dostarczyć plik `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE i Editor.js. Plik jest wykrywany automatycznie — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie. W `theme.json` można opcjonalnie dodać `editor.body_class` i `editor.content_style`. Zobacz [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md).
+* **Opcjonalne style motywu w edytorze treści:** motyw może dostarczyć plik `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE. Plik jest wykrywany automatycznie — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie. W `theme.json` można opcjonalnie dodać `editor.body_class` i `editor.content_style`. Zobacz [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md).
 
 ---
 
@@ -310,51 +319,22 @@ Pola z kluczem `css_var` są automatycznie wypisywane w `<head>` jako zmienne CS
 
 ---
 
-## ✍️ Wybór edytora treści (TinyMCE / Editor.js)
+## ✍️ Edytor treści (TinyMCE)
 
-W panelu **Ustawienia → zakładka „Treści” → Content Editor** wybierasz edytor używany dla stron, wpisów i snippetów:
+Strony, wpisy i snippety używają dołączonego lokalnie edytora **TinyMCE 6.8.3**. Wszystko działa bez CDN i bez builda.
 
-* **Classic (TinyMCE, WYSIWYG)** — domyślny, klasyczny edytor wizualny (TinyMCE 6.8.3, dołączony lokalnie).
-* **Blocks (Editor.js)** — edytor blokowy (Editor.js 2.31.7) z zestawem narzędzi dołączonym lokalnie w `admin/assets/vendor/editorjs/`.
-
-### Jak to działa
-
-* Treść zapisywana jest w polu `content` w formacie, w którym została napisana: HTML (TinyMCE) albo JSON dokumentu Editor.js. **Zmiana edytora nie niszczy istniejących treści** — oba formaty mogą współistnieć na jednej instalacji.
-* Dokumenty blokowe są zamieniane na HTML przy wyświetlaniu (`Core\EditorJs::render()`, filtr `the_content` z priorytetem 1 — przed rozwijaniem snippetów i shortcode'ów wtyczek).
-* Strona zapisana jako HTML otwarta w edytorze blokowym jest automatycznie konwertowana do bloków (nieznany markup trafia do bloku „Raw HTML”, więc nic nie ginie).
-* `post_excerpt()` oraz tagi `content_to_text()` / `content_excerpt()` zwracają czysty tekst niezależnie od użytego edytora.
-
-### Dostępne bloki
-
-Nagłówek, akapit, lista, lista kontrolna, cytat, separator, tabela, obraz, surowy HTML, krótki kod (shortcode) oraz narzędzia inline: wyróżnienie i kod w linii. Dodatkowo do włączenia: **ostrzeżenie**, **kod**, **osadzenie (embed)** i kreator **„Wstaw siatkę / kolumny”**. Zestaw wybiera się checkboxami w Ustawieniach — odznaczenie bloku tylko ukrywa go w edytorze (już zapisane bloki nadal są renderowane na stronie).
-
-### Wtyczki i siatki
-
-* Wtyczki rejestrują przyciski przez mostek `window.ModoEditor.registerButton()` (`admin/assets/js/editor-bridge.js`), dzięki czemu „Gallery / Form / Carousel” działają w obu edytorach. W TinyMCE pozostaje dotychczasowy mechanizm — zero regresji.
-* Kreator siatki w Editor.js używa tego samego kodu co przycisk TinyMCE (`window.ModoGrid` w `grid-editor.js`), więc markup jest identyczny z tabelą poniżej. Arkusz CSS siatki jest zawężany do kanwy edytora (`CssFramework::editorScopedCss()`), bo Editor.js renderuje inline (bez iframe).
-* Obrazy wgrywane są przez `admin/upload.php`, a przycisk biblioteki mediów korzysta z istniejącego modala.
-
-### Język interfejsu edytora (i18n)
-
-Edytor blokowy nie ma własnego przełącznika języka — **korzysta z języka panelu administratora** (Profil → „Admin Panel Language”, globalna wartość `admin_language`).
-
-* Słownik interfejsu Editor.js buduje `Core\EditorJs::i18n()` (`core/EditorJs.php`): metoda `messages()` to kopia domyślnego słownika z `editorjs.umd.js` (nazwy narzędzi, menu bloku, popovery, `tools.<id>` dla narzędzi), a `translateTree()` przepuszcza każdy tekst przez `__()`. Kierunek tekstu (`i18n.direction`) ustawia `direction()` — dla `ar, fa, he, ur…` zwraca `rtl`.
-* Tłumaczenia tekstów edytora są w tych samych plikach co reszta panelu: `languages/{pl,en,de,es}.json`. **Kluczem jest angielski tekst źródłowy** (np. `"Click to tune": "Kliknij, aby ustawić"`), a `languages/en.json` mapuje klucz na samego siebie. Pusty lub brakujący wpis nigdy nie wygasza etykiety — `__()` schodzi do `en.json`, a gdy i tam go nie ma, Editor.js pokazuje angielski tekst źródłowy.
-* Wartości, które bundle czytają wyłącznie z `config` (placeholdery pól, podpis obrazu), zwraca `Core\EditorJs::toolConfig()` — słownik ich nie obsłuży. Komunikaty wstawiane przez bootstrap (`editorjs-init.js`) są w `clientConfig()['labels']`.
-
-**Dodanie nowego narzędzia:** dopisz bundle do rejestru `EditorJs::TOOLS` (etykieta → tłumaczenie klucza), a jego własne teksty do `messages()` w namespace `'tools.' + id` (nazwę namespace wyznacza identyfikator narzędzia w rejestrze — tak samo robi Editor.js). Wszystkie klucze dodaj do `languages/*.json`. Blok `embed` ma w rejestrze `'toolbox' => false`, bo `embed.umd.js` 2.8.0 nie eksportuje `static get toolbox()` — `admin/assets/js/editorjs-init.js` opakowuje wtedy klasę i dokłada tłumaczony tytuł oraz ikonę, dzięki czemu blok da się wstawić z menu „+”.
-
-**Znane ograniczenie:** przyciski *Confirm* / *Cancel* w popoverach są zaszyte w kodzie bundle'a Editor.js (nie przechodzą przez `api.i18n.t()`), więc pozostają angielskie — ich zmianę wymusiłaby edycja samego pliku `editorjs.umd.js`.
-
-### Licencje
-
-Wszystkie bundle Editor.js (MIT) są dołączone lokalnie — **żadne zapytania nie są wysyłane do CDN**. Teksty licencji znajdują się w `admin/assets/vendor/editorjs/licenses/`.
+* Treść jest zapisywana jako HTML w polu `content`.
+* Presety paska narzędzi i własny ciąg narzędzi ustawisz w **Ustawienia → zakładka „Treści” → Content Editor**.
+* Wtyczki dodają swoje przyciski przez patche `tinymce.init`: **Gallery / Form / Carousel** wstawiają shortcode w miejscu kursora.
+* Obrazy są wgrywane przez `admin/upload.php`, a przycisk biblioteki mediów otwiera istniejący modal.
+* Motyw może dostarczyć `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę edytora; zobacz [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md).
+* Stara treść zapisana przez usunięty edytor blokowy Editor.js jest automatycznie konwertowana do HTML przy pierwszym wejściu do panelu po aktualizacji.
 
 ---
 
 ## 🧮 Siatki / frameworki CSS (bez CDN)
 
-Modo CMS potrafi wczytać popularny system siatek **lokalnie (bez CDN)** i użyć go zarówno na frontendzie, jak i w edytorze treści — dzięki temu siatka ułożona w TinyMCE lub w edytorze blokowym wygląda dokładnie tak samo na opublikowanej stronie.
+Modo CMS potrafi wczytać popularny system siatek **lokalnie (bez CDN)** i użyć go zarówno na frontendzie, jak i w edytorze treści — dzięki temu siatka ułożona w TinyMCE wygląda dokładnie tak samo na opublikowanej stronie.
 
 ### Wybór frameworka
 
@@ -386,7 +366,9 @@ Ten sam arkusz jest przekazywany do TinyMCE jako `content_css`, a dodatkowo przy
 | Modo Grid  | `.modo-grid`       | `.modo-col-md-6`                 |
 | Custom     | `.grid-row`        | `.grid-col`                      |
 
-Kreator pozwala wybrać liczbę kolumn, responsywny punkt przerwania, opcjonalny kontener oraz treść kolumn (jedna linia = jedna kolumna). Skrypty obsługujące przycisk: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (konfiguracja z serwera). Ten sam kreator i ten sam markup obsługuje edytor blokowy — przycisk „Wstaw siatkę / kolumny” na pasku nad kanwą oraz blok **Grid / Columns** (`admin/assets/js/editorjs-grid-tool.js`), a wygenerowanie HTML po stronie serwera robi `CssFramework::gridMarkup()`.
+Kreator pozwala wybrać liczbę kolumn, responsywny punkt przerwania, opcjonalny kontener oraz treść kolumn (jedna linia = jedna kolumna). Skrypty obsługujące przycisk: `admin/assets/js/grid-editor.js` + `window.MODO_GRID` (konfiguracja z serwera). Generowanie HTML po stronie serwera, używane przy konwersji starych bloków siatki, robi `CssFramework::gridMarkup()`.
+
+W edytorze siatka jest widoczna dzięki przerywanym prowadnicom: wiersz ma niebieską ramkę, a kolumny pomarańczową (widoczne tylko na kanwie edytora, nigdy na froncie). Treść każdej kolumny jest automatycznie owijana w `<p>`, także w istniejących siatkach przy otwarciu edytora — dzięki temu zmiana formatu bloku (np. `h1 → p`) nie zamienia `<div>` kolumny w nagłówek i nie niszczy struktury siatki. Kanwa TinyMCE ma też 10 px wewnętrznego odstępu.
 
 ### Zmiana frameworka
 

@@ -776,7 +776,7 @@ if (!class_exists('ModoGallery')) {
         }
 
         // ---------------------------------------------------------------------
-        // Wybor galerii w edytorze strony (TinyMCE / Editor.js)
+        // Wybor galerii w edytorze strony (TinyMCE)
         // ---------------------------------------------------------------------
 
         /**
@@ -1087,38 +1087,6 @@ if (!class_exists('ModoGallery')) {
                     },100);
                 }
 
-                // Editor.js: the same picker through the editor bridge.
-                function registerEditorJs(){
-                    if(!window.ModoEditor||typeof window.ModoEditor.registerButton!=="function"){ return false; }
-                    window.ModoEditor.registerButton({
-                        id:"modo_gallery",
-                        label:labels.button||labels.title||"Gallery",
-                        icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m21 15-5-5L5 21"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>',
-                        insert:function(api){
-                            window.ModoGalleryPicker.open(function(id){
-                                api.insertShortcode('[modo_gallery id="'+id+'"]');
-                            });
-                        }
-                    });
-                    return true;
-                }
-
-                function whenReady(fn){
-                    if(document.readyState==="loading"){
-                        document.addEventListener("DOMContentLoaded",fn,{once:true});
-                    } else {
-                        fn();
-                    }
-                }
-
-                whenReady(function(){
-                    if(registerEditorJs()){ return; }
-                    var tries=0;
-                    var iv=setInterval(function(){
-                        tries++;
-                        if(registerEditorJs()||tries>60){ clearInterval(iv); }
-                    },100);
-                });
             })();
             </script>
             <?php
