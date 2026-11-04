@@ -43,6 +43,15 @@
 
 ---
 
+## 🆕 What's new in 3.0.5
+
+* **Gallery preview in the admin panel:** gallery field items now use the system-generated thumbnails (`thumb.php`, 160 px) instead of loading full-size originals.
+* **Subdirectory support:** `admin/thumb.php` now accepts image paths that include the installation's base subdirectory (e.g. `/cms/uploads/...`).
+* **Safe fallback:** if a thumbnail cannot be generated, the preview falls back to the original image.
+* **No database changes:** updating from 3.0.4 requires no migration.
+
+---
+
 ## 🆕 What's new in 3.0.4
 
 * **TinyMCE is now the only content editor:** the Editor.js block editor and its settings, assets and plugin bridge were removed. Legacy JSON content is converted to HTML automatically on the first admin request; `tools/migrate-editorjs.php` is available for CLI use.

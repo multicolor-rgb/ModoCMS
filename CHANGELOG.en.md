@@ -4,6 +4,18 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.5] — 2026-11-04
+
+### Fixed
+
+- **Gallery preview in the admin panel** — gallery field items now use system thumbnails (`thumb.php`, 160 px) instead of loading the original images; this also covers images added through the picker and upload.
+- **Subdirectory installations** — `admin/thumb.php` now handles paths that include the base subdirectory (`/cms/uploads/...`).
+- Thumbnails still fall back to the original image when generation is not possible.
+
+### No database changes
+
+- Updating from 3.0.4 requires no migration.
+
 ## [3.0.4] — 2026-11-04
 
 ### Added

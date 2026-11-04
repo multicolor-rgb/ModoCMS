@@ -14,7 +14,7 @@ namespace Core;
 final class Version
 {
     /** Currently installed application version. */
-    public const CURRENT = '3.0.4';
+    public const CURRENT = '3.0.5';
 
     public static function current(): string
     {

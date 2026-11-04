@@ -43,6 +43,15 @@
 
 ---
 
+## 🆕 Co nowego w 3.0.5
+
+* **Podgląd galerii w panelu:** elementy pola gallery korzystają teraz z systemowych miniatur (`thumb.php`, 160 px) zamiast ładować oryginalne obrazy.
+* **Obsługa podkatalogów:** `admin/thumb.php` przyjmuje teraz ścieżki zawierające base subdirectory instalacji (np. `/cms/uploads/...`).
+* **Bezpieczny fallback:** jeśli miniatury nie da się wygenerować, podgląd wraca do oryginalnego obrazu.
+* **Bez zmian w bazie:** aktualizacja z 3.0.4 nie wymaga migracji.
+
+---
+
 ## 🆕 Co nowego w 3.0.4
 
 * **TinyMCE jest teraz jedynym edytorem treści:** edytor blokowy Editor.js oraz jego ustawienia, zasoby i mostek dla wtyczek zostały usunięte. Stara treść JSON jest automatycznie konwertowana do HTML przy pierwszym wejściu do panelu; dostępny jest też skrypt CLI `tools/migrate-editorjs.php`.

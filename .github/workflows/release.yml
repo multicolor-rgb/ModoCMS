@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.4.
+# Release notes for Modo CMS 3.0.5.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,19 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.4
-            - **TinyMCE only:** the Editor.js block editor and its settings/assets were removed; legacy JSON content is converted to HTML automatically on the first admin request (CLI: `tools/migrate-editorjs.php`).
-            - **Better grid editing:** dashed row/column guides, 10 px canvas padding, automatic `<p>` wrappers and normalisation so changing a block format no longer destroys the grid.
-            - **No horizontal scrollbar:** `box-sizing: border-box` for grid containers/columns and `overflow-x: hidden` in the editor canvas.
-            - **Dark mode:** the TinyMCE content canvas always stays white; only the toolbar and dialogs follow the dark theme.
-            - **No schema changes:** the updater only converts legacy content when such documents exist.
+            ### What's new in 3.0.5
+            - **Gallery preview in the admin panel:** gallery field items now use system-generated thumbnails (`thumb.php`, 160 px) instead of loading full-size originals.
+            - **Subdirectory support:** `admin/thumb.php` now accepts image paths that include the installation's base subdirectory (e.g. `/cms/uploads/...`).
+            - **Safe fallback:** if a thumbnail cannot be generated, the preview falls back to the original image.
+            - **No database changes:** updating from 3.0.4 requires no migration.
 
-            ### Najważniejsze zmiany w 3.0.4
-            - **Tylko TinyMCE:** edytor blokowy Editor.js oraz jego ustawienia i zasoby zostały usunięte; stara treść JSON jest automatycznie konwertowana do HTML przy pierwszym wejściu do panelu (CLI: `tools/migrate-editorjs.php`).
-            - **Lepsze edytowanie siatek:** przerywane prowadnice wierszy i kolumn, padding kanwy 10 px, automatyczne owijanie w `<p>` i normalizacja — zmiana formatu bloku nie niszczy już siatki.
-            - **Brak poziomego paska przewijania:** `box-sizing: border-box` dla kontenerów i kolumn siatek oraz `overflow-x: hidden` na kanwie edytora.
-            - **Tryb ciemny:** kanwa TinyMCE zawsze pozostaje biała; ciemny motyw obejmuje tylko pasek narzędzi i dialogi.
-            - **Bez zmian w schemacie bazy:** aktualizator konwertuje wyłącznie stare dokumenty, jeśli takie istnieją.
+            ### Najważniejsze zmiany w 3.0.5
+            - **Podgląd galerii w panelu:** elementy pola gallery korzystają teraz z systemowych miniatur (`thumb.php`, 160 px) zamiast ładować oryginalne obrazy.
+            - **Obsługa podkatalogów:** `admin/thumb.php` przyjmuje teraz ścieżki zawierające base subdirectory instalacji (np. `/cms/uploads/...`).
+            - **Bezpieczny fallback:** jeśli miniatury nie da się wygenerować, podgląd wraca do oryginalnego obrazu.
+            - **Bez zmian w bazie:** aktualizacja z 3.0.4 nie wymaga migracji.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

@@ -4,6 +4,18 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.5] — 2026-11-04
+
+### Naprawione
+
+- **Podgląd galerii w panelu** — elementy pola gallery korzystają teraz z systemowych miniatur (`thumb.php`, 160 px) zamiast ładować oryginalne obrazy; dotyczy to także obrazów dodanych przez picker i upload.
+- **Instalacje w podkatalogu** — `admin/thumb.php` poprawnie obsługuje ścieżki z base subdirectory (`/cms/uploads/...`).
+- Miniatury nadal mają fallback do oryginału, gdy nie da się ich wygenerować.
+
+### Bez zmian w bazie
+
+- Aktualizacja z 3.0.4 nie wymaga migracji.
+
 ## [3.0.4] — 2026-11-04
 
 ### Dodane
