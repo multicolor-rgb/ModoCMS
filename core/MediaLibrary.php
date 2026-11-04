@@ -979,8 +979,16 @@ final class MediaLibrary
 
     private static function absoluteFromStoredPath(string $storedPath): ?string
     {
-        $path = parse_url($storedPath, PHP_URL_PATH) ?: $storedPath;
+        $path = rawurldecode((string) (parse_url($storedPath, PHP_URL_PATH) ?: $storedPath));
         $relative = ltrim(str_replace('\\', '/', $path), '/');
+
+        // Stored paths may include the installation's base sub-directory
+        // (e.g. /cms/uploads/photo.jpg on a sub-directory install).
+        $base = class_exists(Router::class) ? trim(Router::getBaseSubdirectory(), '/') : '';
+        if ($base !== '' && str_starts_with($relative, $base . '/')) {
+            $relative = substr($relative, strlen($base) + 1);
+        }
+
         if (!str_starts_with($relative, 'uploads/')) {
             return null;
         }
@@ -1299,6 +1307,41 @@ final class MediaLibrary
         return self::thumbnailBackend() !== 'none';
     }
 
+    /** Whether PHP can write to the /uploads/thumbs cache directory. */
+    public static function thumbnailDirectoryWritable(): bool
+    {
+        $root = self::rootPath();
+        $dir = $root . '/thumbs';
+
+        return is_dir($dir) ? is_writable($dir) : is_writable($root);
+    }
+
+    /** Returns true when a cached thumbnail exists for the given width. */
+    public static function thumbnailExists(string $storedPath, int $width): bool
+    {
+        $absolute = self::absoluteFromStoredPath($storedPath);
+        if ($absolute === null || !self::isThumbnailSource($absolute)) {
+            return false;
+        }
+
+        return self::staticThumbnail($storedPath, $width, $absolute) !== null;
+    }
+
+    /** Whether a stored path points to a local image type we can resize. */
+    public static function canGenerateThumbnail(string $storedPath): bool
+    {
+        $absolute = self::absoluteFromStoredPath($storedPath);
+
+        return $absolute !== null && self::isThumbnailSource($absolute);
+    }
+
+    private static function logThumbnailFailure(string $storedPath, string $message): void
+    {
+        if (function_exists('error_log')) {
+            @error_log('[thumbnails] ' . $storedPath . ': ' . $message);
+        }
+    }
+
     /**
      * Returns a picker-friendly preview URL for a media file. Uses a static
      * cached thumbnail when one exists, the on-demand endpoint otherwise, and
@@ -1310,7 +1353,7 @@ final class MediaLibrary
         $url = self::urlForStoredPath($storedPath);
         $fallback = function_exists('webp_url') ? \webp_url($url) : $url;
 
-        if (preg_match('#^https?://#i', $storedPath) === 1 || !self::thumbnailSupported()) {
+        if (!self::thumbnailSupported()) {
             return $fallback;
         }
 
@@ -1347,10 +1390,7 @@ final class MediaLibrary
         $optimized = function_exists('webp_url') ? \webp_url($original) : $original;
         $fallback = ['src' => $optimized, 'srcset' => ''];
 
-        if ($storedPath === ''
-            || !self::galleryThumbnailsEnabled()
-            || preg_match('#^https?://#i', $storedPath) === 1
-        ) {
+        if ($storedPath === '' || !self::galleryThumbnailsEnabled()) {
             return $fallback;
         }
 
@@ -1359,12 +1399,19 @@ final class MediaLibrary
             return $fallback;
         }
 
-        $widths = $widths ?? self::galleryThumbnailWidths();
-        $widths = array_values(array_unique(array_map('intval', $widths)));
-        sort($widths, SORT_NUMERIC);
+        // Prefer the configured gallery widths but also reuse any existing
+        // preview thumbnail (240/320) so galleries benefit immediately after
+        // the update, before a full backfill has run.
+        $candidates = $widths ?? array_merge(self::THUMBNAIL_PREVIEW_WIDTHS, self::galleryThumbnailWidths());
+        $candidates = array_values(array_unique(array_map('intval', $candidates)));
+        sort($candidates, SORT_NUMERIC);
 
         $available = [];
-        foreach ($widths as $width) {
+        foreach ($candidates as $width) {
+            if ($width < 240) {
+                continue;
+            }
+
             $file = self::staticThumbnail($storedPath, $width, $absolute);
             if ($file === null) {
                 continue;
@@ -1385,7 +1432,15 @@ final class MediaLibrary
         }
 
         ksort($available, SORT_NUMERIC);
+        // No-srcset browsers get 480px when available, otherwise the largest
+        // cached thumbnail — but never the full-size original.
         $src = (string) reset($available);
+        foreach ($available as $actualWidth => $url) {
+            if ($actualWidth >= 480) {
+                $src = $url;
+                break;
+            }
+        }
         $srcset = [];
         foreach ($available as $actualWidth => $url) {
             $srcset[] = $url . ' ' . $actualWidth . 'w';
@@ -1403,7 +1458,7 @@ final class MediaLibrary
     public static function ensureThumbnails(string $storedPath, array $widths = [160, 240]): array
     {
         $backend = self::thumbnailBackend();
-        if ($backend === 'none' || preg_match('#^https?://#i', $storedPath) === 1) {
+        if ($backend === 'none') {
             return [];
         }
 
@@ -1427,6 +1482,7 @@ final class MediaLibrary
         }
 
         if (self::ensureThumbnailDir() === null) {
+            self::logThumbnailFailure($storedPath, 'uploads/thumbs is not writable');
             return [];
         }
 
@@ -1445,14 +1501,45 @@ final class MediaLibrary
             return $result;
         }
 
+        // GD refuses very large images to protect memory. ImageMagick CLI can
+        // handle them, so use it as a per-image fallback instead of silently
+        // skipping the file.
+        $cli = self::cliConvertBinary();
+        $pixels = (int) $info[0] * (int) $info[1];
+        $largeForGd = $backend === 'gd' && $pixels > 20000000;
+        $useCli = $backend === 'cli' || ($largeForGd && $cli !== null);
+
         // Decoding is the expensive part, so every backend renders all missing
         // sizes from a single source image where possible.
-        if ($backend === 'gd') {
+        if ($backend === 'gd' && !$useCli) {
             self::generateGdThumbnails($source, $storedPath, $missing, $result);
         } elseif ($backend === 'imagick') {
             self::generateImagickThumbnails($source, $storedPath, $missing, $result);
-        } else {
+        }
+
+        if ($useCli) {
             self::generateCliThumbnails($source, $storedPath, $missing, $result);
+        } else {
+            // Fall back to CLI if GD/Imagick failed for any reason (unsupported
+            // colour profile, memory guard, broken image chunk, etc.).
+            $remaining = array_values(array_filter(
+                $missing,
+                static fn (int $width): bool => !isset($result[$width])
+            ));
+            if ($remaining !== [] && $cli !== null) {
+                self::generateCliThumbnails($source, $storedPath, $remaining, $result);
+            }
+        }
+
+        $stillMissing = array_values(array_filter(
+            $missing,
+            static fn (int $width): bool => !isset($result[$width])
+        ));
+        if ($stillMissing !== []) {
+            self::logThumbnailFailure(
+                $storedPath,
+                'could not generate widths: ' . implode(',', $stillMissing)
+            );
         }
 
         return $result;
@@ -1476,6 +1563,7 @@ final class MediaLibrary
 
         $missing = 0;
         $backend = self::thumbnailBackend();
+        $cli = self::cliConvertBinary();
         foreach (self::listImages() as $item) {
             $source = (string) ($item['absolute'] ?? '');
             if ($source === '' || !self::isThumbnailSource($source)) {
@@ -1485,11 +1573,11 @@ final class MediaLibrary
             if (!is_array($info) || (int) $info[0] <= 0 || (int) $info[1] <= 0) {
                 continue;
             }
-            if ($backend === 'gd' && (int) $info[0] * (int) $info[1] > 20000000) {
-                // generateGdThumbnails() refuses these to protect memory.
+            if ($backend === 'gd' && $cli === null && (int) $info[0] * (int) $info[1] > 20000000) {
+                // GD refuses these and no CLI fallback is available.
                 continue;
             }
-            foreach (self::thumbnailGenerationWidths() as $width) {
+            foreach (self::THUMBNAIL_PREVIEW_WIDTHS as $width) {
                 if (self::staticThumbnail((string) $item['path'], $width, $source) === null) {
                     $missing++;
                     break;

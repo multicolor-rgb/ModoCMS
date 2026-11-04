@@ -2902,6 +2902,7 @@ mediaItems.forEach(item => {
 
             let offset = 0;
             let done = false;
+            let failed = 0;
             while (!done) {
                 const body = new URLSearchParams();
                 body.set('csrf', csrf);
@@ -2915,7 +2916,8 @@ mediaItems.forEach(item => {
 
                     offset = Number(data.next) || 0;
                     done = !!data.done;
-                    btn.textContent = offset + ' / ' + data.total;
+                    failed += Number(data.failed) || 0;
+                    btn.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
                 } catch (error) {
                     btn.disabled = false;
                     btn.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
@@ -2923,7 +2925,7 @@ mediaItems.forEach(item => {
                 }
             }
 
-            btn.textContent = <?= json_encode(__('Thumbnails generated.')) ?>;
+            btn.textContent = <?= json_encode(__('Thumbnails generated.')) ?> + (failed > 0 ? ' · errors: ' + failed : '');
             if (status) {
                 window.setTimeout(() => { status.style.display = 'none'; }, 1500);
             }

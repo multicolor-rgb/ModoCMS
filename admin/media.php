@@ -138,7 +138,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['media_action']) && is
             break;
 
         case 'delete_all':
-            $viewFolder = mediaReadFolder(mediaPostString('view_folder', 'all'));
+            $viewValue = mediaPostString('view_folder', 'all');
+            // "All files" spans the entire library; only the root uploads
+            // directory or a concrete folder can be cleared with this action.
+            if ($viewValue === 'all') {
+                mediaRedirect($returnFolder, 'invalid_folder', true, $returnPage);
+            }
+
+            $viewFolder = mediaReadFolder($viewValue);
             if ($viewFolder === null) {
                 mediaRedirect($returnFolder, 'invalid_folder', true, $returnPage);
             }
@@ -1145,6 +1152,7 @@ function uploadFiles(files) {
 
         let offset = 0;
         let done = false;
+        let failed = 0;
         while (!done) {
             const body = new URLSearchParams();
             body.set('csrf', csrf);
@@ -1158,9 +1166,10 @@ function uploadFiles(files) {
 
                 offset = Number(data.next) || 0;
                 done = !!data.done;
+                failed += Number(data.failed) || 0;
                 const percent = data.total > 0 ? Math.min(100, Math.round((offset / data.total) * 100)) : 100;
                 if (bar) bar.style.width = percent + '%';
-                if (status) status.textContent = offset + ' / ' + data.total;
+                if (status) status.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
             } catch (error) {
                 if (status) status.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
                 btn.disabled = false;
@@ -1168,7 +1177,7 @@ function uploadFiles(files) {
             }
         }
 
-        if (status) status.textContent = <?= json_encode(__('Thumbnails generated.')) ?>;
+        if (status) status.textContent = <?= json_encode(__('Thumbnails generated.')) ?> + (failed > 0 ? ' · errors: ' + failed : '');
         window.location.reload();
     });
 

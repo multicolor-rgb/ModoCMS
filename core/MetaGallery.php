@@ -188,6 +188,83 @@ final class MetaGallery
     }
 
     /**
+     * Returns unique image paths used by custom-field and plugin galleries.
+     *
+     * @return array<int,string>
+     */
+    public static function allGalleryImagePaths(): array
+    {
+        $paths = [];
+
+        if (!class_exists('\\Core\\Database')) {
+            return $paths;
+        }
+
+        try {
+            $db = \Core\Database::getConnection();
+            $rows = $db->query("SELECT meta_value FROM page_meta WHERE LOWER(meta_type) = 'gallery'")
+                ->fetchAll(\PDO::FETCH_COLUMN);
+            foreach ($rows as $raw) {
+                $data = self::normalize($raw);
+                foreach ($data['items'] as $item) {
+                    if ($item['image'] !== '') {
+                        $paths[$item['image']] = true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Page metadata is optional during upgrades.
+        }
+
+        try {
+            $db = \Core\Database::getConnection();
+            $rows = $db->query("SELECT items FROM modo_galleries")->fetchAll(\PDO::FETCH_COLUMN);
+            foreach ($rows as $raw) {
+                $items = json_decode((string) $raw, true);
+                if (!is_array($items)) {
+                    continue;
+                }
+                foreach ($items as $item) {
+                    if (is_array($item) && !empty($item['image'])) {
+                        $paths[(string) $item['image']] = true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Plugin galleries are optional.
+        }
+
+        return array_keys($paths);
+    }
+
+    /**
+     * Counts gallery images missing at least one configured gallery width.
+     */
+    public static function missingGalleryThumbnailCount(): int
+    {
+        if (!class_exists('\\Core\\MediaLibrary') || !\Core\MediaLibrary::galleryThumbnailsEnabled()) {
+            return 0;
+        }
+
+        $widths = \Core\MediaLibrary::galleryThumbnailWidths();
+        if ($widths === []) {
+            return 0;
+        }
+
+        $missing = 0;
+        foreach (self::allGalleryImagePaths() as $path) {
+            foreach ($widths as $width) {
+                if (!\Core\MediaLibrary::thumbnailExists($path, $width)) {
+                    $missing++;
+                    break;
+                }
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
      * Dependency-free renderer used when the Modo Gallery plugin is inactive.
      *
      * @param array<int,array{image:string,alt:string,caption:string,link:string}> $items

@@ -927,6 +927,20 @@ require_once __DIR__ . '/views/header.php';
                 <?= _e('Gallery thumbnails') ?>
             </h3>
 
+            <?php
+            $missingGalleryThumbs = \Core\MetaGallery::missingGalleryThumbnailCount();
+            $thumbsWritable = MediaLibrary::thumbnailDirectoryWritable();
+            ?>
+            <?php if (!MediaLibrary::thumbnailSupported()): ?>
+                <small style="font-size: 11px; color: var(--danger, #ef4444); display: block; margin-bottom: 10px;">
+                    <?= _e('Thumbnail generation is not available: no GD, Imagick or ImageMagick backend was detected.') ?>
+                </small>
+            <?php elseif (!$thumbsWritable): ?>
+                <small style="font-size: 11px; color: var(--danger, #ef4444); display: block; margin-bottom: 10px;">
+                    <?= _e('The uploads/thumbs directory is not writable by PHP. Thumbnails cannot be generated.') ?>
+                </small>
+            <?php endif; ?>
+
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
                 <input type="checkbox" name="gallery_thumbnails_enabled" value="1" <?= Router::getOption('gallery_thumbnails_enabled', '1') === '1' ? 'checked' : '' ?>>
                 <?= _e('Generate and use thumbnails in galleries') ?>
@@ -950,6 +964,21 @@ require_once __DIR__ . '/views/header.php';
             <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px;">
                 <?= _e('Admin previews always use 80/160/240 px. Existing images can be regenerated in Media → Generate missing thumbnails.') ?>
             </small>
+
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
+                <button type="button" id="gallery-thumb-backfill-btn" class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;"
+                        data-csrf="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
+                    <?= _e('Generate gallery thumbnails') ?>
+                </button>
+                <span id="gallery-thumb-status" style="font-size: 11px; color: var(--text-muted);">
+                    <?= htmlspecialchars(sprintf(__('Missing gallery thumbnails: %d'), $missingGalleryThumbs), ENT_QUOTES, 'UTF-8') ?>
+                </span>
+            </div>
+            <div id="gallery-thumb-progress" style="display: none; margin-top: 10px; max-width: 420px;">
+                <div style="height: 6px; background: var(--border-subtle); border-radius: 999px; overflow: hidden;">
+                    <div id="gallery-thumb-bar" style="width: 0%; height: 100%; background: var(--primary, #3b82f6); transition: width 0.2s;"></div>
+                </div>
+            </div>
         </div>
 
         <!-- 11. SEO & Internationalization -->
@@ -1466,6 +1495,69 @@ filePicker.addEventListener('change', () => {
         UI.alert({ title: '<?= _e('Upload Error') ?>', message: '<?= _e('Network error occurred while uploading.') ?>', danger: true });
     });
 });
+</script>
+
+<script>
+(function () {
+    var btn = document.getElementById('gallery-thumb-backfill-btn');
+    if (!btn) return;
+
+    var status = document.getElementById('gallery-thumb-status');
+    var progress = document.getElementById('gallery-thumb-progress');
+    var bar = document.getElementById('gallery-thumb-bar');
+    var csrf = btn.getAttribute('data-csrf') || '';
+    var originalLabel = btn.textContent;
+
+    btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        btn.textContent = <?= json_encode(__('Generating thumbnails...')) ?>;
+        if (progress) progress.style.display = 'block';
+
+        var offset = 0;
+        var done = false;
+        var generated = 0;
+        var failed = 0;
+
+        while (!done) {
+            var body = new URLSearchParams();
+            body.set('csrf', csrf);
+            body.set('scope', 'gallery');
+            body.set('offset', String(offset));
+            body.set('limit', '5');
+
+            try {
+                var response = await fetch('thumbs-backfill.php', { method: 'POST', body: body });
+                var data = await response.json();
+                if (!data.ok) throw new Error(data.error || 'failed');
+
+                offset = Number(data.next) || 0;
+                done = !!data.done;
+                generated += Number(data.generated) || 0;
+                failed += Number(data.failed) || 0;
+
+                if (bar) {
+                    var percent = data.total > 0 ? Math.min(100, Math.round((offset / data.total) * 100)) : 100;
+                    bar.style.width = percent + '%';
+                }
+                if (status) {
+                    status.textContent = offset + ' / ' + data.total + (failed > 0 ? ' · errors: ' + failed : '');
+                }
+            } catch (error) {
+                btn.disabled = false;
+                btn.textContent = originalLabel;
+                if (status) status.textContent = <?= json_encode(__('Thumbnail generation failed.')) ?>;
+                return;
+            }
+        }
+
+        btn.textContent = originalLabel;
+        btn.disabled = false;
+        if (status) {
+            status.textContent = <?= json_encode(__('Thumbnails generated.')) ?> + ' (' + generated + (failed > 0 ? ', errors: ' + failed : '') + ')';
+        }
+        window.setTimeout(function () { window.location.reload(); }, 900);
+    });
+})();
 </script>
 
 <script>
