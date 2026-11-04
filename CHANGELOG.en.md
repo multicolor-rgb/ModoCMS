@@ -4,7 +4,7 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
-## [3.1.0] — 2026-11-04
+## [3.0.3] — 2026-11-04
 
 ### Added
 
@@ -72,7 +72,8 @@ All notable changes to Modo CMS. Format based on
 ### No database changes
 
 - No migration — settings are stored in the `settings` table on the first save
-  in the panel; until then the defaults apply.
+  in the panel; until then the defaults apply. The updater creates a database
+  snapshot but does not change the schema.
 
 ## [3.0.2] — 2026-11-03
 

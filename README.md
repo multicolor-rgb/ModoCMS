@@ -43,7 +43,7 @@
 
 ---
 
-## 🆕 What's new in 3.1.0
+## 🆕 What's new in 3.0.3
 
 * **Gallery thumbnails:** custom-field galleries and the Modo Gallery plugin now load thumbnails through `srcset`/`sizes` (480 and 960 px by default) instead of full-size images, while the lightbox still opens the original. Existing 240/320 px previews are reused immediately, so galleries benefit before a full backfill.
 * **Gallery thumbnail settings:** *Settings → Performance → Gallery thumbnails* lets you enable or disable gallery thumbnails, toggle automatic generation, set the widths (default `480,960`) and quality (default `78`). The panel also shows the number of missing gallery thumbnails and a **Generate gallery thumbnails** button that processes only images used by galleries.

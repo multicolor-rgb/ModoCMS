@@ -4,7 +4,7 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
-## [3.1.0] — 2026-11-04
+## [3.0.3] — 2026-11-04
 
 ### Dodane
 
@@ -71,7 +71,8 @@ z [Semantic Versioning](https://semver.org/lang/pl/).
 ### Bez zmian w bazie
 
 - Brak migracji — ustawienia zapisują się w tabeli `settings` przy pierwszym
-  zapisie w panelu; do tego czasu obowiązują wartości domyślne.
+  zapisie w panelu; do tego czasu obowiązują wartości domyślne. Aktualizator
+  tworzy snapshot bazy, ale nie zmienia jej schematu.
 
 ## [3.0.2] — 2026-11-03
 

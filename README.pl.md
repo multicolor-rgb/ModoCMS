@@ -43,7 +43,7 @@
 
 ---
 
-## 🆕 Co nowego w 3.1.0
+## 🆕 Co nowego w 3.0.3
 
 * **Miniatury galerii:** galerie pól niestandardowych i plugin Modo Gallery ładują teraz miniatury przez `srcset`/`sizes` (domyślnie 480 i 960 px) zamiast pełnych obrazów, a lightbox nadal otwiera oryginał. Istniejące miniatury 240/320 px są wykorzystywane od razu, więc galerie korzystają z miniaturek jeszcze przed pełnym backfillem.
 * **Ustawienia miniatur galerii:** *Ustawienia → Wydajność → Miniatury galerii* pozwalają włączyć lub wyłączyć miniatury, przełączyć automatyczne generowanie, ustawić szerokości (domyślnie `480,960`) oraz jakość (domyślnie `78`). Panel pokazuje też licznik brakujących miniaturek galerii i przycisk **Generuj miniatury galerii**, który przetwarza wyłącznie zdjęcia używane w galeriach.
