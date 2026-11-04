@@ -50,6 +50,7 @@
 * **Duże zdjęcia:** gdy obraz przekracza limit 20 MP GD, automatycznie używany jest ImageMagick CLI (`/usr/bin/convert`), jeśli jest dostępny — dzięki temu zdjęcia 6000×8000 również dostają miniatury.
 * **Diagnostyka:** backfill zwraca liczbę wygenerowanych, pominiętych i nieudanych plików; interfejs pokazuje błędy zamiast fałszywego sukcesu, a błędy generowania trafiają do logu PHP.
 * **Pełne URL-e i podkatalogi:** lokalne ścieżki typu `https://example.com/uploads/...` oraz instalacje w podkatalogu (`/cms/uploads/...`) są rozpoznawane poprawnie.
+* **Narzędzia biblioteki mediów:** zbiorcze usuwanie zaznaczonych plików i zawartości folderów, lightbox z zoomem i nawigacją oraz edytor obrazów z obrotem, odbiciem, kadrowaniem, zapisem kopii i nadpisaniem.
 * **Aktualizator jednym kliknięciem:** *Ustawienia → System* sprawdza najnowsze publiczne wydanie przez GitHub API (z 12-godzinnym cache i ręcznym odświeżaniem), pobiera je po HTTPS, weryfikuje SHA-256, tworzy kopię bazy i każdego podmienianego pliku, a następnie instaluje w trybie konserwacji z automatycznym rollbackiem. Po wyczerpaniu anonimowego limitu API używany jest publiczny kanał wydań, a opcjonalny token GitHub podnosi limit. Katalogi `data/`, `uploads/`, `modoconfig.php` i `install.php` nie są ruszane.
 * **Źródło wersji:** `core/Version.php` jest teraz jedynym źródłem wersji aplikacji.
 * **Poprawka lightboxa:** kontener `.modo-gallery` nie jest już traktowany jako trigger lightboxa motywu, więc na wpisach „Realizacje” działa tylko GLightbox z pola niestandardowego.

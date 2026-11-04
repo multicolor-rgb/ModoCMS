@@ -32,6 +32,14 @@ All notable changes to Modo CMS. Format based on
   `thumbnailGenerationWidths()`, `thumbnailExists()` and
   `canGenerateThumbnail()` methods, plus `MetaGallery::warmThumbnails()`,
   `allGalleryImagePaths()` and `missingGalleryThumbnailCount()`.
+- **Media library**:
+  - bulk deletion of selected files and folder contents with confirmation,
+  - a lightbox with zoom, previous/next navigation, original preview and an
+    edit action,
+  - a browser image editor with rotate, flip, crop presets and save-as-copy or
+    overwrite,
+  - new `admin/media-save.php` and `admin/assets/js/media-tools.js`, plus a
+    rebuilt `admin/media.php` and `core/MediaLibrary.php`.
 - **System updater** under `Settings → System`:
   - checks the latest public release through the GitHub API (with a cache and
     a manual refresh button),

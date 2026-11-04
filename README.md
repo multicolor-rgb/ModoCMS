@@ -50,6 +50,7 @@
 * **Large photos:** when an image exceeds GD's 20 MP limit, the ImageMagick CLI (`/usr/bin/convert`) is used automatically if available, so 6000×8000 photos also get thumbnails.
 * **Diagnostics:** the backfill reports generated, skipped and failed files; the interface shows errors instead of a false success, and generation failures are written to the PHP error log.
 * **Full URLs and subdirectories:** local paths such as `https://example.com/uploads/...` and subdirectory installs (`/cms/uploads/...`) are recognised correctly.
+* **Media library tools:** bulk deletion of selected files and folder contents, a media lightbox with zoom and navigation, and a browser image editor with rotate, flip, crop, save-as-copy and overwrite.
 * **One-click updater:** *Settings → System* checks the latest public release through the GitHub API (with a 12-hour cache and a manual refresh), downloads it over HTTPS, verifies the SHA-256 digest when published, backs up every replaced file and the database, and installs with maintenance mode plus automatic rollback. When the anonymous API limit is reached, the public releases feed is used; an optional GitHub token raises the limit. `data/`, `uploads/`, `modoconfig.php` and `install.php` are never touched.
 * **Version source:** `core/Version.php` is now the single source of truth for the installed version.
 * **Lightbox fix:** the `.modo-gallery` container is no longer treated as a theme lightbox trigger, so on “Realizacje” posts only the GLightbox from the custom field handles gallery images.

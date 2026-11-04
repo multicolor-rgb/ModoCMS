@@ -32,6 +32,15 @@ z [Semantic Versioning](https://semver.org/lang/pl/).
   `thumbnailExists()`, `canGenerateThumbnail()` oraz
   `MetaGallery::warmThumbnails()`, `allGalleryImagePaths()` i
   `missingGalleryThumbnailCount()`.
+- **Biblioteka mediów**:
+  - zbiorcze usuwanie zaznaczonych plików oraz zawartości folderów
+    z potwierdzeniem,
+  - lightbox z zoomem, nawigacją poprzedni/następny, podglądem oryginału
+    i przejściem do edycji,
+  - edytor obrazów w przeglądarce: obrót, odbicie, kadrowanie z proporcjami
+    oraz zapis jako kopia lub nadpisanie oryginału,
+  - nowe `admin/media-save.php` i `admin/assets/js/media-tools.js` oraz
+    przebudowa `admin/media.php` i `core/MediaLibrary.php`.
 - **Aktualizator systemu** w `Ustawienia → System`:
   - sprawdzanie najnowszego publicznego wydania przez GitHub API (z cache
     i przyciskiem wymuszonego odświeżenia),
