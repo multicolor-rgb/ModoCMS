@@ -43,6 +43,15 @@
 
 ---
 
+## 🆕 Co nowego w 3.1.0
+
+* **Miniatury galerii:** galerie pól niestandardowych i plugin Modo Gallery ładują teraz miniatury przez `srcset`/`sizes` (domyślnie 480 i 960 px) zamiast pełnych obrazów, a lightbox nadal otwiera oryginał. Miniatury generują się przy uploadzie, edycji obrazu i zapisie galerii; istniejące zdjęcia uzupełnia **Wygeneruj brakujące miniatury**.
+* **Ustawienia miniatur galerii:** *Ustawienia → Wydajność → Miniatury galerii* pozwalają włączyć lub wyłączyć miniatury, przełączyć automatyczne generowanie, ustawić szerokości (domyślnie `480,960`) oraz jakość (domyślnie `78`). Po zmianie szerokości uruchom ponownie backfill, aby powstały nowe rozmiary.
+* **Poprawka lightboxa:** kontener `.modo-gallery` nie jest już traktowany jako trigger lightboxa motywu, więc na wpisach „Realizacje” działa tylko GLightbox z pola niestandardowego.
+* **Bezpieczny fallback:** bez GD, Imagicka lub ImageMagick CLI galerie korzystają z oryginalnych obrazów i nic się nie psuje.
+
+---
+
 ## 🆕 Co nowego w 3.0.2
 
 * **Opcjonalne style motywu w edytorze treści:** motyw może dostarczyć plik `themes/<motyw>/assets/css/editor.css`, który stylizuje wyłącznie kanwę TinyMCE i Editor.js. Plik jest wykrywany automatycznie — bez nowego ustawienia, bez fallbacku na `style.css` i bez zmian na frontendzie. W `theme.json` można opcjonalnie dodać `editor.body_class` i `editor.content_style`. Zobacz [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md).
@@ -59,7 +68,7 @@
 
 * **Typy stron:** gotowe presety dla stron statycznych i wpisów bloga z domyślnymi polami niestandardowymi — osobny ekran w panelu, funkcje motywu `get_page_type()` / `is_page_type()`, obsługa w API oraz rewizje zachowujące typ dokumentu.
 * **Foldery w bibliotece mediów:** jednopoziomowe, fizyczne foldery w `uploads/` z uploadem do wybranego folderu, przenoszeniem pojedynczym i zbiorczym, zmianą nazwy, filtrowaniem z breadcrumbem oraz automatyczną aktualizacją adresów URL w stronach, wpisach, snippetach, ustawieniach, motywie, rewizjach i danych pluginów.
-* **Miniatury mediów:** lekkie obrazy 80/160/240 px generowane przy uploadzie, narzędzie uzupełniania istniejącej biblioteki, paginowana lista, leniwe ładowanie i `srcset` dla ekranów HiDPI.
+* **Miniatury mediów i galerii:** lekkie podglądy 80/160/240 px w panelu oraz konfigurowalne miniatury galerii 480/960 px generowane przy uploadzie, edycji obrazu i zapisie galerii; narzędzie uzupełniania, `srcset`/`sizes`, leniwe ładowanie, a lightbox nadal otwiera oryginał.
 * **Bogatsze pola niestandardowe:** tekst sformatowany (TinyMCE) oraz galerie z kolumnami, odstępem, lightboxem i podpisami.
 * **Formularze 1.2.0:** powiadomienia e-mail HTML domyślnie włączone, łańcuch fallbacku odbiorcy, opcjonalne Reply-To na adres nadawcy i przeprojektowany szablon wiadomości.
 * **Automatyczne slugi:** zajęty slug nie blokuje już zapisu — w obrębie języka dopisywane jest `-1`, `-2` itd. w edytorze, szybkim szkicu, API i przywracaniu rewizji.
@@ -88,6 +97,8 @@ Wpisy blogowe można grupować w **płaskie kategorie** (bez hierarchii). Obsłu
 * PHP **8.0** lub nowszy
 * Rozszerzenia PHP: **pdo_sqlite**, **sqlite3**, **mbstring**
 * Serwer WWW: **Apache** (z `mod_rewrite` i obsługą `.htaccess`) lub **Nginx**
+* Backend miniaturek (opcjonalny, ale zalecany): rozszerzenie **GD** lub **Imagick** albo ImageMagick CLI (`convert`). Bez żadnego z nich podglądy mediów i galerie korzystają z oryginalnych obrazów.
+* Katalog `uploads/` musi być zapisywalny przez PHP, w tym `uploads/thumbs/` na wygenerowane miniatury.
 
 ---
 

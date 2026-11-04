@@ -43,6 +43,15 @@
 
 ---
 
+## 🆕 What's new in 3.1.0
+
+* **Gallery thumbnails:** custom-field galleries and the Modo Gallery plugin now load thumbnails through `srcset`/`sizes` (480 and 960 px by default) instead of full-size images, while the lightbox still opens the original. Thumbnails are generated on upload, image edit and gallery save; existing images can be completed with **Generate missing thumbnails**.
+* **Gallery thumbnail settings:** *Settings → Performance → Gallery thumbnails* lets you enable or disable gallery thumbnails, toggle automatic generation, set the widths (default `480,960`) and quality (default `78`). After changing the widths, run the backfill again to create the new sizes.
+* **Lightbox fix:** the `.modo-gallery` container is no longer treated as a theme lightbox trigger, so on “Realizacje” posts only the GLightbox from the custom field handles gallery images.
+* **Safe fallback:** without GD, Imagick or the ImageMagick CLI, galleries use the original images and nothing breaks.
+
+---
+
 ## 🆕 What's new in 3.0.2
 
 * **Optional theme styles in the content editor:** a theme can now ship `themes/<theme>/assets/css/editor.css` to style the TinyMCE and Editor.js canvas only. The file is detected automatically — no new setting, no fallback to `style.css`, and no frontend changes. Optional `editor.body_class` and `editor.content_style` metadata can be added to `theme.json`. See [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md).
@@ -59,7 +68,7 @@
 
 * **Page types:** reusable presets for static pages and blog posts with default custom fields — a dedicated admin screen, `get_page_type()` / `is_page_type()` theme functions, API support and revision history that keeps the document type.
 * **Media library folders:** one-level physical folders inside `uploads/` with upload to a selected folder, single and bulk moves, renaming, breadcrumb filtering and automatic URL updates in pages, posts, snippets, settings, theme data, revisions and plugin data.
-* **Media thumbnails:** lightweight 80/160/240 px images generated on upload, a backfill tool for existing libraries, a paginated library view, lazy loading and `srcset` for HiDPI screens.
+* **Media and gallery thumbnails:** lightweight 80/160/240 px admin previews plus configurable 480/960 px gallery images generated on upload, image edit and gallery save; a backfill tool, `srcset`/`sizes`, lazy loading and lightboxes that still open the original file.
 * **Richer custom fields:** rich text (TinyMCE) and galleries with columns, gap, lightbox and captions.
 * **Forms 1.2.0:** HTML e-mail notifications enabled by default, recipient fallback chain, optional Reply-To set to the sender and a redesigned message template.
 * **Automatic slugs:** a duplicate slug no longer blocks saving — `-1`, `-2`, etc. are appended per language in the editor, quick draft, API and revision restore.
@@ -88,6 +97,8 @@ Blog posts can be grouped into **flat categories** (no hierarchy). Support cover
 * PHP **8.0** or newer
 * PHP extensions: **pdo_sqlite**, **sqlite3**, **mbstring**
 * Web server: **Apache** (with `mod_rewrite` and `.htaccess` support) or **Nginx**
+* Thumbnail backend (optional but recommended): **GD** or **Imagick** PHP extension, or the ImageMagick CLI (`convert`). Without any of them, media previews and galleries fall back to the original images.
+* `uploads/` must be writable by PHP, including `uploads/thumbs/` for generated thumbnails.
 
 ---
 

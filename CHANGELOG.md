@@ -4,6 +4,41 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.1.0] — 2026-11-04
+
+### Dodane
+
+- **Miniatury galerii**:
+  - galerie pól niestandardowych i plugin Modo Gallery ładują miniatury przez
+    `srcset`/`sizes` (domyślnie 480 i 960 px) zamiast pełnych obrazów,
+  - lightbox nadal otwiera oryginalny plik,
+  - miniatury generują się przy uploadzie, edycji obrazu i zapisie pola galerii;
+    istniejące zdjęcia uzupełnia **Wygeneruj brakujące miniatury**,
+  - nowe ustawienia **Ustawienia → Wydajność → Miniatury galerii**: włączanie,
+    automatyczne generowanie, szerokości (domyślnie `480,960`) i jakość
+    (domyślnie `78`),
+  - po zmianie szerokości należy ponownie uruchomić backfill, aby powstały nowe
+    rozmiary,
+  - brak GD, Imagicka lub ImageMagick CLI oznacza powrót do oryginalnych obrazów.
+- Nowe metody `MediaLibrary::frontendImageSources()`,
+  `galleryThumbnailWidths()`, `thumbnailGenerationWidths()` oraz
+  `MetaGallery::warmThumbnails()`.
+
+### Poprawione
+
+- **Lightbox galerii**: kontener `.modo-gallery` nie jest już traktowany jako
+  trigger lightboxa motywu, więc na wpisach „Realizacje” działa tylko GLightbox
+  z pola niestandardowego.
+- Przywrócono klucze tłumaczeń edytora obrazów usunięte przez wcześniejszą
+  wersję paczki (`Invalid image.`, `The image is too large to upload.`,
+  `Could not save the image.`, `Original`, a w DE/ES także `Reset`) i zachowano
+  nazwę wyświetlaną pliku przy nadpisywaniu obrazu.
+
+### Bez zmian w bazie
+
+- Brak migracji — ustawienia zapisują się w tabeli `settings` przy pierwszym
+  zapisie w panelu; do tego czasu obowiązują wartości domyślne.
+
 ## [3.0.2] — 2026-11-03
 
 ### Dodane

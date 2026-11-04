@@ -4,6 +4,40 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] — 2026-11-04
+
+### Added
+
+- **Gallery thumbnails**:
+  - custom-field galleries and the Modo Gallery plugin load thumbnails through
+    `srcset`/`sizes` (480 and 960 px by default) instead of full-size images,
+  - the lightbox still opens the original file,
+  - thumbnails are generated on upload, image edit and gallery-field save;
+    existing images can be completed with **Generate missing thumbnails**,
+  - new settings under **Settings → Performance → Gallery thumbnails**:
+    enable/disable, automatic generation, widths (default `480,960`) and
+    quality (default `78`),
+  - after changing the widths, run the backfill again to create the new sizes,
+  - without GD, Imagick or the ImageMagick CLI, galleries fall back to the
+    original images.
+- New `MediaLibrary::frontendImageSources()`, `galleryThumbnailWidths()`,
+  `thumbnailGenerationWidths()` and `MetaGallery::warmThumbnails()` methods.
+
+### Fixed
+
+- **Gallery lightbox**: the `.modo-gallery` container is no longer treated as a
+  theme lightbox trigger, so on “Realizacje” posts only the GLightbox from the
+  custom field handles gallery images.
+- Restored image-editor translation keys removed by an earlier package version
+  (`Invalid image.`, `The image is too large to upload.`,
+  `Could not save the image.`, `Original`, and `Reset` in DE/ES) and preserved
+  the display filename when overwriting an image.
+
+### No database changes
+
+- No migration — settings are stored in the `settings` table on the first save
+  in the panel; until then the defaults apply.
+
 ## [3.0.2] — 2026-11-03
 
 ### Added
