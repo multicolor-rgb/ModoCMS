@@ -68,6 +68,7 @@ require_once __DIR__ . '/views/header.php';
             'cssVar' => __('CSS variable'),
             'cssUnit' => __('CSS unit'),
             'options' => __('Options'),
+            'linkTypes' => __('Link types (page,post)'),
             'priority' => __('Priority'),
             'title' => __('Title'),
             'schemaSaved' => __('Settings saved'),

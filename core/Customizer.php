@@ -26,8 +26,15 @@ final class Customizer
     public const CONTROL_TYPES = [
         'text', 'textarea', 'number', 'range', 'checkbox', 'toggle',
         'select', 'radio', 'color', 'image', 'url', 'email', 'code',
+        'tinymce', 'pagelink', 'menu', 'date',
         'heading', 'hr',
     ];
+
+    /** @var array<string,array<string,array<int,array{value:string,label:string}>>> */
+    private static array $pageLinkCache = [];
+
+    /** @var array<int,array{value:string,label:string}>|null */
+    private static ?array $menuOptionsCache = null;
 
     /** Control types that only render layout in the sidebar and hold no value. */
     public const LAYOUT_TYPES = ['heading', 'hr'];
@@ -373,6 +380,7 @@ final class Customizer
             'step'        => $control['step'] ?? null,
             'css_var'     => self::sanitizeCssVar((string) ($control['css_var'] ?? '')),
             'css_unit'    => (string) ($control['css_unit'] ?? ''),
+            'link_types'  => self::normalizeLinkTypes($control['link_types'] ?? 'page,post'),
             'priority'    => isset($control['priority']) ? (int) $control['priority'] : 100,
             'source'      => (string) ($control['source'] ?? ''),
         ];
@@ -399,6 +407,131 @@ final class Customizer
             }
         }
         return $result;
+    }
+
+    /** Normalizes the "link_types" option to a comma separated page/post list. */
+    private static function normalizeLinkTypes(mixed $value): string
+    {
+        $parts = is_array($value) ? $value : preg_split('/[\s,;]+/', (string)$value);
+        $types = [];
+        foreach ((array)$parts as $part) {
+            $part = strtolower(trim((string)$part));
+            if (in_array($part, ['page', 'post'], true) && !in_array($part, $types, true)) {
+                $types[] = $part;
+            }
+        }
+
+        return $types === [] ? 'page,post' : implode(',', $types);
+    }
+
+    /**
+     * Published pages and posts available to the internal-link picker.
+     *
+     * @param array<string,mixed> $control
+     * @return array{pages:array<int,array{value:string,label:string}>,posts:array<int,array{value:string,label:string}>}
+     */
+    public static function pageLinkGroups(array $control = []): array
+    {
+        $types = self::linkTypes($control);
+        $cacheKey = implode(',', $types);
+        if (isset(self::$pageLinkCache[$cacheKey])) {
+            return self::$pageLinkCache[$cacheKey];
+        }
+
+        $groups = ['pages' => [], 'posts' => []];
+        $seen = [];
+        try {
+            $lookup = Redirects::pageLookup();
+            $stmt = Database::getConnection()->query("
+                SELECT id, title, slug, type, lang, parent_id
+                FROM pages
+                WHERE status = 'published'
+                  AND (published_at IS NULL OR published_at <= datetime('now'))
+                ORDER BY type ASC, title ASC
+            ");
+            foreach ($stmt->fetchAll() ?: [] as $row) {
+                $type = (string)($row['type'] ?? 'page');
+                if (!in_array($type, $types, true)) {
+                    continue;
+                }
+
+                $path = Redirects::publicPathFromLookup((int)$row['id'], $lookup);
+                if ($path === '' || isset($seen[$path])) {
+                    continue;
+                }
+                $seen[$path] = true;
+
+                $item = [
+                    'value' => $path,
+                    'label' => (string)($row['title'] ?? '') . ' — ' . $path,
+                ];
+                if ($type === 'post') {
+                    $groups['posts'][] = $item;
+                } else {
+                    $groups['pages'][] = $item;
+                }
+            }
+        } catch (\Throwable $e) {
+            $groups = ['pages' => [], 'posts' => []];
+        }
+
+        self::$pageLinkCache[$cacheKey] = $groups;
+        return $groups;
+    }
+
+    /**
+     * Flattened list of allowed internal-link paths.
+     *
+     * @param array<string,mixed> $control
+     * @return array<int,string>
+     */
+    public static function pageLinkValues(array $control = []): array
+    {
+        $values = [];
+        foreach (self::pageLinkGroups($control) as $items) {
+            foreach ($items as $item) {
+                $values[] = $item['value'];
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Menu slug options for the "menu" control.
+     *
+     * @return array<int,array{value:string,label:string}>
+     */
+    public static function menuOptions(): array
+    {
+        if (self::$menuOptionsCache !== null) {
+            return self::$menuOptionsCache;
+        }
+
+        self::$menuOptionsCache = [];
+        try {
+            $rows = Database::getConnection()->query("SELECT slug, name FROM menus ORDER BY name ASC")->fetchAll() ?: [];
+            foreach ($rows as $row) {
+                self::$menuOptionsCache[] = [
+                    'value' => (string)$row['slug'],
+                    'label' => (string)$row['name'] . ' (' . (string)$row['slug'] . ')',
+                ];
+            }
+        } catch (\Throwable $e) {
+            self::$menuOptionsCache = [];
+        }
+
+        return self::$menuOptionsCache;
+    }
+
+    /**
+     * @param array<string,mixed> $control
+     * @return array<int,string>
+     */
+    private static function linkTypes(array $control): array
+    {
+        $types = explode(',', self::normalizeLinkTypes($control['link_types'] ?? 'page,post'));
+        return array_values(array_filter($types, static fn (string $type): bool => in_array($type, ['page', 'post'], true)));
     }
 
     private static function sanitizeId(string $id): string
@@ -597,8 +730,31 @@ final class Customizer
                 return (string) ($control['default'] ?? '');
 
             case 'url':
+                return self::sanitizeLinkValue($value);
+
+            case 'pagelink':
                 $value = trim((string) $value);
-                return $value === '' ? '' : (string) filter_var($value, FILTER_SANITIZE_URL);
+                if ($value === '') {
+                    return '';
+                }
+                $value = '/' . ltrim($value, '/');
+                return in_array($value, self::pageLinkValues($control), true) ? $value : '';
+
+            case 'menu':
+                $value = trim((string) $value);
+                $allowed = array_map(static fn (array $o): string => $o['value'], self::menuOptions());
+                return in_array($value, $allowed, true) ? $value : '';
+
+            case 'date':
+                $value = trim((string) $value);
+                if ($value === '') {
+                    return '';
+                }
+                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+                return ($date !== false && $date->format('Y-m-d') === $value) ? $value : '';
+
+            case 'tinymce':
+                return self::sanitizeRichHtml((string) $value);
 
             case 'email':
                 $value = trim((string) $value);
@@ -623,6 +779,113 @@ final class Customizer
             case 'text':
             default:
                 return trim(self::stripControlChars((string) $value));
+        }
+    }
+
+    /** Accepts http(s), mailto, tel, fragments and relative paths only. */
+    private static function sanitizeLinkValue(mixed $value): string
+    {
+        $value = trim((string)$value);
+        if ($value === '' || preg_match('/[\x00-\x1F\x7F]/', $value)) {
+            return '';
+        }
+        if (preg_match('/^(javascript|data|vbscript|file):/i', $value)) {
+            return '';
+        }
+        if (preg_match('~^(https?://|mailto:|tel:|#|/)~i', $value)) {
+            return $value;
+        }
+        // A relative path without a scheme is valid; any other scheme is not.
+        if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $value)) {
+            return '';
+        }
+
+        return $value;
+    }
+
+    /**
+     * Sanitizes admin-authored rich text before it reaches the database.
+     * TinyMCE already filters most input, but the value can also be posted by
+     * hand, so scripts, frames, forms and event handlers are removed here.
+     */
+    private static function sanitizeRichHtml(string $html): string
+    {
+        if (trim($html) === '' || !class_exists(\DOMDocument::class)) {
+            return strip_tags($html, '<p><br><strong><b><em><i><u><s><ul><ol><li><a><h2><h3><h4><h5><h6><blockquote><code><pre><img><figure><figcaption><table><thead><tbody><tr><th><td><hr>');
+        }
+
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            $wrapped = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><div id="modo-rich-root">' . $html . '</div></body></html>';
+            if (!$dom->loadHTML($wrapped, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+                return '';
+            }
+
+            $root = null;
+            foreach ($dom->getElementsByTagName('div') as $div) {
+                if ($div->getAttribute('id') === 'modo-rich-root') {
+                    $root = $div;
+                    break;
+                }
+            }
+            if ($root === null) {
+                return '';
+            }
+
+            foreach (['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea', 'select', 'base', 'meta', 'link'] as $tag) {
+                while (($nodes = $root->getElementsByTagName($tag))->length > 0) {
+                    $node = $nodes->item(0);
+                    if ($node === null) {
+                        break;
+                    }
+                    $node->parentNode?->removeChild($node);
+                }
+            }
+
+            $stack = [$root];
+            while ($stack !== []) {
+                $element = array_pop($stack);
+                if (!$element instanceof \DOMElement) {
+                    continue;
+                }
+
+                $remove = [];
+                foreach ($element->attributes as $attribute) {
+                    $name = strtolower($attribute->nodeName);
+                    $value = strtolower(trim((string)$attribute->nodeValue));
+                    $compact = (string)preg_replace('/[\x00-\x20]+/', '', $value);
+
+                    if (str_starts_with($name, 'on')
+                        || str_contains($compact, 'javascript:')
+                        || str_contains($compact, 'vbscript:')
+                        || str_contains($compact, 'data:text/html')
+                        || (in_array($name, ['href', 'src'], true) && str_starts_with($compact, 'data:'))) {
+                        $remove[] = $attribute->nodeName;
+                    }
+                }
+                foreach ($remove as $name) {
+                    $element->removeAttribute($name);
+                }
+
+                foreach ($element->childNodes as $child) {
+                    if ($child instanceof \DOMElement) {
+                        $stack[] = $child;
+                    }
+                }
+            }
+
+            $out = '';
+            foreach ($root->childNodes as $child) {
+                $out .= $dom->saveHTML($child);
+            }
+
+            return $out;
+        } catch (\Throwable $e) {
+            return '';
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
         }
     }
 

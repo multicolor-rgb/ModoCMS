@@ -384,6 +384,33 @@ Same as above, but **prints** the value escaped for HTML.
 <p><?php the_theme_mod('modo_footer_text'); ?></p>
 ```
 
+### `get_theme_mod_link(string $key, string $default = ''): string`
+
+Resolves a customizer link for `href` attributes. Internal paths from the
+`pagelink` control are prefixed with the installation subfolder; absolute URLs,
+`mailto:`, `tel:` and `#fragment` values are returned unchanged.
+
+```php
+<a href="<?= htmlspecialchars(get_theme_mod_link('hero_cta', '/'), ENT_QUOTES, 'UTF-8') ?>">Read more</a>
+```
+
+### `the_theme_mod_link(string $key, string $default = ''): void`
+
+Same as above, but prints the escaped URL.
+
+### `get_theme_mod_html(string $key, string $default = ''): string`
+
+Returns a rich-text (`tinymce`) customizer value without escaping. Only
+administrators can edit these values.
+
+```php
+<div class="hero-text"><?php the_theme_mod_html('hero_text'); ?></div>
+```
+
+### `the_theme_mod_html(string $key, string $default = ''): void`
+
+Prints the raw administrator-authored HTML from a `tinymce` control.
+
 ### `customizer_css(): void`
 
 Prints the `:root` CSS custom properties generated from controls that declare a `css_var`. `theme_head()` already calls it; call it manually only in special cases.
@@ -502,7 +529,7 @@ Same, but prints it escaped.
 
 ## Quick index
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 

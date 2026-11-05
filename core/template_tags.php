@@ -361,6 +361,60 @@ if (!function_exists('the_theme_mod')) {
 }
 
 /**
+ * Resolves a customizer link value for use in href/src attributes.
+ *
+ * Internal-link controls store a site-relative path (already including the
+ * language prefix). This helper prepends the installation subfolder without
+ * adding the language prefix a second time. Absolute URLs, mailto:, tel: and
+ * fragments are returned unchanged.
+ */
+if (!function_exists('get_theme_mod_link')) {
+    function get_theme_mod_link(string $key, string $default = ''): string {
+        $value = trim((string) get_theme_mod($key, $default));
+        if ($value === '') {
+            return '';
+        }
+        if (preg_match('/^(javascript|data|vbscript|file):/i', $value) === 1) {
+            return '';
+        }
+
+        if (preg_match('#^(https?:)?//#i', $value)
+            || preg_match('/^(mailto:|tel:|#)/i', $value)) {
+            return $value;
+        }
+
+        if (str_starts_with($value, '/')) {
+            $base = class_exists('Core\\Router') ? \Core\Router::getBaseSubdirectory() : '';
+            return $base . $value;
+        }
+
+        return site_url($value, false);
+    }
+}
+
+if (!function_exists('the_theme_mod_link')) {
+    function the_theme_mod_link(string $key, string $default = ''): void {
+        echo htmlspecialchars(get_theme_mod_link($key, $default), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
+ * Returns a rich-text (TinyMCE) customizer value without escaping it.
+ * Only administrators can edit these values; never use it for untrusted input.
+ */
+if (!function_exists('get_theme_mod_html')) {
+    function get_theme_mod_html(string $key, string $default = ''): string {
+        return (string) get_theme_mod($key, $default);
+    }
+}
+
+if (!function_exists('the_theme_mod_html')) {
+    function the_theme_mod_html(string $key, string $default = ''): void {
+        echo get_theme_mod_html($key, $default);
+    }
+}
+
+/**
  * Outputs the CSS custom properties generated from the customizer controls that
  * declare a "css_var" mapping. Instant, hook-free live updates for colours,
  * sizes, etc. Safe to call inside <head>.

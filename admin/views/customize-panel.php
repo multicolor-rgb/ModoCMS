@@ -71,6 +71,57 @@ if (!function_exists('modo_render_control')) {
                 echo '</select>';
                 return;
 
+            case 'pagelink':
+                $groups = Customizer::pageLinkGroups($control);
+                $allValues = [];
+                foreach ($groups as $items) {
+                    foreach ($items as $item) {
+                        $allValues[] = $item['value'];
+                    }
+                }
+
+                echo '<select class="form-control modo-control" name="' . $name . '" ' . $dataAttr . '>';
+                echo '<option value="">&mdash; ' . htmlspecialchars(__('Select an internal page or post'), ENT_QUOTES, 'UTF-8') . ' &mdash;</option>';
+                foreach ($groups as $groupKey => $items) {
+                    if (empty($items)) {
+                        continue;
+                    }
+                    echo '<optgroup label="' . htmlspecialchars($groupKey === 'posts' ? __('Posts') : __('Pages'), ENT_QUOTES, 'UTF-8') . '">';
+                    foreach ($items as $item) {
+                        $selected = ((string) $item['value'] === $value) ? ' selected' : '';
+                        echo '<option value="' . htmlspecialchars($item['value'], ENT_QUOTES, 'UTF-8') . '"' . $selected . '>'
+                            . htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8') . '</option>';
+                    }
+                    echo '</optgroup>';
+                }
+                if ($value !== '' && !in_array($value, $allValues, true)) {
+                    echo '<option value="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '" selected>'
+                        . htmlspecialchars(__('Unavailable page or post') . ' — ' . $value, ENT_QUOTES, 'UTF-8') . '</option>';
+                }
+                echo '</select>';
+                return;
+
+            case 'menu':
+                echo '<select class="form-control modo-control" name="' . $name . '" ' . $dataAttr . '>';
+                echo '<option value="">&mdash; ' . htmlspecialchars(__('Select a menu'), ENT_QUOTES, 'UTF-8') . ' &mdash;</option>';
+                foreach (Customizer::menuOptions() as $option) {
+                    $selected = ((string) $option['value'] === $value) ? ' selected' : '';
+                    echo '<option value="' . htmlspecialchars($option['value'], ENT_QUOTES, 'UTF-8') . '"' . $selected . '>'
+                        . htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') . '</option>';
+                }
+                echo '</select>';
+                return;
+
+            case 'date':
+                echo '<input type="date" class="form-control modo-control" name="' . $name . '" value="'
+                    . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '" ' . $dataAttr . '>';
+                return;
+
+            case 'tinymce':
+                echo '<textarea class="form-control modo-control modo-rte" rows="8" name="' . $name . '" ' . $dataAttr . '>'
+                    . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</textarea>';
+                return;
+
             case 'radio':
                 foreach ($control['options'] as $option) {
                     $checked = ((string) $option['value'] === $value) ? ' checked' : '';

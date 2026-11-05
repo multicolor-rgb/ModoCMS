@@ -1541,5 +1541,9 @@
   "Search results for \"%s\"": "Search results for \"%s\"",
   "Target": "Target",
   "User": "User",
-  "When": "When"
+  "When": "When",
+  "Link types (page,post)": "Link types (page,post)",
+  "Select a menu": "Select a menu",
+  "Select an internal page or post": "Select an internal page or post",
+  "Unavailable page or post": "Unavailable page or post"
 }

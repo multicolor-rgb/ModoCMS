@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.9.
+# Release notes for Modo CMS 3.1.0.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,17 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.9
-            - **Security hardening:** Host-header poisoning fixed, installation gate, hashed API tokens with expiry and rate limits, password-reset and 2FA throttling, upload CSRF, DOM-based SVG sanitisation and CSP.
-            - **Content API:** full read/create/update/delete, capability checks, OpenAPI docs and automatic cache/sitemap refresh.
-            - **New features:** activity log, site search, scheduled publishing and a test-email button.
-            - **Tooling:** `tools/modo.php` CLI, PHP 8.0–8.4 CI, smoke test, database indexes and data retention.
+            ### What's new in 3.1.0
+            - **Theme Customizer:** new `tinymce`, `pagelink`, `menu` and `date` field types.
+            - **Internal links:** pick published pages/posts with the new link helpers.
+            - **Rich text:** TinyMCE field with HTML sanitisation.
+            - **Documentation:** a complete Theme Customizer guide published on GitHub Pages.
 
-            ### Najważniejsze zmiany w 3.0.9
-            - **Bezpieczeństwo:** poprawka zatruwania nagłówka Host, bramka instalacji, hash tokenów API z terminem ważności i limitami, throttling resetu hasła i 2FA, CSRF w uploadzie, sanityzacja SVG przez DOM oraz CSP.
-            - **API treści:** pełny odczyt/tworzenie/edycja/usuwanie, kontrola uprawnień, dokumentacja OpenAPI i automatyczne odświeżanie cache/sitemapy.
-            - **Nowe funkcje:** dziennik aktywności, wyszukiwarka, planowanie publikacji i testowy e-mail.
-            - **Narzędzia:** CLI `tools/modo.php`, CI dla PHP 8.0–8.4, test dymny, indeksy bazy i retencja danych.
+            ### Najważniejsze zmiany w 3.1.0
+            - **Theme Customizer:** nowe typy pól `tinymce`, `pagelink`, `menu` i `date`.
+            - **Linki wewnętrzne:** wybór opublikowanych stron/wpisy i nowe helpery linków.
+            - **Rich text:** pole TinyMCE z sanityzacją HTML.
+            - **Dokumentacja:** pełny przewodnik po Theme Customizerze opublikowany na GitHub Pages.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

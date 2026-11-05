@@ -352,6 +352,9 @@ Always create tables with `CREATE TABLE IF NOT EXISTS` at boot — plugins are s
 
 ## 11. Integrating with the Theme Customizer
 
+See [Theme Customizer settings](customizer.md) for every control type and the new internal-link / rich-text fields.
+
+
 You can add your own controls to the live customizer via the `modo_customize_register` action:
 
 ```php

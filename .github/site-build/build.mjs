@@ -107,6 +107,17 @@ const DOCS = [
     icon: 'code'
   },
   {
+    slug: 'customizer',
+    pl: 'customizer.md',
+    en: 'customizer.md',
+    title: { pl: 'Ustawienia motywu (Customizer)', en: 'Theme Customizer settings' },
+    desc: {
+      pl: 'Predefiniowane pola motywu, typy kontrolek, TinyMCE i linki wewnętrzne.',
+      en: 'Predefined theme fields, control types, TinyMCE and internal links.'
+    },
+    icon: 'sliders'
+  },
+  {
     slug: 'examples',
     pl: 'przyklady.md',
     en: 'examples.md',
@@ -370,7 +381,8 @@ function icon(name) {
     code: '<path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
     bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
     grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
-    spark: '<path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2L12 3z"/>'
+    spark: '<path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2L12 3z"/>',
+    sliders: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/>'
   };
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.spark}</svg>`;
 }

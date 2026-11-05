@@ -41,6 +41,9 @@
 
 ### Rejestracja kontrolek customizera
 
+Pełna tabela typów, `pagelink`, `tinymce`, `menu`, `date` i builder GUI: [Ustawienia theme customizera](customizer.md).
+
+
 `modo_customize_register` to akcja, ale używa się jej zwykle razem z `Customizer::registerSection()` / `registerControl()`:
 
 ```php

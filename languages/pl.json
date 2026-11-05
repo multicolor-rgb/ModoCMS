@@ -1541,5 +1541,9 @@
   "Search results for \"%s\"": "Wyniki wyszukiwania dla \"%s\"",
   "Target": "Cel",
   "User": "Użytkownik",
-  "When": "Kiedy"
+  "When": "Kiedy",
+  "Link types (page,post)": "Typy linków (page,post)",
+  "Select a menu": "Wybierz menu",
+  "Select an internal page or post": "Wybierz stronę lub wpis",
+  "Unavailable page or post": "Niedostępna strona lub wpis"
 }

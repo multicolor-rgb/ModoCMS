@@ -26,6 +26,7 @@
 | Examples | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
 | Theme editor styles | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
 | Content API | [docs/en/api.md](docs/en/api.md) | [docs/pl/api.md](docs/pl/api.md) |
+| Theme Customizer settings | [docs/en/customizer.md](docs/en/customizer.md) | [docs/pl/customizer.md](docs/pl/customizer.md) |
 | Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
@@ -41,6 +42,15 @@
 * **Content editor (no CDN):** classic WYSIWYG (TinyMCE 6.8.3) bundled locally. Toolbar presets, media library, grid builder and plugin buttons work out of the box.
 * **CSS grids / frameworks (no CDN):** choose a popular grid system (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, a custom "Modo Grid" or Custom). The same bundled CSS is used on the frontend and in the content editor, so a grid laid out in the editor looks identical on the site.
 * **Security:** Protection against SQL Injection (PDO Prepared Statements), CSRF, permission verification and output sanitisation.
+
+---
+
+## 🆕 What's new in 3.1.0
+
+* **Theme Customizer:** new `tinymce`, `pagelink` (page/post link), `menu` and `date` fields.
+* **Internal links:** choose from published pages/posts with the `get_theme_mod_link()` / `the_theme_mod_link()` helpers.
+* **Rich text:** TinyMCE field with HTML sanitisation and `get_theme_mod_html()` / `the_theme_mod_html()` helpers.
+* **Documentation:** a complete guide to theme settings, field types and the builder on GitHub Pages.
 
 ---
 

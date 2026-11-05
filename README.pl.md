@@ -26,6 +26,7 @@
 | Przykłady | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
 | Styl motywu w edytorze | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
 | API treści | [docs/en/api.md](docs/en/api.md) | [docs/pl/api.md](docs/pl/api.md) |
+| Ustawienia motywu (Customizer) | [docs/en/customizer.md](docs/en/customizer.md) | [docs/pl/customizer.md](docs/pl/customizer.md) |
 | Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
@@ -41,6 +42,15 @@
 * **Edytor treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) dołączony lokalnie. Presety paska narzędzi, biblioteka mediów, kreator siatek i przyciski wtyczek działają od razu.
 * **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
+
+---
+
+## 🆕 Co nowego w 3.1.0
+
+* **Theme Customizer:** nowe pola `tinymce`, `pagelink` (link do strony/wpisu), `menu` i `date`.
+* **Linki wewnętrzne:** wybór z listy opublikowanych stron/wpisy oraz helpery `get_theme_mod_link()` / `the_theme_mod_link()`.
+* **Rich text:** pole TinyMCE z sanityzacją HTML i helperami `get_theme_mod_html()` / `the_theme_mod_html()`.
+* **Dokumentacja:** pełny przewodnik po ustawieniach motywu, typach pól i builderze na GitHub Pages.
 
 ---
 

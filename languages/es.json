@@ -1531,5 +1531,9 @@
   "Search results for \"%s\"": "Resultados de búsqueda para \"%s\"",
   "Target": "Destino",
   "User": "Usuario",
-  "When": "Cuándo"
+  "When": "Cuándo",
+  "Link types (page,post)": "Tipos de enlace (page,post)",
+  "Select a menu": "Seleccionar un menú",
+  "Select an internal page or post": "Seleccionar una página o entrada interna",
+  "Unavailable page or post": "Página o entrada no disponible"
 }

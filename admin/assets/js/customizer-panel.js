@@ -66,6 +66,12 @@
     }
 
     function collectValues() {
+        // TinyMCE keeps its own document; flush it into the hidden textarea
+        // before the draft/publish payload is built.
+        if (window.tinymce && typeof window.tinymce.triggerSave === 'function') {
+            try { window.tinymce.triggerSave(); } catch (e) {}
+        }
+
         const values = {};
         root.querySelectorAll('.modo-control[data-control-id]').forEach((el) => {
             const id = el.getAttribute('data-control-id');
@@ -78,6 +84,59 @@
             }
         });
         return values;
+    }
+
+    // ------------------------------------------------------------------
+    // Rich text (TinyMCE) fields
+    // ------------------------------------------------------------------
+    function initRichTextEditors() {
+        if (!window.tinymce || typeof window.tinymce.init !== 'function' || !CFG.tinymceBase) {
+            return;
+        }
+
+        root.querySelectorAll('textarea.modo-rte').forEach((textarea) => {
+            if (textarea.dataset.modoRteInit === '1') return;
+            textarea.dataset.modoRteInit = '1';
+
+            if (!textarea.id) {
+                textarea.id = 'modo-rte-' + Math.random().toString(36).slice(2);
+            }
+
+            window.tinymce.init({
+                target: textarea,
+                base_url: CFG.tinymceBase,
+                height: 220,
+                menubar: false,
+                branding: false,
+                promotion: false,
+                plugins: 'lists link code',
+                toolbar: 'undo redo | bold italic | bullist numlist | link | removeformat | code',
+                convert_urls: false,
+                setup: (editor) => {
+                    const sync = () => {
+                        textarea.value = editor.getContent();
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+                    editor.on('change input undo redo', sync);
+                    editor.on('blur', () => {
+                        sync();
+                        textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                }
+            });
+        });
+
+        // Editors inside a collapsed <details> need a resize when it opens.
+        root.addEventListener('toggle', (event) => {
+            const section = event.target;
+            if (!section || !section.open || !window.tinymce) return;
+            section.querySelectorAll('textarea.modo-rte').forEach((textarea) => {
+                const editor = window.tinymce.get(textarea.id);
+                if (editor) {
+                    try { editor.fire('ResizeEditor'); } catch (e) {}
+                }
+            });
+        }, true);
     }
 
     // ------------------------------------------------------------------
@@ -552,6 +611,9 @@
     // The panel is rendered by the server only when the "Edit template settings"
     // link was used, so always expand it automatically on load.
     setOpen(true);
+
+    // Initialise rich text before taking the server-rendered baseline.
+    initRichTextEditors();
 
     // Snapshot the server-rendered values before the user edits anything.
     initialValues = collectValues();

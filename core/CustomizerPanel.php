@@ -320,10 +320,14 @@ final class CustomizerPanel
         // Map of control id => CSS custom property, so the preview updates
         // colours and sizes instantly without a full reload.
         $cssMap = [];
+        $hasRichText = false;
         foreach ($schema['sections'] as $section) {
             foreach ($section['controls'] as $control) {
                 if (($control['css_var'] ?? '') !== '') {
                     $cssMap[$control['id']] = ['var' => $control['css_var'], 'unit' => $control['css_unit']];
+                }
+                if (($control['type'] ?? '') === 'tinymce') {
+                    $hasRichText = true;
                 }
             }
         }
@@ -388,6 +392,9 @@ final class CustomizerPanel
 </div>
 
 <button type="button" id="modo-czp-reopen" class="modo-czp-reopen" title="<?= _e('Edit template settings') ?>" aria-label="<?= _e('Edit template settings') ?>">&#9881;</button>
+<?php if ($hasRichText): ?>
+<script src="<?= htmlspecialchars(self::assetUrl('assets/vendor/tinymce/tinymce.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<?php endif; ?>
 <script>
     window.MODO_CUSTOMIZER = {
         token: <?= json_encode($token) ?>,
@@ -395,6 +402,7 @@ final class CustomizerPanel
         csrf: <?= json_encode(Security::generateCsrfToken()) ?>,
         apiUrl: <?= json_encode(self::adminUrl('customize-api.php')) ?>,
         uploadUrl: <?= json_encode(self::adminUrl('upload.php')) ?>,
+        tinymceBase: <?= json_encode(self::adminUrl('assets/vendor/tinymce') . '/') ?>,
         cssMap: <?= json_encode($cssMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         labels: <?= json_encode([
             'saved' => __('Draft saved'),

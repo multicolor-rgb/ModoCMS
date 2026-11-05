@@ -4,6 +4,21 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] — 2026-11-05
+
+### Added
+
+- **New Theme Customizer field types** — `tinymce` (rich text), `pagelink` (pick a published page or post as an internal link), `menu` and `date`.
+- **Internal links** — pick from a list of pages/posts, store a relative path, validate on publish and use the new `get_theme_mod_link()` / `the_theme_mod_link()` helpers.
+- **Rich text in themes** — `get_theme_mod_html()` / `the_theme_mod_html()` helpers plus HTML sanitisation on save.
+- **Schema builder** — new field types and the `link_types` option.
+- **GitHub Pages documentation** — a new "Theme Customizer settings" page with the full type table, `theme.json`, hook, builder and helper examples.
+
+### Fixed
+
+- Removed the duplicate `modo_footer_text` control in the default theme (the footer image is now `modo_footer_image`).
+- The `url` field rejects dangerous schemes (`javascript:`, `data:`, `vbscript:`).
+
 ## [3.0.9] — 2026-11-05
 
 ### Security

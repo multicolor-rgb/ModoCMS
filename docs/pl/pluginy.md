@@ -354,6 +354,9 @@ Tabele twórz zawsze przez `CREATE TABLE IF NOT EXISTS` przy starcie — pluginy
 
 ## 11. Integracja z Theme Customizerem
 
+Pełna lista typów pól i nowe kontrolki `pagelink` / `tinymce`: [Ustawienia theme customizera](customizer.md).
+
+
 Możesz dodać własne kontrolki do customizera na żywo przez akcję `modo_customize_register`:
 
 ```php

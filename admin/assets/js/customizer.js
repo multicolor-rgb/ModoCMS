@@ -46,6 +46,7 @@
 
     const TYPES = CFG.controlTypes || ['text'];
     const OPTION_TYPES = ['select', 'radio'];
+    const LINK_TYPES = ['pagelink'];
 
     function el(tag, cls, text) {
         const node = document.createElement(tag);
@@ -99,6 +100,7 @@
         const minIn = input(control.min, 'bf-min');
         const maxIn = input(control.max, 'bf-max');
         const stepIn = input(control.step, 'bf-step');
+        const linkTypesIn = input(control.link_types || 'page,post', 'bf-link-types');
 
         const optWrap = el('div', 'modo-bf modo-bf-options');
         optWrap.appendChild(el('label', 'modo-bf-label', (L.options || 'Options') + ' (value|label)'));
@@ -107,8 +109,11 @@
         optIn.value = optionsToText(control.options);
         optWrap.appendChild(optIn);
 
+        const linkWrap = field(L.linkTypes || 'Link types (page,post)', linkTypesIn);
+
         function syncOptionVisibility() {
             optWrap.style.display = OPTION_TYPES.indexOf(typeIn.value) !== -1 ? '' : 'none';
+            linkWrap.style.display = LINK_TYPES.indexOf(typeIn.value) !== -1 ? '' : 'none';
         }
         typeIn.addEventListener('change', syncOptionVisibility);
 
@@ -123,6 +128,7 @@
         box.appendChild(field('max', maxIn));
         box.appendChild(field('step', stepIn));
         box.appendChild(optWrap);
+        box.appendChild(linkWrap);
 
         syncOptionVisibility();
         return box;
@@ -198,6 +204,7 @@
                     min: readNumber(cBox.querySelector('.bf-min').value),
                     max: readNumber(cBox.querySelector('.bf-max').value),
                     step: readNumber(cBox.querySelector('.bf-step').value),
+                    link_types: cBox.querySelector('.bf-link-types').value,
                     options
                 });
             });

@@ -4,6 +4,21 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.1.0] — 2026-11-05
+
+### Dodane
+
+- **Nowe typy pól w Theme Customizerze** — `tinymce` (edycja rich text), `pagelink` (wybór opublikowanej strony lub wpisu jako link wewnętrzny), `menu` (wybór menu) i `date` (pole daty).
+- **Linki wewnętrzne** — wybór z listy stron/wpisy, zapis ścieżki względnej, walidacja przy publikacji i nowe helpery `get_theme_mod_link()` / `the_theme_mod_link()`.
+- **Rich text w motywie** — helpery `get_theme_mod_html()` / `the_theme_mod_html()` oraz sanityzacja HTML przy zapisie.
+- **Builder schematu** — obsługa `link_types` i nowych typów pól.
+- **Dokumentacja GitHub Pages** — nowa strona „Ustawienia motywu (Customizer)” z pełną tabelą typów, przykładami `theme.json`, hooków, buildera i helperów.
+
+### Poprawione
+
+- Usunięto zduplikowaną kontrolkę `modo_footer_text` w domyślnym motywie (obraz w stopce ma teraz osobne `modo_footer_image`).
+- Pole `url` odrzuca niebezpieczne schematy (`javascript:`, `data:`, `vbscript:`).
+
 ## [3.0.9] — 2026-11-05
 
 ### Bezpieczeństwo

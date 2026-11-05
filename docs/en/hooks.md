@@ -41,6 +41,9 @@ For a beginner-friendly introduction, see [Creating plugins](plugins.md#4-the-ho
 
 ### Registering customizer controls
 
+See [Theme Customizer settings](customizer.md) for the full control type table, `pagelink`, `tinymce`, `menu`, `date` and the GUI builder.
+
+
 `modo_customize_register` is an action, but it is normally used together with `Customizer::registerSection()` / `registerControl()`:
 
 ```php

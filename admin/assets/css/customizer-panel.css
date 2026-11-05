@@ -164,6 +164,10 @@ html.modo-cz-panel-collapsed .modo-czp-reopen { display: flex; }
     box-shadow: 0 0 0 2px rgba(34, 113, 177, .15);
 }
 #modo-cz-panel textarea.form-control { resize: vertical; }
+#modo-cz-panel textarea.modo-rte { min-height: 150px; }
+#modo-cz-panel .tox-tinymce { border-color: var(--cz-input-border) !important; border-radius: var(--cz-radius) !important; }
+#modo-cz-panel .tox .tox-toolbar-overlord,
+#modo-cz-panel .tox .tox-toolbar__primary { background: var(--cz-surface) !important; }
 #modo-cz-panel .form-range { width: 100%; }
 #modo-cz-panel select.form-control { appearance: auto; }
 #modo-cz-panel .btn {

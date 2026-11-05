@@ -61,11 +61,11 @@
                         "priority": 20
                     },
                     
-                     {
-                        "id": "modo_footer_text",
+                    {
+                        "id": "modo_footer_image",
                         "type": "image",
-                        "label": "Tekst w stopce",
-                        "default": "Zbudowano na Modo CMS",
+                        "label": "Obraz w stopce",
+                        "default": "",
                         "priority": 30
                     }
                 ]
