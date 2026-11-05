@@ -26,7 +26,7 @@ use Core\Revisions;
 
 header('Content-Type: application/json; charset=utf-8');
 
-Auth::requireCapability('manage_pages');
+Auth::requireCapability('view_revisions');
 
 $db = Database::getConnection();
 

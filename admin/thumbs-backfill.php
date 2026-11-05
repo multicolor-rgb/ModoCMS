@@ -17,7 +17,7 @@ if (!Auth::check()) {
     exit;
 }
 
-if (!Auth::can('manage_pages') && !Auth::can('manage_settings')) {
+if (!Auth::can('manage_media') && !Auth::can('manage_pages') && !Auth::can('manage_settings')) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'forbidden']);
     exit;

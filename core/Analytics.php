@@ -261,6 +261,23 @@ final class Analytics
         return Router::getOption(self::OPTION_RESET_AT, '');
     }
 
+    /**
+     * Drops visit rows older than the configured retention period. Without
+     * this the analytics table grows forever on a busy site.
+     */
+    public static function prune(?int $days = null): void
+    {
+        $days = $days ?? max(30, (int)Router::getOption('analytics_retention_days', '365'));
+
+        try {
+            Database::getConnection()
+                ->prepare('DELETE FROM visits WHERE visited_at < datetime(\'now\', :window)')
+                ->execute([':window' => '-' . $days . ' days']);
+        } catch (\Throwable $e) {
+            // Best effort only.
+        }
+    }
+
     public static function isEnabled(): bool
     {
         return Config::getBool('analytics_enabled', true);

@@ -10,11 +10,13 @@ $message = '';
 $error = '';
 $step = 'request'; // 'request' lub 'reset'
 $token = trim($_GET['token'] ?? '');
+$csrfToken = Security::generateCsrfToken();
 
-// 1. Sprawdzanie czy podano token w adresie URL
+// 1. Sprawdzanie czy podano token w adresie URL. Only a hash is stored in the
+// database, so a leaked database snapshot cannot be used to reset passwords.
 if (!empty($token)) {
     $stmt = $db->prepare("SELECT id, username, reset_expires FROM users WHERE reset_token = :token LIMIT 1");
-    $stmt->execute([':token' => $token]);
+    $stmt->execute([':token' => hash('sha256', $token)]);
     $user = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     if ($user && strtotime($user['reset_expires']) > time()) {
@@ -25,14 +27,18 @@ if (!empty($token)) {
 }
 
 // 2. Obsługa wysłania formularzy
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    $error = __('Your session expired. Please reload the page and try again.');
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     // A. Żądanie linku resetującego
     if ($action === 'request_reset') {
         $identity = trim($_POST['identity'] ?? '');
 
-        if (!empty($identity)) {
+        if (!empty($identity) && !Security::rateLimit('pwreset:' . Security::clientIp(), 5, 900)) {
+            $error = __('Too many password reset requests. Please try again later.');
+        } elseif (!empty($identity)) {
             $stmt = $db->prepare("SELECT id, username, email FROM users WHERE username = :id OR email = :id LIMIT 1");
             $stmt->execute([':id' => $identity]);
             $foundUser = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -43,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $update = $db->prepare("UPDATE users SET reset_token = :token, reset_expires = :exp WHERE id = :uid");
                 $update->execute([
-                    ':token' => $rawToken,
+                    ':token' => hash('sha256', $rawToken),
                     ':exp'   => $expires,
                     ':uid'   => $foundUser['id']
                 ]);
@@ -107,11 +113,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 $hash = password_hash($newPass, PASSWORD_DEFAULT);
-                $stmt = $db->prepare("UPDATE users SET password_hash = :pwd, reset_token = NULL, reset_expires = NULL WHERE id = :uid");
+                $stmt = $db->prepare("
+                    UPDATE users
+                    SET password_hash = :pwd,
+                        reset_token = NULL,
+                        reset_expires = NULL,
+                        password_changed_at = :changed,
+                        api_token = NULL,
+                        api_token_expires = NULL
+                    WHERE id = :uid
+                ");
                 $stmt->execute([
-                    ':pwd' => $hash,
-                    ':uid' => $user['id']
+                    ':pwd'     => $hash,
+                    ':changed' => date('Y-m-d H:i:s'),
+                    ':uid'     => $user['id']
                 ]);
+
+                if (class_exists(\Core\Audit::class)) {
+                    \Core\Audit::log('password.reset', 'user:' . (int)$user['id']);
+                }
+                if (\Core\Auth::check()) {
+                    \Core\Auth::logout();
+                }
 
                 header('Location: login.php?reset=success');
                 exit;
@@ -164,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <?php if ($step === 'request'): ?>
             <form method="POST" action="">
+                <input type="hidden" name="csrf_token" value="<?= Security::sanitize($csrfToken) ?>">
                 <input type="hidden" name="action" value="request_reset">
                 <div class="form-group">
                     <label class="form-label" for="identity"><?= _e('Username or Email') ?></label>
@@ -175,6 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         <?php elseif ($step === 'reset'): ?>
             <form method="POST" action="">
+                <input type="hidden" name="csrf_token" value="<?= Security::sanitize($csrfToken) ?>">
                 <input type="hidden" name="action" value="set_new_password">
                 <div class="form-group">
                     <label class="form-label" for="new_password"><?= _e('New Password') ?></label>

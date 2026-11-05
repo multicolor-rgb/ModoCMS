@@ -52,7 +52,7 @@ public static function generateRobotsTxt(): bool {
         $stmt = $db->query("
             SELECT id, parent_id, slug, type, status, lang, updated_at, created_at 
             FROM pages 
-            WHERE status = 'published' 
+            WHERE status = 'published' AND (published_at IS NULL OR published_at <= datetime('now'))
             ORDER BY parent_id ASC, id ASC
         ");
         $allPages = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -111,7 +111,7 @@ public static function generateRobotsTxt(): bool {
             FROM tags t
             JOIN page_tags pt ON pt.tag_id = t.id
             JOIN pages p ON p.id = pt.page_id
-            WHERE p.status = 'published'
+            WHERE p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
             GROUP BY t.id
         ");
         while ($tag = $tagStmt->fetch(\PDO::FETCH_ASSOC)) {
@@ -126,7 +126,7 @@ public static function generateRobotsTxt(): bool {
             FROM categories c
             JOIN page_categories pc ON pc.category_id = c.id
             JOIN pages p ON p.id = pc.page_id
-            WHERE p.status = 'published'
+            WHERE p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
             GROUP BY c.id
         ");
         while ($category = $categoryStmt->fetch(\PDO::FETCH_ASSOC)) {

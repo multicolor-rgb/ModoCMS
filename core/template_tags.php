@@ -161,7 +161,7 @@ if (!function_exists('render_pages_fallback_menu')) {
         $stmt = $db->prepare("
             SELECT title, slug
             FROM pages
-            WHERE type = 'page' AND status = 'published' AND parent_id = 0
+            WHERE type = 'page' AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now')) AND parent_id = 0
               AND (lang = :lg OR lang = '')
             ORDER BY id ASC
         ");
@@ -290,7 +290,7 @@ if (!function_exists('get_recent_posts')) {
             SELECT p.*, u.username as author_name
             FROM pages p
             LEFT JOIN users u ON p.author_id = u.id
-            WHERE p.type = 'post' AND p.status = 'published'
+            WHERE p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
               AND (p.lang = :lg OR p.lang = '')
             ORDER BY p.created_at DESC
             LIMIT :limit
@@ -375,6 +375,41 @@ if (!function_exists('customizer_css')) {
 }
 
 /**
+ * Loads every custom field for a page once per request. Templates often read
+ * several fields; without this cache each get_meta() call is a separate query.
+ *
+ * @return array<string,array{value:string,type:string}>
+ */
+if (!function_exists('modo_page_meta_all')) {
+    function modo_page_meta_all(int $pageId): array {
+        static $cache = [];
+
+        if ($pageId <= 0) {
+            return [];
+        }
+        if (isset($cache[$pageId])) {
+            return $cache[$pageId];
+        }
+
+        $cache[$pageId] = [];
+        try {
+            $stmt = Database::getConnection()->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid");
+            $stmt->execute([':pid' => $pageId]);
+            foreach ($stmt->fetchAll() ?: [] as $row) {
+                $cache[$pageId][(string)$row['meta_key']] = [
+                    'value' => (string)($row['meta_value'] ?? ''),
+                    'type'  => (string)($row['meta_type'] ?? 'text'),
+                ];
+            }
+        } catch (\Throwable $e) {
+            // Keep the empty map; the caller returns its default.
+        }
+
+        return $cache[$pageId];
+    }
+}
+
+/**
  * Reads a custom field (metadata) attached to a page/post.
  *
  * When $pageId is omitted the value is resolved for the current page in the
@@ -388,14 +423,12 @@ if (!function_exists('get_meta')) {
             return $default;
         }
         try {
-            $db = Database::getConnection();
-            $stmt = $db->prepare("SELECT meta_value, meta_type FROM page_meta WHERE page_id = :pid AND meta_key = :k LIMIT 1");
-            $stmt->execute([':pid' => $pageId, ':k' => $key]);
-            $row = $stmt->fetch();
-            if (!$row) {
+            $rows = modo_page_meta_all($pageId);
+            if (!isset($rows[$key])) {
                 return $default;
             }
 
+            $row = ['meta_value' => $rows[$key]['value'], 'meta_type' => $rows[$key]['type']];
             $value = $row['meta_value'];
             return match ($row['meta_type'] ?? 'text') {
                 'number'   => is_numeric($value) ? ($value + 0) : $default,
@@ -524,11 +557,9 @@ if (!function_exists('get_meta_gallery')) {
             return ['items' => [], 'options' => \Core\MetaGallery::defaultOptions()];
         }
         try {
-            $db = Database::getConnection();
-            $stmt = $db->prepare("SELECT meta_value FROM page_meta WHERE page_id = :pid AND meta_key = :k LIMIT 1");
-            $stmt->execute([':pid' => $pageId, ':k' => $key]);
-            $value = $stmt->fetchColumn();
-            return \Core\MetaGallery::normalize($value === false ? '' : $value);
+            $rows = modo_page_meta_all($pageId);
+            $value = $rows[$key]['value'] ?? '';
+            return \Core\MetaGallery::normalize($value);
         } catch (\Throwable $e) {
             return ['items' => [], 'options' => \Core\MetaGallery::defaultOptions()];
         }

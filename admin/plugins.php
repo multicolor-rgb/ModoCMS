@@ -40,6 +40,11 @@ if (isset($_GET['toggle']) && isset($_GET['csrf'])) {
         $ins->execute([':f' => $identifier]);
     }
 
+    \Core\Audit::log('plugin.toggle', 'plugin:' . $identifier, ['active' => $newStatus ?? 1]);
+    if (class_exists(\Core\PageCache::class)) {
+        \Core\PageCache::purge();
+    }
+
     header('Location: plugins.php');
     exit;
 }

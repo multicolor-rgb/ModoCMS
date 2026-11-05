@@ -1,4 +1,4 @@
-# ModoCMS .htaccess v3 - do not remove this line
+# ModoCMS .htaccess v3.1 - do not remove this line
 #
 # Everything inside /uploads is served as a static file: uploaded content must
 # never be executed, whatever extension an attacker manages to write.

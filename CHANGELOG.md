@@ -4,6 +4,36 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.9] — 2026-11-05
+
+### Bezpieczeństwo
+
+- **Ochrona przed zatruciem nagłówka Host** — absolutne adresy (link resetu hasła, canonical, sitemap) nie są już budowane z niezweryfikowanego `HTTP_HOST`; można dodać zaufane domeny przez `trusted_hosts`.
+- **Bramka instalacji** — strona i API nie działają, dopóki kreator nie zapisze `install_completed`; domyślne konto demo ma losowe hasło, a `install.php` zapisuje plik-lock.
+- **Tokeny API** — przechowywane jako hash SHA-256, z opcjonalnym terminem ważności, limitem 120 żądań/min i kontrolą uprawnień (`publish_pages`, `edit_others_pages` itd.). Surowy token jest pokazywany tylko raz.
+- **Reset hasła** — tokeny są hashowane, wysyłki limitowane, a zmiana hasła unieważnia sesje i tokeny API.
+- **2FA i logowanie** — limit prób kodu TOTP, CSRF na formularzach logowania, `session.use_strict_mode` i limit bezczynności sesji.
+- **Upload i SVG** — endpoint wymaga CSRF, a SVG jest czyszczony przez DOM (usuwa skrypty, `foreignObject`, animacje i `javascript:`).
+- **Nagłówki** — usunięto przestarzały `X-XSS-Protection`, dodano CSP, `X-Permitted-Cross-Domain-Policies` i cache statyki.
+
+### Poprawione
+
+- Allow-lista IP w trybie konserwacji dopasowuje pojedynczy adres dokładnie (wcześniej `203.0.113.7` pasowało też do `.70`).
+- Edytor motywów pokazuje komunikaty błędów zamiast wypisywać je przed `<!DOCTYPE>`.
+- Zapis przez API odświeża cache strony i sitemapę; zapis cache jest atomowy.
+- Dodano indeksy dla typowych zapytań oraz retencję `login_attempts`, `visits`, `rate_limits` i dziennika audytu.
+- Pola własne są pobierane jednym zapytaniem na stronę zamiast N+1.
+
+### Dodane
+
+- **API treści** — odczyt, tworzenie, aktualizacja i usuwanie (`GET/POST/PUT/PATCH/DELETE`), dokumentacja i OpenAPI.
+- **Dziennik aktywności** — log operacji administracyjnych i API w Ustawienia → Narzędzia.
+- **Wyszukiwarka** — `/search?q=...` z formularzem w motywach.
+- **Planowanie publikacji** — pole daty publikacji; wpisy z przyszłą datą są ukryte do czasu publikacji.
+- **Testowy e-mail** — przycisk w Ustawienia → E-mail.
+- **CLI** — `tools/modo.php` (`health`, `cache:purge`, `sitemap`, `thumbs`, `audit:prune`, `i18n`).
+- **CI i test dymny** — macierz PHP 8.0–8.4, lint, audyt tłumaczeń i `tests/smoke.sh`.
+
 ## [3.0.8] — 2026-11-05
 
 ### Zmienione

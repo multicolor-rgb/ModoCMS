@@ -13,8 +13,13 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
 }
 
 $needsTotp = Auth::pendingTotpUserId() > 0;
+$csrfToken = Security::generateCsrfToken();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = __('Your session expired. Please try again.');
+        $needsTotp = false;
+    } else {
     $action = $_POST['action'] ?? 'login';
 
     if ($action === 'verify_totp') {
@@ -40,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = __('Invalid username or password.');
         }
+    }
     }
 }
 ?>
@@ -86,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?= _e('Enter the 6-digit code from your authenticator app.') ?>
         </p>
         <form method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?= Security::sanitize($csrfToken) ?>">
             <input type="hidden" name="action" value="verify_totp">
             <div class="form-group">
                 <label class="form-label" for="totp_code"><?= _e('Authentication Code') ?></label>
@@ -100,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         <?php else: ?>
         <form method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?= Security::sanitize($csrfToken) ?>">
             <div class="form-group">
                 <label class="form-label" for="username"><?= _e('Username or Email') ?></label>
                 <input class="form-control" type="text" name="username" id="username" required autofocus autocomplete="username">

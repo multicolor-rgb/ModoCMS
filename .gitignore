@@ -8,6 +8,7 @@ data/cms.sqlite
 data/*.sqlite
 data/*.sqlite3
 data/*.db
+data/installed.lock
 
 # --- Runtime directories (keep only the .htaccess guards) ---
 data/backups/*

@@ -1,4 +1,4 @@
-# ModoCMS .htaccess v3 - do not remove this line
+# ModoCMS .htaccess v3.1 - do not remove this line
 #
 # This directory must never be reachable over HTTP (databases, backups, caches,
 # translation packs, framework code). PHP itself is unaffected: Apache

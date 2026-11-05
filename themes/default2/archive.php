@@ -2,6 +2,7 @@
 require __DIR__ . '/header.php';
 $curPage = isset($currentPage) ? (int)$currentPage : 1;
 $totPages = isset($totalPages) ? (int)$totalPages : 1;
+$pageQuerySuffix = !empty($searchQuery) ? 'q=' . urlencode((string)$searchQuery) . '&' : '';
 ?>
 
 <section class="archive-hero page-hero-gradient py-5">
@@ -53,15 +54,15 @@ $totPages = isset($totalPages) ? (int)$totalPages : 1;
             <nav class="mt-5" aria-label="<?= _e('Paginacja') ?>">
                 <ul class="pagination justify-content-center">
                     <li class="page-item <?= ($curPage <= 1) ? 'disabled' : '' ?>">
-                        <a class="page-link" href="?page=<?= max(1, $curPage - 1) ?>">&laquo;</a>
+                        <a class="page-link" href="?<?= $pageQuerySuffix ?>page=<?= max(1, $curPage - 1) ?>">&laquo;</a>
                     </li>
                     <?php for ($i = 1; $i <= $totPages; $i++): ?>
                         <li class="page-item <?= ($i === $curPage) ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
+                            <a class="page-link" href="?<?= $pageQuerySuffix ?>page=<?= $i ?>"><?= $i ?></a>
                         </li>
                     <?php endfor; ?>
                     <li class="page-item <?= ($curPage >= $totPages) ? 'disabled' : '' ?>">
-                        <a class="page-link" href="?page=<?= min($totPages, $curPage + 1) ?>">&raquo;</a>
+                        <a class="page-link" href="?<?= $pageQuerySuffix ?>page=<?= min($totPages, $curPage + 1) ?>">&raquo;</a>
                     </li>
                 </ul>
             </nav>

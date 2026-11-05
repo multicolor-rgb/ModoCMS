@@ -1,4 +1,4 @@
-# ModoCMS .htaccess v3 - do not remove this line
+# ModoCMS .htaccess v3.1 - do not remove this line
 #
 # Plugin entry points are included by the CMS (Core\PluginLoader), they are
 # never requested directly. Static assets (js/css/images/fonts) stay fully

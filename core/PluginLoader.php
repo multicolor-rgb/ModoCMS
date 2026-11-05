@@ -24,6 +24,7 @@ class PluginLoader {
                 $activePlugins = $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
             }
         } catch (\Throwable $e) {
+            Logger::exception($e, 'Could not read active plugins');
             $activePlugins = [];
         }
 

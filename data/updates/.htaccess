@@ -1,4 +1,4 @@
-# ModoCMS .htaccess v3 - do not remove this line
+# ModoCMS .htaccess v3.1 - do not remove this line
 #
 # This directory holds downloaded update packages and the release cache. It must
 # never be reachable over HTTP. PHP itself is unaffected: Apache authorization

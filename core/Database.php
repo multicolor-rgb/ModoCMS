@@ -64,8 +64,10 @@ final class Database {
                 role TEXT NOT NULL DEFAULT 'editor',
                 admin_lang TEXT NOT NULL DEFAULT 'en',
                 api_token TEXT UNIQUE,
+                api_token_expires DATETIME,
                 reset_token TEXT UNIQUE,
                 reset_expires DATETIME,
+                password_changed_at DATETIME,
                 totp_secret TEXT,
                 totp_enabled INTEGER NOT NULL DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -86,6 +88,7 @@ final class Database {
                 meta_title TEXT,
                 meta_description TEXT,
                 author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                published_at DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -94,6 +97,8 @@ final class Database {
             CREATE INDEX IF NOT EXISTS idx_pages_trans_group ON pages(translation_group);
             CREATE INDEX IF NOT EXISTS idx_pages_parent_id ON pages(parent_id);
             CREATE INDEX IF NOT EXISTS idx_pages_page_type ON pages(page_type_id);
+            CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang);
+            CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at);
 
             -- Tabela na pola niestandardowe (Custom Fields) z obsługą typów danych
             CREATE TABLE IF NOT EXISTS page_meta (
@@ -274,6 +279,25 @@ final class Database {
             );
             CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_time ON login_attempts(ip_address, attempted_at);
 
+            CREATE TABLE IF NOT EXISTS rate_limits (
+                bucket TEXT PRIMARY KEY,
+                hits INTEGER NOT NULL DEFAULT 0,
+                reset_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                action TEXT NOT NULL,
+                target TEXT,
+                ip_address TEXT,
+                meta TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+
             CREATE TABLE IF NOT EXISTS redirects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 from_path TEXT NOT NULL UNIQUE,
@@ -284,12 +308,15 @@ final class Database {
             CREATE INDEX IF NOT EXISTS idx_redirects_from ON redirects(from_path);
         ");
 
-        // Seed default administrator: admin / admin123
+        // Seed default administrator. The installer replaces this database with
+        // the account chosen by the user; until then the random password makes
+        // the auto-created demo site impossible to log into.
         $stmt = $db->prepare("INSERT OR IGNORE INTO users (id, username, password_hash, email, role, admin_lang) VALUES (1, 'admin', :h, 'admin@example.com', 'admin', 'en')");
-        $stmt->execute([':h' => password_hash('admin123', PASSWORD_BCRYPT, ['cost' => 12])]);
+        $stmt->execute([':h' => password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT, ['cost' => 12])]);
 
         // Seed configuration settings
         $defaultSettings = [
+            'demo_seed' => '1',
             'site_title' => 'Modo CMS',
             'site_description' => 'Lightweight, modern SQLite3 powered CMS',
             'site_url' => '',
@@ -305,6 +332,12 @@ final class Database {
             'security_brute_force_max' => '5',
             'security_brute_force_window' => '15',
             'security_2fa_enabled' => '0',
+            'security_csp_enabled' => '1',
+            'session_idle_timeout' => '180',
+            'login_attempts_retention_days' => '30',
+            'analytics_retention_days' => '365',
+            'audit_retention_days' => '365',
+            'api_token_lifetime_days' => '0',
             'cache_enabled' => '0',
             'cache_ttl' => '3600',
             'webp_enabled' => '0',
@@ -503,14 +536,36 @@ final class Database {
                 );
                 CREATE INDEX IF NOT EXISTS idx_page_revisions_page ON page_revisions(page_id);
                 CREATE INDEX IF NOT EXISTS idx_page_revisions_created ON page_revisions(page_id, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS rate_limits (
+                    bucket TEXT PRIMARY KEY,
+                    hits INTEGER NOT NULL DEFAULT 0,
+                    reset_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    action TEXT NOT NULL,
+                    target TEXT,
+                    ip_address TEXT,
+                    meta TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+                CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
             ");
         } catch (PDOException $e) {
             // Never block the request on an optional migration failure.
         }
 
         // Additive column migrations (idempotent — guarded by a column presence check).
+        self::ensureColumn($db, 'users', 'api_token_expires', 'DATETIME');
+        self::ensureColumn($db, 'users', 'password_changed_at', 'DATETIME');
         self::ensureColumn($db, 'users', 'totp_secret', 'TEXT');
         self::ensureColumn($db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
+        self::ensureColumn($db, 'pages', 'published_at', 'DATETIME');
         self::ensureColumn($db, 'media', 'webp_path', 'TEXT');
         self::ensureColumn($db, 'media', 'alt_text', 'TEXT');
         self::ensureColumn($db, 'media', 'caption', 'TEXT');
@@ -521,6 +576,8 @@ final class Database {
         // The index can only be created after the column exists on older installs.
         try {
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_page_type ON pages(page_type_id)");
+            $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang)");
+            $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at)");
         } catch (PDOException $e) {
             // Optional — ignore.
         }
@@ -546,6 +603,12 @@ final class Database {
                 'security_brute_force_max' => '5',
                 'security_brute_force_window' => '15',
                 'security_2fa_enabled' => '0',
+                'security_csp_enabled' => '1',
+                'session_idle_timeout' => '180',
+                'login_attempts_retention_days' => '30',
+                'analytics_retention_days' => '365',
+                'audit_retention_days' => '365',
+                'api_token_lifetime_days' => '0',
                 'cache_enabled' => '0',
                 'cache_ttl' => '3600',
                 'webp_enabled' => '0',

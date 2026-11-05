@@ -25,6 +25,7 @@
 | Page types | [docs/en/page-types.md](docs/en/page-types.md) | [docs/pl/typy-stron.md](docs/pl/typy-stron.md) |
 | Examples | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
 | Theme editor styles | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
+| Content API | [docs/en/api.md](docs/en/api.md) | [docs/pl/api.md](docs/pl/api.md) |
 | Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
@@ -42,6 +43,13 @@
 * **Security:** Protection against SQL Injection (PDO Prepared Statements), CSRF, permission verification and output sanitisation.
 
 ---
+
+## 🆕 What's new in 3.0.9
+
+* **Security:** Host-header poisoning fixed, installation gate, hashed API tokens, 2FA/reset limits, upload CSRF, SVG sanitisation and CSP.
+* **Content API:** full CRUD, token expiry, rate limits, capabilities and OpenAPI documentation.
+* **New features:** activity log, `/search`, scheduled publishing and a test-email button.
+* **Tooling:** `tools/modo.php` CLI, PHP 8.0–8.4 CI, smoke test, database indexes and data retention.
 
 ## 🆕 What's new in 3.0.8
 

@@ -9,7 +9,7 @@ use Core\Database;
 use Core\PageTypes;
 use Core\Security;
 
-Auth::requireCapability('manage_pages');
+Auth::requireCapability('manage_taxonomies');
 
 $db = Database::getConnection();
 

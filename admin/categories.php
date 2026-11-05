@@ -8,7 +8,7 @@ use Core\Database;
 use Core\Router;
 use Core\Security;
 
-Auth::requireCapability('manage_pages');
+Auth::requireCapability('manage_taxonomies');
 
 $db = Database::getConnection();
 
@@ -67,10 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     }
 }
 
-// Handle delete
-if (isset($_GET['delete'], $_GET['csrf']) && Security::verifyCsrfToken((string) $_GET['csrf'])) {
+// Handle delete (POST only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    if (!Security::verifyCsrfToken((string) ($_POST['csrf_token'] ?? ''))) die('Invalid CSRF');
     $stmt = $db->prepare("DELETE FROM categories WHERE id = :id");
-    $stmt->execute([':id' => (int) $_GET['delete']]);
+    $stmt->execute([':id' => (int) ($_POST['id'] ?? 0)]);
+    \Core\Audit::log('category.delete', 'category:' . (int) ($_POST['id'] ?? 0));
     header('Location: categories.php?deleted=1');
     exit;
 }
@@ -202,7 +204,12 @@ require_once __DIR__ . '/views/header.php';
                                     <div style="display: flex; gap: 6px; justify-content: flex-end;">
                                         <a href="<?= htmlspecialchars(site_url($postsSlug . '/category/' . $category['slug'], false), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;"><?= _e('View') ?></a>
                                         <a href="categories.php?edit=<?= (int) $category['id'] ?>" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;"><?= _e('Edit') ?></a>
-                                        <a href="categories.php?delete=<?= (int) $category['id'] ?>&csrf=<?= urlencode(Security::generateCsrfToken()) ?>" class="btn btn-danger-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('<?= _e('Delete this category? It will be removed from all posts.') ?>');"><?= _e('Delete') ?></a>
+                                        <form method="POST" action="categories.php" style="margin:0;" onsubmit="return confirm('<?= _e('Delete this category? It will be removed from all posts.') ?>');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="<?= (int) $category['id'] ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+                                            <button type="submit" class="btn btn-danger-ghost" style="padding: 2px 8px; font-size: 11px;"><?= _e('Delete') ?></button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

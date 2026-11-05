@@ -24,7 +24,8 @@ $item = [
     'parent_id' => 0,
     'lang' => $_GET['lang'] ?? I18n::getDefaultLocale(),
     'translation_group' => $_GET['group'] ?? bin2hex(random_bytes(8)),
-    'featured_image' => '', 'meta_title' => '', 'meta_description' => ''
+    'featured_image' => '', 'meta_title' => '', 'meta_description' => '',
+    'published_at' => ''
 ];
 
 // Pre-select a type when the editor is opened from a page type quick link.
@@ -270,6 +271,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('Invalid CSRF token');
     }
 
+    if ($id === 0) {
+        Auth::requireCapability('create_pages');
+    }
+
     $title = trim($_POST['title'] ?? '');
     $slug = trim($_POST['slug'] ?? '');
     $content = $_POST['content'] ?? '';
@@ -282,7 +287,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     $isNewDocument = ($id === 0);
-    $status = $_POST['status'] ?? 'published';
+    $status = in_array($_POST['status'] ?? '', ['published', 'draft'], true) ? (string)$_POST['status'] : 'draft';
+    $previousStatus = (string)($existing['status'] ?? 'draft');
+    if ($status === 'published' && $previousStatus !== 'published') {
+        Auth::requireCapability('publish_pages');
+    }
+
+    $publishedAtInput = trim((string)($_POST['published_at'] ?? ''));
+    $publishedAt = null;
+    if ($publishedAtInput !== '') {
+        $publishedTimestamp = strtotime($publishedAtInput);
+        $publishedAt = $publishedTimestamp !== false ? date('Y-m-d H:i:s', $publishedTimestamp) : null;
+    }
+
     $lang = trim($_POST['lang'] ?? I18n::getDefaultLocale());
     $parentId = ($type === 'page') ? (int)($_POST['parent_id'] ?? 0) : 0;
     $translation_group = trim($_POST['translation_group'] ?? bin2hex(random_bytes(8)));
@@ -327,6 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             SET title = :t, slug = :s, content = :c, type = :tp, page_type_id = :ptid, status = :st,
                 parent_id = :p, lang = :lg, translation_group = :tg,
                 featured_image = :img, meta_title = :mt, meta_description = :md, 
+                published_at = :pub,
                 updated_at = CURRENT_TIMESTAMP 
             WHERE id = :id
         ");
@@ -335,15 +353,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':ptid' => $pageTypeId > 0 ? $pageTypeId : null, ':st' => $status,
             ':p' => $parentId, ':lg' => $lang, ':tg' => $translation_group, 
             ':img' => $featured_image, ':mt' => $meta_title, ':md' => $meta_description, 
-            ':id' => $id
+            ':pub' => $publishedAt, ':id' => $id
         ]);
     } else {
         $stmt = $db->prepare("
             INSERT INTO pages (
                 title, slug, content, type, page_type_id, status, parent_id, lang,
-                translation_group, featured_image, meta_title, meta_description, author_id
+                translation_group, featured_image, meta_title, meta_description, author_id, published_at
             ) VALUES (
-                :t, :s, :c, :tp, :ptid, :st, :p, :lg, :tg, :img, :mt, :md, :aid
+                :t, :s, :c, :tp, :ptid, :st, :p, :lg, :tg, :img, :mt, :md, :aid, :pub
             )
         ");
         $stmt->execute([
@@ -351,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':ptid' => $pageTypeId > 0 ? $pageTypeId : null, ':st' => $status,
             ':p' => $parentId, ':lg' => $lang, ':tg' => $translation_group, 
             ':img' => $featured_image, ':mt' => $meta_title, ':md' => $meta_description, 
-            ':aid' => Auth::id()
+            ':aid' => Auth::id(), ':pub' => $publishedAt
         ]);
         $id = (int)$db->lastInsertId();
     }
@@ -504,6 +522,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Unikaj blokowania zapisu dokumentu w razie problemów z plikiem
         }
     }
+
+    \Core\Audit::log($isNewDocument ? 'page.create' : 'page.update', 'page:' . $id, ['status' => $status, 'type' => $type]);
 
     $redirect = 'page-edit.php?id=' . $id . '&saved=1';
     if ($slugAdjusted) {
@@ -1061,9 +1081,20 @@ require_once __DIR__ . '/views/header.php';
                 <div class="form-group" style="margin-bottom: 14px;">
                     <label class="form-label" for="status" style="font-size: 12px; font-weight: 600;"><?= _e('Status') ?></label>
                     <select class="form-control" name="status" id="status">
-                        <option value="published" <?= $item['status'] === 'published' ? 'selected' : '' ?>><?= _e('Published') ?></option>
+                        <?php if (Auth::can('publish_pages') || $item['status'] === 'published'): ?>
+                            <option value="published" <?= $item['status'] === 'published' ? 'selected' : '' ?>><?= _e('Published') ?></option>
+                        <?php endif; ?>
                         <option value="draft" <?= $item['status'] === 'draft' ? 'selected' : '' ?>><?= _e('Draft') ?></option>
                     </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label class="form-label" for="published_at" style="font-size: 12px; font-weight: 600;"><?= _e('Publish Date') ?></label>
+                    <input class="form-control" type="datetime-local" name="published_at" id="published_at"
+                           value="<?= htmlspecialchars(!empty($item['published_at']) ? date('Y-m-d\TH:i', strtotime((string)$item['published_at'])) : '', ENT_QUOTES, 'UTF-8') ?>">
+                    <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+                        <?= _e('Optional. A future date schedules the entry; leave empty to publish immediately.') ?>
+                    </small>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 14px;">
@@ -1466,7 +1497,15 @@ function initCleanTinyMCE() {
         content_css: contentCss,
         content_style: (window.MODO_EDITOR_BASE_STYLE || '') + themeStyle + (window.MODO_GRID_GUIDE || '') + gridStyle,
         body_class: window.MODO_THEME_BODY_CLASS || '',
-        images_upload_url: 'upload.php',
+        images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+            const fd = new FormData();
+            fd.append('file', blobInfo.blob(), blobInfo.filename());
+            fd.append('csrf', window.MODO_CSRF || '');
+            fetch('upload.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then((r) => r.json())
+                .then((d) => (d && d.location) ? resolve(d.location) : reject((d && d.error) || 'Upload failed'))
+                .catch(() => reject('Upload failed'));
+        }),
         automatic_uploads: true,
         relative_urls: false,
         remove_script_host: false,
@@ -1691,6 +1730,7 @@ if (fileInput) {
         if (!fileInput.files.length) return;
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
+        formData.append('csrf', window.MODO_CSRF || '');
         if (uploadBtn) {
             uploadBtn.innerText = '<?= _e('Uploading...') ?>';
             uploadBtn.disabled = true;
@@ -2067,6 +2107,7 @@ mediaItems.forEach(item => {
                     Promise.all(files.map((file) => {
                         const fd = new FormData();
                         fd.append('file', file);
+                        fd.append('csrf', window.MODO_CSRF || '');
                         return fetch('upload.php', { method: 'POST', body: fd })
                             .then((response) => response.json())
                             .then((data) => (data && data.location) ? data.location : '')
@@ -2228,7 +2269,15 @@ mediaItems.forEach(item => {
                 body_class: window.MODO_THEME_BODY_CLASS || '',
                 relative_urls: false,
                 remove_script_host: false,
-                images_upload_url: 'upload.php',
+                images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+            const fd = new FormData();
+            fd.append('file', blobInfo.blob(), blobInfo.filename());
+            fd.append('csrf', window.MODO_CSRF || '');
+            fetch('upload.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then((r) => r.json())
+                .then((d) => (d && d.location) ? resolve(d.location) : reject((d && d.error) || 'Upload failed'))
+                .catch(() => reject('Upload failed'));
+        }),
                 automatic_uploads: true,
                 setup: (editor) => {
                     editor.on('init', () => {
@@ -2343,6 +2392,7 @@ mediaItems.forEach(item => {
             if (!fileIn.files.length) return;
             const fd = new FormData();
             fd.append('file', fileIn.files[0]);
+            fd.append('csrf', window.MODO_CSRF || '');
             fetch('upload.php', { method: 'POST', body: fd })
                 .then((r) => r.json())
                 .then((data) => {

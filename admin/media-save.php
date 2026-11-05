@@ -24,7 +24,7 @@ if (!Auth::check()) {
     mediaSaveError(401, 'unauthorized');
 }
 
-if (!Auth::can('manage_pages')) {
+if (!Auth::can('manage_media') && !Auth::can('manage_pages')) {
     mediaSaveError(403, 'forbidden');
 }
 

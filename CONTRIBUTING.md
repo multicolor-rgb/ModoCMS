@@ -14,7 +14,7 @@ Be respectful, constructive and patient. We are all here to make the project bet
 
 ### Requirements
 
-* PHP **8.0+** with the `pdo_sqlite`, `sqlite3` and `mbstring` extensions.
+* PHP **8.0+** with the `pdo_sqlite`, `sqlite3`, `mbstring` and `dom` extensions.
 * Git.
 * A local web server (Apache, Nginx) or the PHP built-in server (`php -S`).
 
@@ -44,7 +44,15 @@ Remove `install.php` after the first installation. Never commit the contents of 
 
 ### Testing
 
-There is no automated test suite yet. Before opening a pull request:
+Run the automated checks before opening a pull request:
+
+```bash
+php tools/i18n-audit.php   # translation keys
+bash tests/smoke.sh        # installs a temporary copy and checks the main routes
+php tools/modo.php health  # environment and database sanity check
+```
+
+CI runs the same checks on PHP 8.0–8.4. Manually:
 
 1. Test your change in the admin panel **and** on the frontend.
 2. Test an installation in a **subdirectory** (not only in the root) — the `.htaccess` has no `RewriteBase` on purpose.

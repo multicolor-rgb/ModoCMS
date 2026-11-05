@@ -554,6 +554,14 @@ final class Config {
                 'label'   => 'Block direct PHP access to plugins/',
                 'help'    => 'Keeps a plugins/.htaccess that stops browsers from executing plugin entry points (they are included by the core, never requested directly). Disable it only if a third-party plugin ships its own web endpoint.',
             ],
+            'trusted_hosts' => [
+                'type'        => 'text',
+                'default'     => '',
+                'group'       => 'security',
+                'label'       => 'Additional trusted host names',
+                'help'        => 'Comma separated host names that may be used in absolute URLs (canonical links, sitemap, password-reset mail) when they differ from SERVER_NAME, e.g. www.example.com, staging.example.com. Leave empty on a normal single-domain installation.',
+                'placeholder' => 'www.example.com',
+            ],
             'update_github_token' => [
                 'type'        => 'text',
                 'default'     => '',

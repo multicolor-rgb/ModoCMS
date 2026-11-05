@@ -25,6 +25,7 @@
 | Typy stron | [docs/en/page-types.md](docs/en/page-types.md) | [docs/pl/typy-stron.md](docs/pl/typy-stron.md) |
 | Przykłady | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
 | Styl motywu w edytorze | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
+| API treści | [docs/en/api.md](docs/en/api.md) | [docs/pl/api.md](docs/pl/api.md) |
 | Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
@@ -42,6 +43,13 @@
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
 
 ---
+
+## 🆕 Co nowego w 3.0.9
+
+* **Bezpieczeństwo:** ochrona przed zatruciem nagłówka Host, bramka instalacji, hash tokenów API, limity 2FA/resetu, CSRF w uploadzie, sanityzacja SVG i CSP.
+* **API treści:** pełny CRUD, terminy ważności tokenów, limity żądań, uprawnienia i dokumentacja OpenAPI.
+* **Nowe funkcje:** dziennik aktywności, wyszukiwarka `/search`, planowanie publikacji i testowy e-mail.
+* **Narzędzia:** CLI `tools/modo.php`, CI dla PHP 8.0–8.4, test dymny, indeksy bazy i retencja danych.
 
 ## 🆕 Co nowego w 3.0.8
 

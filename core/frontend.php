@@ -563,7 +563,7 @@ function hreflang_tags(bool $echo = true): string {
     $urlsByLang = [];
     if ($group) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published'");
+        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now'))");
         $stmt->execute([':g' => $group]);
         foreach ($stmt->fetchAll() as $row) {
             $urlsByLang[$row['lang']] = modo_locale_url($row, (string)$row['lang'], $default, $basePrefix);
@@ -601,7 +601,7 @@ function lang_switch(string $cssClass = 'lang-switcher'): void {
 
     if ($group) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published'");
+        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now'))");
         $stmt->execute([':g' => $group]);
         while ($r = $stmt->fetch()) {
             $translations[$r['lang']] = $r;

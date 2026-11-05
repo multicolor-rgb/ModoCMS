@@ -101,13 +101,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $targetFilePath = $savePath;
                     $requestedFile = $fileToSave;
                 } else {
-                    $error = _e('File is not writable. Check file permissions.');
+                    $error = __('File is not writable. Check file permissions.');
                 }
             } else {
-                $error = _e('Invalid file extension.');
+                $error = __('Invalid file extension.');
             }
         } else {
-            $error = _e('Invalid file path.');
+            $error = __('Invalid file path.');
         }
     }
 }

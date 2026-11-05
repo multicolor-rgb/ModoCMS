@@ -37,6 +37,9 @@ $themeUrl = htmlspecialchars(get_theme_url(), ENT_QUOTES, 'UTF-8');
                 </button>
                 <div class="collapse navbar-collapse" id="mainNav">
                     <?php get_theme_menu('navbar-nav ms-auto mb-2 mb-lg-0'); ?>
+                    <form class="d-flex ms-lg-3 mt-2 mt-lg-0" role="search" action="<?= htmlspecialchars(site_url('search', false), ENT_QUOTES, 'UTF-8') ?>" method="get">
+                        <input class="form-control form-control-sm" type="search" name="q" value="<?= htmlspecialchars((string)($_GET['q'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="<?= _e('Search') ?>" aria-label="<?= _e('Search') ?>">
+                    </form>
                     <div class="ms-lg-3 mt-2 mt-lg-0 d-flex">
                         <?php lang_switch('lang-switcher list-unstyled d-flex gap-2 mb-0'); ?>
                     </div>

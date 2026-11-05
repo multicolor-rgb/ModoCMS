@@ -143,12 +143,13 @@ function buildIdPlaceholders(array $ids): array {
 
 
 
-// Handle Document Deletion
-if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
-    if (Security::verifyCsrfToken($_GET['csrf'] ?? '')) {
+// Handle Document Deletion (POST only: destructive actions must not be GET)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    if (Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         Auth::requireCapability('delete_pages');
-        $delId = (int)$_GET['id'];
+        $delId = (int)($_POST['id'] ?? 0);
 
+        \Core\Audit::log('page.delete', 'page:' . $delId);
         if (deleteDocumentCascade($db, $delId, $lookupPages)) {
             // Zregeneruj sitemapę
             if (class_exists('Core\Sitemap')) {
@@ -158,7 +159,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
             }
         }
 
-        header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang) . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '') . '&deleted=1');
+        $returnType = (string)($_POST['type'] ?? $currentType);
+        $returnLang = (string)($_POST['lang'] ?? $currentLang);
+        header('Location: pages.php?type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '') . '&deleted=1');
         exit;
     }
 }
@@ -449,7 +452,6 @@ require_once __DIR__ . '/views/header.php';
             <?php else: ?>
                 <?php foreach ($items as $item): 
                     $fullPath = resolveFullSlug($item, $lookupPages);
-                    $deleteUrl = "pages.php?action=delete&id={$item['id']}&csrf=" . Security::generateCsrfToken() . "&type=" . urlencode($currentType) . "&lang=" . urlencode($currentLang);
                 ?>
                     <tr>
                         <td style="text-align: center; vertical-align: middle;">
@@ -510,7 +512,7 @@ require_once __DIR__ . '/views/header.php';
                                     <button type="button" 
                                             class="btn btn-danger-ghost" 
                                             style="padding: 4px 8px; font-size: 12px; line-height: 1;" 
-                                            onclick="confirmDeletePage('<?= htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars(addslashes($item['title']), ENT_QUOTES, 'UTF-8') ?>')">
+                                            onclick="confirmDeletePage(<?= (int)$item['id'] ?>, '<?= htmlspecialchars(addslashes($item['title']), ENT_QUOTES, 'UTF-8') ?>')">
                                         &times;
                                     </button>
                                 <?php endif; ?>
@@ -538,9 +540,9 @@ require_once __DIR__ . '/views/header.php';
         </p>
         <div style="display: flex; gap: 10px; justify-content: center;">
             <button type="button" class="btn btn-secondary" style="flex: 1; padding: 9px;" onclick="closeDeleteModal()"><?= _e('Cancel') ?></button>
-            <a id="confirm-delete-btn" href="#" class="btn btn-primary" style="background: var(--danger, #ef4444); border-color: var(--danger, #ef4444); flex: 1; padding: 9px; text-decoration: none; text-align: center;">
+            <button type="button" id="confirm-delete-btn" class="btn btn-primary" style="background: var(--danger, #ef4444); border-color: var(--danger, #ef4444); flex: 1; padding: 9px; text-align: center;">
                 <?= _e('Delete') ?>
-            </a>
+            </button>
         </div>
     </div>
 </div>
@@ -550,15 +552,40 @@ const delModal = document.getElementById('delete-page-modal');
 const delBtn = document.getElementById('confirm-delete-btn');
 const delPlaceholder = document.getElementById('delete-title-placeholder');
 
-function confirmDeletePage(url, title) {
+function confirmDeletePage(id, title) {
     delPlaceholder.textContent = title;
-    delBtn.href = url;
+    delBtn.dataset.pageId = String(id);
     delModal.style.display = 'flex';
 }
 
 function closeDeleteModal() {
     delModal.style.display = 'none';
 }
+
+delBtn.addEventListener('click', () => {
+    const id = delBtn.dataset.pageId || '';
+    if (!id) return;
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'pages.php';
+    const fields = {
+        action: 'delete',
+        id: id,
+        csrf_token: <?= json_encode(Security::generateCsrfToken()) ?>,
+        type: <?= json_encode($currentType) ?>,
+        lang: <?= json_encode($currentLang) ?>
+    };
+    Object.keys(fields).forEach((name) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = fields[name];
+        form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+});
 
 delModal.addEventListener('click', (e) => {
     if (e.target === delModal) closeDeleteModal();

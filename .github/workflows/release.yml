@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.8.
+# Release notes for Modo CMS 3.0.9.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,17 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.8
-            - **Customizer without sidebar reloads:** the settings panel and the live preview are separate documents; changing a setting refreshes only the preview iframe, so the sidebar keeps its scroll, expanded sections and focus.
-            - **Instant CSS variable preview:** CSS variables are applied inside the preview document and re-applied after every refresh.
-            - **Predictable publish/reset:** both actions still reload the editor so every field shows the committed values.
-            - **Cleaner preview:** the admin bar is hidden inside the preview frame.
+            ### What's new in 3.0.9
+            - **Security hardening:** Host-header poisoning fixed, installation gate, hashed API tokens with expiry and rate limits, password-reset and 2FA throttling, upload CSRF, DOM-based SVG sanitisation and CSP.
+            - **Content API:** full read/create/update/delete, capability checks, OpenAPI docs and automatic cache/sitemap refresh.
+            - **New features:** activity log, site search, scheduled publishing and a test-email button.
+            - **Tooling:** `tools/modo.php` CLI, PHP 8.0–8.4 CI, smoke test, database indexes and data retention.
 
-            ### Najważniejsze zmiany w 3.0.8
-            - **Customizer bez przeładowywania panelu:** panel ustawień i podgląd to osobne dokumenty; zmiana ustawienia odświeża tylko iframe, więc sidebar zachowuje przewinięcie, rozwinięte sekcje i fokus.
-            - **Natychmiastowy podgląd zmiennych CSS:** wartości `css_var` są aplikowane w dokumencie podglądu i ponownie po każdym odświeżeniu.
-            - **Przewidywalna publikacja i reset:** obie akcje nadal przeładowują edytor, aby pola pokazywały zapisane wartości.
-            - **Czystszy podgląd:** pasek administratora jest ukryty w ramce podglądu.
+            ### Najważniejsze zmiany w 3.0.9
+            - **Bezpieczeństwo:** poprawka zatruwania nagłówka Host, bramka instalacji, hash tokenów API z terminem ważności i limitami, throttling resetu hasła i 2FA, CSRF w uploadzie, sanityzacja SVG przez DOM oraz CSP.
+            - **API treści:** pełny odczyt/tworzenie/edycja/usuwanie, kontrola uprawnień, dokumentacja OpenAPI i automatyczne odświeżanie cache/sitemapy.
+            - **Nowe funkcje:** dziennik aktywności, wyszukiwarka, planowanie publikacji i testowy e-mail.
+            - **Narzędzia:** CLI `tools/modo.php`, CI dla PHP 8.0–8.4, test dymny, indeksy bazy i retencja danych.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

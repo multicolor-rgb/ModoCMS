@@ -7,13 +7,21 @@ require_once __DIR__ . '/../core/bootstrap.php';
 use Core\Auth;
 use Core\Database;
 use Core\MediaLibrary;
+use Core\Security;
+use Core\SvgSanitizer;
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Verify user authentication
+// Verify user authentication and media capability
 if (!Auth::check()) {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+
+if (!Auth::can('manage_media') && !Auth::can('manage_pages')) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
     exit;
 }
 
@@ -24,12 +32,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['file'])) {
     exit;
 }
 
+// CSRF: custom uploaders send the token in the body; TinyMCE's stock handler
+// may send it as a header. Both are accepted.
+$csrf = (string)($_POST['csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+if (!Security::verifyCsrfToken($csrf)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Invalid security token']);
+    exit;
+}
+
 $file = $_FILES['file'];
 $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
 $maxSize = 8 * 1024 * 1024; // 8MB
 
-// Validate upload status and file size
-if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] > $maxSize) {
+// Validate upload status and the real size on disk (the client-reported value
+// is only a hint and can be forged).
+$actualSize = is_string($file['tmp_name'] ?? null) && is_file($file['tmp_name']) ? (int)filesize($file['tmp_name']) : 0;
+if ($file['error'] !== UPLOAD_ERR_OK || $actualSize <= 0 || $actualSize > $maxSize) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid file size or upload failure']);
     exit;
@@ -45,12 +64,14 @@ if (!in_array($mime, $allowedMimes, true)) {
     exit;
 }
 
-// Sanitize SVG files to protect against Stored XSS
+// Sanitize SVG files to protect against stored XSS. The DOM walk removes
+// scripts, foreignObject, animation handlers and javascript:/data: URLs.
 if ($mime === 'image/svg+xml') {
     $svgContent = (string)file_get_contents($file['tmp_name']);
-    if (preg_match('/<script|javascript:|onload|onerror|onclick/i', $svgContent)) {
+    $sanitized = SvgSanitizer::sanitize($svgContent);
+    if ($sanitized === null || @file_put_contents($file['tmp_name'], $sanitized, LOCK_EX) === false) {
         http_response_code(400);
-        echo json_encode(['error' => 'SVG file contains disallowed embedded scripts.']);
+        echo json_encode(['error' => 'SVG file contains disallowed content.']);
         exit;
     }
 }
@@ -106,10 +127,10 @@ if (move_uploaded_file($file['tmp_name'], ($folderDir ?? $uploadDir) . '/' . $sa
         VALUES (:f, :p, :m, :s, :w, :u)
     ");
     $stmt->execute([
-        ':f' => basename($file['name']),
+        ':f' => basename((string)$file['name']),
         ':p' => $storagePath,
         ':m' => $mime,
-        ':s' => $file['size'],
+        ':s' => $actualSize,
         ':w' => $webpPath,
         ':u' => Auth::id()
     ]);

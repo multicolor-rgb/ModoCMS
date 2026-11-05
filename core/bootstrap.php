@@ -67,6 +67,7 @@ if (PHP_SAPI !== 'cli') {
 
 ini_set('session.cookie_httponly', '1');
 ini_set('session.use_only_cookies', '1');
+ini_set('session.use_strict_mode', '1');
 ini_set('session.cookie_samesite', 'Lax');
 
 $secureCookieMode = \Core\Config::getString('session_cookie_secure', 'auto');
@@ -122,8 +123,36 @@ require_once __DIR__ . '/Backup.php';
 // Initialize storage, localization and load active plugins
 \Core\Database::getConnection();
 
+// Until install.php has completed, the auto-created demo database must not be
+// reachable: it contains a demo administrator and demo content. The installer
+// itself defines MODO_INSTALLING before loading this file.
+if (PHP_SAPI !== 'cli'
+    && !defined('MODO_INSTALLING')
+    && !\Core\Setup::isApplicationInstalled()) {
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+
+    if (str_contains($script, '/api/')) {
+        http_response_code(503);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Modo CMS is not installed yet.']);
+        exit;
+    }
+
+    $base = \Core\Router::getBaseSubdirectory();
+    header('Location: ' . ($base !== '' ? $base : '') . '/install.php');
+    exit;
+}
+
 // Emit hardening HTTP security headers (Settings → Security).
 \Core\Security::sendHeaders();
+
+// Housekeeping is intentionally probabilistic: it must never add a write to
+// every frontend request, but the audit/attempt/visit tables must not grow
+// without bounds on a busy site.
+if (random_int(1, 100) === 1) {
+    \Core\Security::prune();
+    \Core\Analytics::prune();
+}
 
 // Content-affecting admin writes invalidate the anonymous full-page cache.
 if (defined('IN_ADMIN') && IN_ADMIN === true

@@ -13,8 +13,8 @@ $langDir = __DIR__ . '/languages';
 // Run the wizard unless install.php has actually completed, or the database
 // already holds real content (extra users beyond the default admin, or more
 // pages than the bundled demo seed) — then the existing site is preserved.
-$alreadyInstalled = false;
-if (file_exists($dbFile)) {
+$alreadyInstalled = is_file($dataDir . '/installed.lock');
+if (!$alreadyInstalled && file_exists($dbFile)) {
     try {
         $probe = new PDO('sqlite:' . $dbFile);
         $probe->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -24,9 +24,15 @@ if (file_exists($dbFile)) {
 
         if ($hasSchema) {
             $completed  = $probe->query("SELECT value FROM settings WHERE key = 'install_completed' LIMIT 1")->fetchColumn();
+            $demoSeed   = $probe->query("SELECT value FROM settings WHERE key = 'demo_seed' LIMIT 1")->fetchColumn();
             $extraUsers = (int) $probe->query("SELECT COUNT(*) FROM users WHERE username <> 'admin'")->fetchColumn();
             $pageCount  = (int) $probe->query("SELECT COUNT(*) FROM pages")->fetchColumn();
-            $alreadyInstalled = ($completed === '1') || ($extraUsers > 0) || ($pageCount > 4);
+            $adminHash  = (string) $probe->query("SELECT password_hash FROM users WHERE id = 1 LIMIT 1")->fetchColumn();
+            $defaultAdmin = $adminHash !== '' && password_verify('admin123', $adminHash);
+            $alreadyInstalled = ($completed === '1')
+                || ($extraUsers > 0)
+                || ($pageCount > 4)
+                || ($demoSeed !== '1' && $pageCount > 0 && !$defaultAdmin);
         }
     } catch (\Throwable $e) {
         $alreadyInstalled = false;
@@ -222,8 +228,9 @@ ServerSignature Off
 # Security headers
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Permitted-Cross-Domain-Policies "none"
+    Header always set Content-Security-Policy "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; worker-src 'self' blob:; media-src 'self' data: blob: https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
     Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
@@ -522,6 +529,12 @@ HTACCESS;
                 'security_brute_force_max'     => '5',
                 'security_brute_force_window'  => '15',
                 'security_2fa_enabled'         => '0',
+                'security_csp_enabled'         => '1',
+                'session_idle_timeout'         => '180',
+                'login_attempts_retention_days' => '30',
+                'analytics_retention_days'     => '365',
+                'audit_retention_days'         => '365',
+                'api_token_lifetime_days'      => '0',
                 'cache_enabled'                => '0',
                 'cache_ttl'                    => '3600',
                 'webp_enabled'                 => '0',
@@ -596,13 +609,17 @@ HTACCESS;
 
             $pdo->commit();
 
+            // Lock the wizard even if the database is later removed or looks
+            // incomplete; the marker is the authoritative installation state.
+            @file_put_contents($dataDir . '/installed.lock', 'installed ' . date('c') . "\n", LOCK_EX);
+
             // Generate initial robots.txt and sitemap
             try {
                 $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
                 $baseDir = str_replace('\\', '/', dirname($scriptName));
                 $baseDir = ($baseDir === '/' || $baseDir === '.') ? '' : rtrim($baseDir, '/');
                 $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $host = trim((string)($_SERVER['SERVER_NAME'] ?? 'localhost'));
                 $siteUrl = rtrim($scheme . $host . $baseDir, '/');
 
                 $robotsContent = "User-agent: *\n" .
@@ -615,6 +632,7 @@ HTACCESS;
                 @file_put_contents(__DIR__ . '/robots.txt', $robotsContent);
 
                 if (file_exists(__DIR__ . '/core/bootstrap.php')) {
+                    define('MODO_INSTALLING', true);
                     require_once __DIR__ . '/core/bootstrap.php';
                     if (class_exists('Core\Sitemap')) {
                         \Core\Sitemap::generate();

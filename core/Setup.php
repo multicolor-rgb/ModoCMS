@@ -17,7 +17,7 @@ namespace Core;
  */
 final class Setup {
     /** Version of the shipped .htaccess rule set (matches the marker line). */
-    public const VERSION = '3';
+    public const VERSION = '3.1';
 
     /** Marker that identifies a file as managed by ModoCMS. */
     public const MARKER_PATTERN = '/#\s*ModoCMS\s+\.htaccess\s+v([0-9]+(?:\.[0-9]+)?)/i';
@@ -390,6 +390,7 @@ final class Setup {
             'json'       => 'Translation packs and JSON endpoints.',
             'session'    => 'Admin login and CSRF protection.',
             'fileinfo'   => 'MIME detection for every uploaded file.',
+            'dom'        => 'Sanitisation of uploaded SVG files.',
         ];
         foreach ($requiredExtensions as $extension => $hint) {
             $loaded = extension_loaded($extension);
@@ -630,6 +631,69 @@ final class Setup {
     }
 
     /**
+     * Whether the installation wizard has actually completed. A database file
+     * alone is not enough: the schema is created automatically on the first
+     * request, including a demo site with a disabled random administrator.
+     *
+     * Existing installations that predate the "install_completed" setting are
+     * recognised by their real content (extra users or more pages than the
+     * bundled demo seed).
+     */
+    public static function isApplicationInstalled(): bool {
+        try {
+            $db = Database::getConnection();
+
+            $completed = $db->query("SELECT value FROM settings WHERE key = 'install_completed' LIMIT 1")->fetchColumn();
+            if ((string)$completed === '1') {
+                return true;
+            }
+
+            // A database created by the automatic demo bootstrap is never
+            // considered installed, even though it already contains pages.
+            $demoSeed = $db->query("SELECT value FROM settings WHERE key = 'demo_seed' LIMIT 1")->fetchColumn();
+            if ((string)$demoSeed === '1') {
+                return false;
+            }
+
+            $users = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
+            $pages = (int)$db->query("SELECT COUNT(*) FROM pages")->fetchColumn();
+
+            // Legacy installations: any real content or an administrator who
+            // has changed the default password means the wizard was used.
+            if ($users > 1 || $pages > 4) {
+                return true;
+            }
+            $adminHash = $db->query("SELECT password_hash FROM users WHERE id = 1 LIMIT 1")->fetchColumn();
+            if (is_string($adminHash) && $adminHash !== '' && !password_verify('admin123', $adminHash)) {
+                return true;
+            }
+
+            return false;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /** Marker written by install.php once the wizard has completed successfully. */
+    public static function installationLockPath(): string {
+        return self::rootPath() . '/data/installed.lock';
+    }
+
+    public static function markInstalled(): bool {
+        $path = self::installationLockPath();
+        $dataDir = dirname($path);
+        if (!is_dir($dataDir)) {
+            @mkdir($dataDir, 0775, true);
+        }
+
+        return @file_put_contents($path, 'installed ' . date('c') . "\n", LOCK_EX) !== false;
+    }
+
+    public static function hasInstallationLock(): bool {
+        return is_file(self::installationLockPath());
+    }
+
+    /**
      * Ready to paste nginx configuration: the equivalent of every shipped
      * .htaccess rule for servers that ignore .htaccess files.
      */
@@ -668,10 +732,16 @@ location ~ \.php$ {
 # 4. Security headers (mirror of the .htaccess rules)
 add_header X-Content-Type-Options nosniff always;
 add_header X-Frame-Options SAMEORIGIN always;
-add_header X-XSS-Protection "1; mode=block" always;
+add_header X-Permitted-Cross-Domain-Policies none always;
+add_header Content-Security-Policy "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; worker-src 'self' blob:; media-src 'self' data: blob: https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+
+# 5b. Static asset caching
+location ~* \.(css|js|mjs|woff2?)$ { expires 30d; add_header Cache-Control "public"; }
+location ~* \.(jpg|jpeg|png|gif|webp|svg)$ { expires 7d; add_header Cache-Control "public"; }
 
 # 5. Compression
 gzip on;

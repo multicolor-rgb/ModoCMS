@@ -8,6 +8,7 @@ use Core\Auth;
 use Core\Hooks;
 use Core\I18n;
 use Core\Router;
+use Core\Security;
 
 if (!Auth::check()) {
     header('Location: login.php');
@@ -25,8 +26,10 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= htmlspecialchars(Security::generateCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
     <base href="<?= htmlspecialchars($adminBase, ENT_QUOTES, 'UTF-8') ?>">
     <title>Modo CMS &bull; <?= _e('Dashboard') ?></title>
+    <script>window.MODO_CSRF = document.querySelector('meta[name="csrf-token"]').content;</script>
     
     <!-- Instant Dark Mode Init Script (Prevents FOUC) -->
     <script>

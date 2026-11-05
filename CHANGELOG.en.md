@@ -4,6 +4,36 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.9] — 2026-11-05
+
+### Security
+
+- **Host-header poisoning fixed** — absolute URLs (password-reset link, canonical, sitemap) are no longer built from an unverified `HTTP_HOST`; extra domains can be allowed with `trusted_hosts`.
+- **Installation gate** — the site and API stay unavailable until the wizard stores `install_completed`; the demo account uses a random password and `install.php` writes a lock file.
+- **API tokens** — stored as SHA-256 hashes, with optional expiry, a 120 req/min limit and capability checks (`publish_pages`, `edit_others_pages`, etc.). The raw token is shown only once.
+- **Password reset** — tokens are hashed, requests are rate-limited, and a password change invalidates sessions and API tokens.
+- **2FA and login** — TOTP attempt limit, CSRF on login forms, `session.use_strict_mode` and an idle-session timeout.
+- **Uploads and SVG** — the endpoint requires CSRF and SVG is sanitised through the DOM (scripts, `foreignObject`, animation and `javascript:` removed).
+- **Headers** — removed deprecated `X-XSS-Protection`, added CSP, `X-Permitted-Cross-Domain-Policies` and static-asset caching.
+
+### Fixed
+
+- Maintenance-mode IP allow-list now matches a single address exactly (`203.0.113.7` no longer admits `.70`).
+- The theme editor shows error messages instead of printing them before `<!DOCTYPE>`.
+- API writes refresh the page cache and sitemap; cache writes are atomic.
+- Added indexes for common queries and retention for `login_attempts`, `visits`, `rate_limits` and the audit log.
+- Custom fields are loaded with one query per page instead of N+1.
+
+### Added
+
+- **Content API** — read, create, update and delete (`GET/POST/PUT/PATCH/DELETE`), documentation and OpenAPI.
+- **Activity log** — admin and API operations in Settings → Tools.
+- **Search** — `/search?q=...` with a form in the bundled themes.
+- **Scheduled publishing** — publish-date field; future entries stay hidden until their date.
+- **Test e-mail** — button in Settings → Email.
+- **CLI** — `tools/modo.php` (`health`, `cache:purge`, `sitemap`, `thumbs`, `audit:prune`, `i18n`).
+- **CI and smoke test** — PHP 8.0–8.4 matrix, lint, translation audit and `tests/smoke.sh`.
+
 ## [3.0.8] — 2026-11-05
 
 ### Changed

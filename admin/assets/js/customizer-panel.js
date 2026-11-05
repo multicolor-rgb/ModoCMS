@@ -391,6 +391,7 @@
             const file = picker.files[0];
             const fd = new FormData();
             fd.append('file', file);
+            fd.append('csrf', (window.MODO_CSRF || (typeof CFG !== 'undefined' ? CFG.csrf : '') || ''));
 
             setStatus(L.uploading, 'ok');
             fetch(uploadUrl, { method: 'POST', body: fd, credentials: 'same-origin' })

@@ -195,6 +195,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: settings.php?redirect_deleted=1');
         exit;
+    } elseif (($_POST['action'] ?? '') === 'send_test_email') {
+        $testEmail = filter_var($_POST['test_email'] ?? '', FILTER_VALIDATE_EMAIL);
+        if (!$testEmail) {
+            header('Location: settings.php?tab=email&test_mail=invalid');
+            exit;
+        }
+
+        $ok = \Core\Mailer::send(
+            $testEmail,
+            __('Modo CMS test e-mail'),
+            __('This is a test message sent from Settings -> Email. If you can read it, the mail transport works.')
+        );
+        $_SESSION['test_mail_error'] = $ok ? '' : \Core\Mailer::lastError();
+        \Core\Audit::log('settings.test_email', $testEmail, ['ok' => $ok]);
+        header('Location: settings.php?tab=email&test_mail=' . ($ok ? '1' : '0'));
+        exit;
     } else {
         // -------------------------------------------------------------
         // Standard settings save
@@ -231,7 +247,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'security_brute_force_max'     => (string)max(1, (int)($_POST['security_brute_force_max'] ?? 5)),
             'security_brute_force_window'  => (string)max(1, (int)($_POST['security_brute_force_window'] ?? 15)),
             'security_headers_enabled'     => isset($_POST['security_headers_enabled']) ? '1' : '0',
+            'security_csp_enabled'         => isset($_POST['security_csp_enabled']) ? '1' : '0',
             'security_2fa_enabled'         => isset($_POST['security_2fa_enabled']) ? '1' : '0',
+            'session_idle_timeout'         => (string)max(0, (int)($_POST['session_idle_timeout'] ?? 180)),
+            'login_attempts_retention_days' => (string)max(1, (int)($_POST['login_attempts_retention_days'] ?? 30)),
+            'analytics_retention_days'     => (string)max(30, (int)($_POST['analytics_retention_days'] ?? 365)),
+            'audit_retention_days'         => (string)max(30, (int)($_POST['audit_retention_days'] ?? 365)),
+            'api_token_lifetime_days'      => (string)max(0, (int)($_POST['api_token_lifetime_days'] ?? 0)),
             'cache_enabled'                => isset($_POST['cache_enabled']) ? '1' : '0',
             'cache_ttl'                    => (string)max(1, (int)($_POST['cache_ttl'] ?? 3600)),
             'webp_enabled'                 => isset($_POST['webp_enabled']) ? '1' : '0',
@@ -291,6 +313,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             \Core\PageCache::purge();
         }
 
+        \Core\Audit::log('settings.save');
         $saved = true;
     }
 }
@@ -404,6 +427,13 @@ require_once __DIR__ . '/views/header.php';
 <?php if (isset($_GET['redirect_deleted'])): ?>
     <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 24px;">
         <?= _e('Redirect removed.') ?>
+    </div>
+<?php endif; ?>
+<?php if (isset($_GET['test_mail'])): ?>
+    <?php $testMailError = (string)($_SESSION['test_mail_error'] ?? ''); unset($_SESSION['test_mail_error']); ?>
+    <div class="card" style="border-left: 4px solid <?= $_GET['test_mail'] === '1' ? 'var(--success, #10b981)' : 'var(--danger, #ef4444)' ?>; padding: 12px 16px; margin-bottom: 24px;">
+        <?= $_GET['test_mail'] === '1' ? _e('Test e-mail sent successfully.') : _e('The test e-mail could not be sent.') ?>
+        <?php if ($testMailError !== ''): ?><br><code style="font-size:12px;"><?= htmlspecialchars($testMailError, ENT_QUOTES, 'UTF-8') ?></code><?php endif; ?>
     </div>
 <?php endif; ?>
 <?php if (isset($_GET['analytics_reset']) && $analyticsResetReport !== null): ?>
@@ -840,9 +870,25 @@ require_once __DIR__ . '/views/header.php';
             </label>
 
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main);">
+                <input type="checkbox" name="security_csp_enabled" value="1" <?= Router::getOption('security_csp_enabled', '1') === '1' ? 'checked' : '' ?>>
+                <?= _e('Send a Content-Security-Policy header (recommended)') ?>
+            </label>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 12px;">
                 <input type="checkbox" name="security_2fa_enabled" value="1" <?= Router::getOption('security_2fa_enabled', '0') === '1' ? 'checked' : '' ?>>
                 <?= _e('Two-factor authentication (TOTP) — users activate it from their profile') ?>
             </label>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="session_idle_timeout"><?= _e('Session idle timeout (minutes, 0 = off)') ?></label>
+                    <input class="form-control" type="number" min="0" id="session_idle_timeout" name="session_idle_timeout" value="<?= (int)Router::getOption('session_idle_timeout', '180') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="api_token_lifetime_days"><?= _e('API token lifetime (days, 0 = never)') ?></label>
+                    <input class="form-control" type="number" min="0" id="api_token_lifetime_days" name="api_token_lifetime_days" value="<?= (int)Router::getOption('api_token_lifetime_days', '0') ?>">
+                </div>
+            </div>
         </div>
 
         <!-- 8. Performance & Caching -->
@@ -858,6 +904,21 @@ require_once __DIR__ . '/views/header.php';
             <div class="form-group" style="margin: 14px 0 0 0; max-width: 260px;">
                 <label class="form-label" for="cache_ttl"><?= _e('Cache lifetime (seconds)') ?></label>
                 <input class="form-control" type="number" min="1" id="cache_ttl" name="cache_ttl" value="<?= (int)Router::getOption('cache_ttl', '3600') ?>">
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="analytics_retention_days"><?= _e('Keep statistics (days)') ?></label>
+                    <input class="form-control" type="number" min="30" id="analytics_retention_days" name="analytics_retention_days" value="<?= (int)Router::getOption('analytics_retention_days', '365') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="login_attempts_retention_days"><?= _e('Keep failed logins (days)') ?></label>
+                    <input class="form-control" type="number" min="1" id="login_attempts_retention_days" name="login_attempts_retention_days" value="<?= (int)Router::getOption('login_attempts_retention_days', '30') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="audit_retention_days"><?= _e('Keep audit log (days)') ?></label>
+                    <input class="form-control" type="number" min="30" id="audit_retention_days" name="audit_retention_days" value="<?= (int)Router::getOption('audit_retention_days', '365') ?>">
+                </div>
             </div>
         </div>
 
@@ -1096,6 +1157,19 @@ require_once __DIR__ . '/views/header.php';
                 <label class="form-label" for="mail_smtp_timeout"><?= _e('Connection timeout (seconds)') ?></label>
                 <input class="form-control" type="number" min="1" id="mail_smtp_timeout" name="mail_smtp_timeout" value="<?= (int)Router::getOption('mail_smtp_timeout', '15') ?>">
             </div>
+
+            <div style="border-top: 1px solid var(--border-subtle); margin: 18px 0 16px;"></div>
+
+            <h4 style="font-size: 13px; font-weight: 700; margin: 0 0 12px; color: var(--text-main);"><?= _e('Send a test message') ?></h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px;"><?= _e('Save the configuration first, then send a test message to verify the transport.') ?></p>
+            <div style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
+                <div class="form-group" style="margin: 0; flex: 1 1 240px;">
+                    <label class="form-label" for="test_email"><?= _e('Recipient address') ?></label>
+                    <?php $settingsUser = Auth::user(); ?>
+                    <input class="form-control" type="email" id="test_email" name="test_email" placeholder="<?= Security::sanitize((string)($settingsUser['email'] ?? '')) ?>">
+                </div>
+                <button type="submit" name="action" value="send_test_email" formnovalidate class="btn btn-secondary" style="margin-bottom: 0;"><?= _e('Send test e-mail') ?></button>
+            </div>
         </div>
 
         <!-- 8. Internal statistics -->
@@ -1224,6 +1298,7 @@ require_once __DIR__ . '/views/header.php';
 <?php
     $cacheStats = class_exists(\Core\PageCache::class) ? \Core\PageCache::stats() : ['count' => 0, 'bytes' => 0];
     $redirectList = class_exists(\Core\Redirects::class) ? \Core\Redirects::all() : [];
+    $auditRows = class_exists(\Core\Audit::class) ? \Core\Audit::recent(15) : [];
 ?>
 <div class="settings-panel" data-tab="tools" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
     <div class="card">
@@ -1281,6 +1356,40 @@ require_once __DIR__ . '/views/header.php';
                         </form>
                     </div>
                 <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+        <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+            <?= _e('Activity Log') ?>
+        </h3>
+        <?php if (empty($auditRows)): ?>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0;"><?= _e('No security-relevant activity recorded yet.') ?></p>
+        <?php else: ?>
+            <div style="max-height: 340px; overflow: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="text-align: left; color: var(--text-muted);">
+                            <th style="padding: 6px 8px;"><?= _e('When') ?></th>
+                            <th style="padding: 6px 8px;"><?= _e('User') ?></th>
+                            <th style="padding: 6px 8px;"><?= _e('Action') ?></th>
+                            <th style="padding: 6px 8px;"><?= _e('Target') ?></th>
+                            <th style="padding: 6px 8px;"><?= _e('IP') ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($auditRows as $row): ?>
+                            <tr style="border-top: 1px solid var(--border-subtle);">
+                                <td style="padding: 6px 8px; white-space: nowrap; color: var(--text-muted);"><?= Security::sanitize((string)$row['created_at']) ?></td>
+                                <td style="padding: 6px 8px;"><?= Security::sanitize((string)($row['username'] ?? 'system')) ?></td>
+                                <td style="padding: 6px 8px; font-family: monospace;"><?= Security::sanitize((string)$row['action']) ?></td>
+                                <td style="padding: 6px 8px; font-family: monospace; word-break: break-all;"><?= Security::sanitize((string)($row['target'] ?? '')) ?></td>
+                                <td style="padding: 6px 8px; font-family: monospace;"><?= Security::sanitize((string)($row['ip_address'] ?? '')) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         <?php endif; ?>
     </div>
@@ -1424,6 +1533,7 @@ filePicker.addEventListener('change', () => {
 
     const formData = new FormData();
     formData.append('file', filePicker.files[0]);
+    formData.append('csrf', window.MODO_CSRF || '');
 
     fetch('upload.php', {
         method: 'POST',

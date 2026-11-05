@@ -20,9 +20,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) die('Invalid CSRF');
 
     $newToken = 'cms_' . bin2hex(random_bytes(24));
-    $stmt = $db->prepare("UPDATE users SET api_token = :token WHERE id = :id");
-    $stmt->execute([':token' => $newToken, ':id' => Auth::id()]);
-    $msg = 'Generated new API token.';
+    $lifetimeDays = max(0, (int)\Core\Router::getOption('api_token_lifetime_days', '0'));
+    $expires = $lifetimeDays > 0 ? date('Y-m-d H:i:s', time() + ($lifetimeDays * 86400)) : null;
+
+    $stmt = $db->prepare("UPDATE users SET api_token = :token, api_token_expires = :expires WHERE id = :id");
+    $stmt->execute([
+        ':token'   => hash('sha256', $newToken),
+        ':expires' => $expires,
+        ':id'      => Auth::id(),
+    ]);
+
+    // The raw token is shown exactly once, immediately after generation.
+    $_SESSION['new_api_token'] = $newToken;
+    $msg = __('Generated new API token. Copy it now - it will not be shown again.');
+    \Core\Audit::log('api.token.generate', 'user:' . Auth::id());
     $user = Auth::user();
 }
 
@@ -43,13 +54,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!isset($_POST['action']) || $_POST
             $msg = __('Profile updated successfully.');
 
             if (!empty($newPass)) {
-                if (strlen($newPass) >= 6 && $newPass === $confirmPass) {
+                if (strlen($newPass) >= 8 && $newPass === $confirmPass) {
                     $hash = password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12]);
-                    $stmt = $db->prepare("UPDATE users SET password_hash = :h WHERE id = :id");
-                    $stmt->execute([':h' => $hash, ':id' => Auth::id()]);
+                    $stmt = $db->prepare("
+                        UPDATE users
+                        SET password_hash = :h,
+                            password_changed_at = :changed,
+                            api_token = NULL,
+                            api_token_expires = NULL
+                        WHERE id = :id
+                    ");
+                    $stmt->execute([
+                        ':h'       => $hash,
+                        ':changed' => date('Y-m-d H:i:s'),
+                        ':id'      => Auth::id(),
+                    ]);
+                    // Keep this session, invalidate every older one.
+                    $_SESSION['auth_time'] = time();
+                    \Core\Audit::log('password.change', 'user:' . Auth::id());
                     $msg .= ' ' . __('Settings saved successfully.');
                 } else {
-                    $err = __('Password must be at least 6 characters.') . ' / ' . __('Passwords do not match.');
+                    $err = __('Password must be at least 8 characters.') . ' / ' . __('Passwords do not match.');
                 }
             }
         } catch (\PDOException $e) {
@@ -111,9 +136,13 @@ if (!$totpEnabled && $pendingSecret !== '') {
     $totpUri = \Core\Totp::provisioningUri($pendingSecret, (string)($user['username'] ?? 'admin'), $issuer);
 }
 
-$tokenStmt = $db->prepare("SELECT api_token FROM users WHERE id = :id");
+$tokenStmt = $db->prepare("SELECT api_token, api_token_expires FROM users WHERE id = :id");
 $tokenStmt->execute([':id' => Auth::id()]);
-$currentApiToken = $tokenStmt->fetchColumn();
+$tokenRow = $tokenStmt->fetch() ?: [];
+$hasApiToken = !empty($tokenRow['api_token']);
+$apiTokenExpires = (string)($tokenRow['api_token_expires'] ?? '');
+$newApiToken = (string)($_SESSION['new_api_token'] ?? '');
+unset($_SESSION['new_api_token']);
 
 require_once __DIR__ . '/views/header.php';
 ?>
@@ -197,15 +226,25 @@ require_once __DIR__ . '/views/header.php';
 
             <div class="form-group">
                 <label class="form-label">Bearer Token</label>
-                <input class="form-control" type="text" value="<?= Security::sanitize((string)$currentApiToken) ?>" readonly style="background: #f8fafc; font-family: monospace; font-size: 12px;">
+                <?php if ($newApiToken !== ''): ?>
+                    <input class="form-control" type="text" value="<?= Security::sanitize($newApiToken) ?>" readonly onclick="this.select()" style="background: #f0fdf4; border-color: #86efac; font-family: monospace; font-size: 12px;">
+                    <small style="display:block; margin-top:6px; color:#166534;"><?= _e('Copy this token now. It is stored only as a hash and cannot be shown again.') ?></small>
+                <?php elseif ($hasApiToken): ?>
+                    <input class="form-control" type="text" value="cms_••••••••••••••••••••••••" readonly style="background: #f8fafc; font-family: monospace; font-size: 12px;">
+                    <small style="display:block; margin-top:6px; color: var(--text-muted);">
+                        <?= _e('Active token') ?><?= $apiTokenExpires !== '' ? ' &middot; ' . _e('expires') . ' ' . htmlspecialchars($apiTokenExpires, ENT_QUOTES, 'UTF-8') : '' ?>
+                    </small>
+                <?php else: ?>
+                    <input class="form-control" type="text" value="" placeholder="<?= _e('No active token') ?>" readonly style="background: #f8fafc; font-size: 12px;">
+                <?php endif; ?>
             </div>
 
             <button type="submit" class="btn btn-secondary" style="width: 100%;"
                     data-confirm
-                    data-confirm-title="<?= empty($currentApiToken) ? 'Generate API Token' : 'Regenerate API Token' ?>"
+                    data-confirm-title="<?= $hasApiToken ? 'Regenerate API Token' : 'Generate API Token' ?>"
                     data-confirm-message="<?= _e('Regenerate API token? Current key will stop working immediately.') ?>"
                     data-confirm-ok="<?= _e('Confirm') ?>">
-                <?= empty($currentApiToken) ? 'Generate API Token' : 'Regenerate API Token' ?>
+                <?= $hasApiToken ? 'Regenerate API Token' : 'Generate API Token' ?>
             </button>
         </form>
 

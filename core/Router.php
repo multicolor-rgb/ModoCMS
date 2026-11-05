@@ -62,7 +62,7 @@ final class Router {
         $queryOffset = ($currentPageNumber - 1) * $postsPerPageLimit;
 
         // Licznik wpisów
-        $countStmt = $database->prepare("SELECT COUNT(*) FROM pages WHERE type = 'post' AND status = 'published' AND (lang = :lang OR lang = '')");
+        $countStmt = $database->prepare("SELECT COUNT(*) FROM pages WHERE type = 'post' AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now')) AND (lang = :lang OR lang = '')");
         $countStmt->execute([':lang' => $activeLocale]);
         $totalPostsCount = (int)$countStmt->fetchColumn();
 
@@ -71,7 +71,7 @@ final class Router {
             SELECT p.*, u.username as author_name 
             FROM pages p 
             LEFT JOIN users u ON p.author_id = u.id 
-            WHERE p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+            WHERE p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
             ORDER BY p.created_at DESC 
             LIMIT :lim OFFSET :off
         ");
@@ -96,6 +96,66 @@ final class Router {
             'currentPage' => $currentPageNumber,
             'totalPages' => (int)ceil($totalPostsCount / $postsPerPageLimit),
             'archiveTitle' => $archiveTitle
+        ]);
+    }
+
+    /**
+     * Renders the search results page using the theme's search.php when it
+     * exists, otherwise the regular archive template.
+     */
+    private function renderSearch(\PDO $database, string $themeDirectory, string $activeLocale, string $query, int $pageNumber): void {
+        $query = trim($query);
+        $pageNumber = max(1, $pageNumber);
+        $perPage = max(1, (int)self::getOption('posts_per_page', '6'));
+        $offset = ($pageNumber - 1) * $perPage;
+
+        $params = [':lang' => $activeLocale];
+        $where = "p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')";
+        if ($query !== '') {
+            $where .= " AND (p.title LIKE :q OR p.content LIKE :q)";
+            $params[':q'] = '%' . $query . '%';
+        } else {
+            $where .= ' AND 1 = 0';
+        }
+
+        $count = $database->prepare("SELECT COUNT(*) FROM pages p WHERE {$where}");
+        $count->execute($params);
+        $total = (int)$count->fetchColumn();
+
+        $stmt = $database->prepare("
+            SELECT p.*, u.username AS author_name
+            FROM pages p
+            LEFT JOIN users u ON p.author_id = u.id
+            WHERE {$where}
+            ORDER BY p.updated_at DESC, p.id DESC
+            LIMIT :limit OFFSET :offset
+        ");
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, \PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit', $perPage, \PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+
+        global $clean_posts_iterator;
+        $clean_posts_iterator = new \ArrayIterator($stmt->fetchAll());
+
+        $title = $query !== '' ? sprintf(__('Search results for "%s"'), $query) : __('Search');
+        \ThemeState::$seoPayload = [
+            'title' => self::formatDocumentTitle($title, false),
+            'description' => self::getOption('site_description', ''),
+            'og_image' => '',
+        ];
+
+        $template = file_exists($themeDirectory . 'search.php')
+            ? 'search.php'
+            : (file_exists($themeDirectory . 'archive.php') ? 'archive.php' : 'index.php');
+
+        View::render($themeDirectory . $template, [
+            'currentPage' => $pageNumber,
+            'totalPages' => (int)ceil($total / $perPage),
+            'archiveTitle' => $title,
+            'searchQuery' => $query,
         ]);
     }
 
@@ -140,6 +200,17 @@ final class Router {
      * a single address (203.0.113.7), an address prefix (203.0.113.) or a CIDR
      * range (203.0.113.0/24, 2001:db8::/32).
      */
+    /**
+     * SQL fragment that hides drafts and entries scheduled for the future.
+     *
+     * @param string $alias Optional table alias, e.g. "p".
+     */
+    public static function publishedCondition(string $alias = ''): string {
+        $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
+
+        return $prefix . "status = 'published' AND (" . $prefix . "published_at IS NULL OR " . $prefix . "published_at <= datetime('now'))";
+    }
+
     public static function addressMatches(string $address, string $entry): bool {
         $entry = trim($entry);
         $address = trim($address);
@@ -174,8 +245,20 @@ final class Router {
             return (ord($client[$wholeBytes]) & $mask) === (ord($subnet[$wholeBytes]) & $mask);
         }
 
-        // Single address or literal prefix - IPv6 entries are compared as text.
-        return str_starts_with($address, $entry);
+        // A complete single address must match exactly; only an entry ending
+        // with a dot is a literal prefix (e.g. "203.0.113."). This prevents an
+        // allow-listed 203.0.113.7 from also admitting 203.0.113.70.
+        if (filter_var($entry, FILTER_VALIDATE_IP) !== false) {
+            $client = @inet_pton($address);
+            $single = @inet_pton($entry);
+            return $client !== false && $single !== false && $client === $single;
+        }
+
+        if (str_ends_with($entry, '.')) {
+            return str_starts_with($address, $entry);
+        }
+
+        return $address === $entry;
     }
 
     /**
@@ -323,6 +406,12 @@ final class Router {
         // Dynamiczny slug bazowy dla bloga (strona nadrzędna wpisów)
         $postsSlug = self::getPostsPageSlug();
 
+        // Site search (/search?q=... and /{lang}/search?q=...).
+        if (isset($pathSegments[0]) && $pathSegments[0] === 'search') {
+            $this->renderSearch($database, $themeDirectory, $activeLocale, (string)($_GET['q'] ?? ''), (int)($_GET['page'] ?? 1));
+            return;
+        }
+
         // 1. Tag Archive (/blog/tag/{slug} lub /{postsSlug}/tag/{slug})
         if (isset($pathSegments[0]) && ($pathSegments[0] === 'blog' || $pathSegments[0] === $postsSlug) 
             && isset($pathSegments[1]) && $pathSegments[1] === 'tag' && !empty($pathSegments[2])) {
@@ -346,7 +435,7 @@ final class Router {
                 SELECT COUNT(p.id) 
                 FROM pages p
                 JOIN page_tags pt ON pt.page_id = p.id
-                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
             ");
             $countStmt->execute([':tid' => $tag['id'], ':lang' => $activeLocale]);
             $totalPostsCount = (int)$countStmt->fetchColumn();
@@ -356,7 +445,7 @@ final class Router {
                 FROM pages p
                 JOIN page_tags pt ON pt.page_id = p.id
                 LEFT JOIN users u ON p.author_id = u.id
-                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
                 ORDER BY p.created_at DESC 
                 LIMIT :lim OFFSET :off
             ");
@@ -406,7 +495,7 @@ final class Router {
                 SELECT COUNT(p.id) 
                 FROM pages p
                 JOIN page_categories pc ON pc.page_id = p.id
-                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
             ");
             $countStmt->execute([':cid' => $category['id'], ':lang' => $activeLocale]);
             $totalPostsCount = (int)$countStmt->fetchColumn();
@@ -416,7 +505,7 @@ final class Router {
                 FROM pages p
                 JOIN page_categories pc ON pc.page_id = p.id
                 LEFT JOIN users u ON p.author_id = u.id
-                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.lang = :lang OR p.lang = '')
+                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
                 ORDER BY p.created_at DESC 
                 LIMIT :lim OFFSET :off
             ");
@@ -476,7 +565,7 @@ final class Router {
                     LEFT JOIN users u ON p.author_id = u.id 
                     WHERE (p.id = :hid OR p.translation_group = (SELECT translation_group FROM pages WHERE id = :hid2))
                       AND (p.lang = :lang OR p.lang = '')
-                      AND p.status = 'published' 
+                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $stmt->execute([':hid' => $configuredHomeId, ':hid2' => $configuredHomeId, ':lang' => $activeLocale]);
@@ -491,7 +580,7 @@ final class Router {
                     LEFT JOIN users u ON p.author_id = u.id 
                     WHERE p.slug = 'home' 
                       AND (p.lang = :lang OR p.lang = '') 
-                      AND p.status = 'published' 
+                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $stmt->execute([':lang' => $activeLocale]);
@@ -505,6 +594,7 @@ final class Router {
                     FROM pages p 
                     LEFT JOIN users u ON p.author_id = u.id 
                     WHERE p.type = 'page' AND p.status = 'published' 
+                      AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     ORDER BY p.id ASC 
                     LIMIT 1
                 ");
@@ -525,7 +615,7 @@ final class Router {
                       AND p.type = 'page' 
                       AND p.parent_id = :pid 
                       AND (p.lang = :lang OR p.lang = '') 
-                      AND p.status = 'published' 
+                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $stmt->execute([':s' => $slug, ':pid' => $parentId, ':lang' => $activeLocale]);
@@ -552,7 +642,7 @@ final class Router {
                     WHERE p.slug = :s 
                       AND p.type = 'post' 
                       AND (p.lang = :lang OR p.lang = '') 
-                      AND p.status = 'published' 
+                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $postStmt->execute([':s' => $pathSegments[1], ':lang' => $activeLocale]);
@@ -696,10 +786,29 @@ final class Router {
             }
         }
 
-        $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' && $_SERVER['HTTPS'] !== '') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $scheme = Config::requestIsHttps() ? 'https' : 'http';
+        $requestedHost = Config::requestHost();
 
-        return $scheme . '://' . $host;
+        // HTTP_HOST is attacker-controlled. Only honour it when it agrees with
+        // the server-configured name (or an explicit trusted-host list); all
+        // absolute URLs (password-reset mail, canonical tags, sitemap) must not
+        // be redirectable to an arbitrary domain.
+        $serverName = strtolower(trim((string)($_SERVER['SERVER_NAME'] ?? '')));
+        if ($serverName !== '') {
+            $requestedName = strtolower((string)preg_replace('/:\d+$/', '', $requestedHost));
+            $trusted = array_map('strtolower', Config::getList('trusted_hosts'));
+
+            $matches = $requestedName !== '' && (
+                $requestedName === $serverName
+                || $requestedName === 'www.' . $serverName
+                || $serverName === 'www.' . $requestedName
+                || in_array($requestedName, $trusted, true)
+            );
+
+            return $scheme . '://' . ($matches ? $requestedHost : $serverName);
+        }
+
+        return $scheme . '://' . ($requestedHost !== '' ? $requestedHost : 'localhost');
     }
 
     /**

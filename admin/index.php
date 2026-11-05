@@ -17,6 +17,7 @@ $msg = '';
 // Handle Quick Draft submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'quick_draft') {
     if (Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        Auth::requireCapability('create_pages');
         $draftTitle = trim($_POST['draft_title'] ?? '');
         $draftContent = trim($_POST['draft_content'] ?? '');
 
@@ -42,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 } catch (\Throwable $e) {}
             }
 
+            \Core\Audit::log('page.quick_draft', 'page:' . (int)$db->lastInsertId());
             $msg = __('Draft saved successfully.');
             if ($slug !== $requestedSlug) {
                 $msg .= ' ' . sprintf(__('The slug was already in use, so it was changed to: %s'), $slug);

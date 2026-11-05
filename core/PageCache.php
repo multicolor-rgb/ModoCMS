@@ -69,7 +69,8 @@ final class PageCache
 
     private static function key(): string
     {
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        // The Host header must not be able to create unlimited cache buckets.
+        $host = strtolower(trim((string)($_SERVER['SERVER_NAME'] ?? 'localhost')));
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
         $locale = class_exists(I18n::class) ? I18n::getLocale() : '';
 
@@ -134,14 +135,23 @@ final class PageCache
             return;
         }
 
-        @file_put_contents(self::dir() . '/' . self::$cacheKey . '.html', $buffer, LOCK_EX);
+        // Write to a temporary file and rename it into place, so a concurrent
+        // request never reads a half-written HTML document.
+        $target = self::dir() . '/' . self::$cacheKey . '.html';
+        $temporary = $target . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        if (@file_put_contents($temporary, $buffer, LOCK_EX) !== false && @rename($temporary, $target)) {
+            return;
+        }
+
+        Logger::warning('Could not write the page cache', ['target' => $target]);
+        @unlink($temporary);
     }
 
     /** Removes every cached page. */
     public static function purge(): int
     {
         $removed = 0;
-        foreach (glob(self::dir() . '/*.html') ?: [] as $file) {
+        foreach (array_merge(glob(self::dir() . '/*.html') ?: [], glob(self::dir() . '/*.tmp') ?: []) as $file) {
             if (@unlink($file)) {
                 $removed++;
             }

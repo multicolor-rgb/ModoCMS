@@ -103,4 +103,8 @@ return [
     // points (they are included by the core, never requested directly). Disable it
     // only if a third-party plugin ships its own web endpoint.
     // 'plugins_php_deny' => true,
+    // Extra host names accepted in absolute URLs (canonical links, sitemap and
+    // password-reset mail) when they differ from SERVER_NAME. Leave empty on a
+    // normal single-domain installation.
+    // 'trusted_hosts' => 'www.example.com, staging.example.com',
 ];

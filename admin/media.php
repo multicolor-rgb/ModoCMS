@@ -7,7 +7,7 @@ use Core\Database;
 use Core\MediaLibrary;
 use Core\Security;
 
-Auth::requireCapability('manage_pages');
+Auth::requireCapability('manage_media');
 
 $db = Database::getConnection();
 $csrfToken = Security::generateCsrfToken();
@@ -1427,6 +1427,7 @@ function uploadFiles(files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', MEDIA_CURRENT_FOLDER);
+        formData.append('csrf', csrf);
 
         fetch('upload.php', { method: 'POST', body: formData })
             .then((res) => res.json())

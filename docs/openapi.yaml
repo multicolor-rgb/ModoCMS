@@ -1,0 +1,101 @@
+openapi: 3.0.3
+info:
+  title: Modo CMS Content API
+  version: 3.0.9
+  description: |
+    Bearer-token content API. Generate a token in My Profile -> REST API Access.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+paths:
+  /content.php:
+    get:
+      summary: List entries or read one entry
+      parameters:
+        - { name: id, in: query, schema: { type: integer } }
+        - { name: type, in: query, schema: { type: string, enum: [page, post] } }
+        - { name: status, in: query, schema: { type: string, enum: [published, draft] } }
+        - { name: lang, in: query, schema: { type: string } }
+        - { name: page_type, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+      responses:
+        '200': { description: Entry or paginated list }
+        '401': { description: Missing or invalid token }
+        '403': { description: Missing capability }
+    post:
+      summary: Create an entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryInput'
+      responses:
+        '201': { description: Created }
+        '422': { description: Validation error }
+    put:
+      summary: Update an entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/EntryInput'
+                - type: object
+                  required: [id]
+                  properties:
+                    id: { type: integer }
+      responses:
+        '200': { description: Updated }
+        '403': { description: Missing capability or not the owner }
+        '404': { description: Not found }
+    patch:
+      summary: Partially update an entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: integer }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete an entry
+      parameters:
+        - { name: id, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Deleted }
+        '403': { description: Missing capability or not the owner }
+        '404': { description: Not found }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    EntryInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        slug: { type: string }
+        content: { type: string }
+        type: { type: string, enum: [page, post] }
+        status: { type: string, enum: [published, draft] }
+        lang: { type: string }
+        page_type: { type: string }
+        page_type_id: { type: integer }
+        published_at: { type: string, nullable: true }
+        featured_image: { type: string }
+        meta_title: { type: string }
+        meta_description: { type: string }
+        translation_group: { type: string }
+        meta:
+          type: object
+          additionalProperties: true

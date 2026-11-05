@@ -52,10 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     }
 }
 
-// Handle delete
-if (isset($_GET['delete'], $_GET['csrf']) && Security::verifyCsrfToken((string) $_GET['csrf'])) {
+// Handle delete (POST only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    if (!Security::verifyCsrfToken((string) ($_POST['csrf_token'] ?? ''))) die('Invalid CSRF');
     $stmt = $db->prepare("DELETE FROM snippets WHERE id = :id");
-    $stmt->execute([':id' => (int) $_GET['delete']]);
+    $stmt->execute([':id' => (int) ($_POST['id'] ?? 0)]);
+    \Core\Audit::log('snippet.delete', 'snippet:' . (int) ($_POST['id'] ?? 0));
     header('Location: snippets.php?deleted=1');
     exit;
 }
@@ -205,7 +207,12 @@ require_once __DIR__ . '/views/header.php';
                                         </button>
                                     </form>
                                     <a href="snippets.php?edit=<?= (int) $s['id'] ?>" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;"><?= _e('Edit') ?></a>
-                                    <a href="snippets.php?delete=<?= (int) $s['id'] ?>&csrf=<?= urlencode(Security::generateCsrfToken()) ?>" class="btn btn-danger-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('<?= _e('Delete this snippet? Pages using it will render an empty block.') ?>');"><?= _e('Delete') ?></a>
+                                    <form method="POST" action="snippets.php" style="margin:0;" onsubmit="return confirm('<?= _e('Delete this snippet? Pages using it will render an empty block.') ?>');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+                                        <button type="submit" class="btn btn-danger-ghost" style="padding: 2px 8px; font-size: 11px;"><?= _e('Delete') ?></button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -272,7 +279,15 @@ document.querySelectorAll('.copy-shortcode').forEach(function (btn) {
         body_class: window.MODO_THEME_BODY_CLASS || '',
         relative_urls: false,
         remove_script_host: false,
-        images_upload_url: 'upload.php',
+        images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+            const fd = new FormData();
+            fd.append('file', blobInfo.blob(), blobInfo.filename());
+            fd.append('csrf', window.MODO_CSRF || '');
+            fetch('upload.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then((r) => r.json())
+                .then((d) => (d && d.location) ? resolve(d.location) : reject((d && d.error) || 'Upload failed'))
+                .catch(() => reject('Upload failed'));
+        }),
         automatic_uploads: true,
         file_picker_types: 'image'
     });
