@@ -168,6 +168,7 @@ function apiPagePayload(array $page, array $meta = []): array
         'meta_title'        => (string)($page['meta_title'] ?? ''),
         'meta_description'  => (string)($page['meta_description'] ?? ''),
         'published_at'      => $page['published_at'] ?? null,
+        'deleted_at'        => $page['deleted_at'] ?? null,
         'created_at'        => $page['created_at'] ?? null,
         'updated_at'        => $page['updated_at'] ?? null,
         'author_id'         => isset($page['author_id']) ? (int)$page['author_id'] : null,
@@ -278,7 +279,8 @@ try {
         $id = (int)($_GET['id'] ?? 0);
         if ($id > 0) {
             $page = apiFetchPage($id);
-            if (!$page) {
+            $includeTrash = (($_GET['trash'] ?? '') === '1');
+            if (!$page || (!$includeTrash && !empty($page['deleted_at']))) {
                 apiError(404, 'Entry not found.');
             }
             if (!Auth::roleCan($role, 'edit_others_pages') && (int)($page['author_id'] ?? 0) !== $userId) {
@@ -292,7 +294,7 @@ try {
         $pageNumber = max(1, (int)($_GET['page'] ?? 1));
         $offset = ($pageNumber - 1) * $perPage;
 
-        $where = ['1 = 1'];
+        $where = [(($_GET['trash'] ?? '') === '1') ? 'p.deleted_at IS NOT NULL' : 'p.deleted_at IS NULL'];
         $params = [];
 
         if (!empty($_GET['type']) && in_array($_GET['type'], ['page', 'post'], true)) {
@@ -474,7 +476,7 @@ try {
         }
 
         $existing = apiFetchPage($id);
-        if (!$existing) {
+        if (!$existing || !empty($existing['deleted_at'])) {
             apiError(404, 'Entry not found.');
         }
         if (!Auth::roleCan($role, 'edit_others_pages') && (int)($existing['author_id'] ?? 0) !== $userId) {
@@ -569,15 +571,22 @@ try {
             apiError(403, 'You can only delete your own entries.');
         }
 
-        foreach (['page_meta', 'page_tags', 'page_categories'] as $table) {
-            $db->prepare("DELETE FROM {$table} WHERE page_id = :id")->execute([':id' => $id]);
+        $force = (($_GET['force'] ?? '') === '1');
+        if ($force) {
+            foreach (['page_meta', 'page_tags', 'page_categories'] as $table) {
+                $db->prepare("DELETE FROM {$table} WHERE page_id = :id")->execute([':id' => $id]);
+            }
+            $db->prepare("DELETE FROM pages WHERE id = :id")->execute([':id' => $id]);
+            Audit::log('api.content.delete', 'page:' . $id, ['title' => (string)$existing['title'], 'force' => true]);
+            $message = 'Entry deleted permanently.';
+        } else {
+            $db->prepare("UPDATE pages SET deleted_at = CURRENT_TIMESTAMP WHERE id = :id")->execute([':id' => $id]);
+            Audit::log('api.content.trash', 'page:' . $id, ['title' => (string)$existing['title']]);
+            $message = 'Entry moved to trash.';
         }
-        $db->prepare("DELETE FROM pages WHERE id = :id")->execute([':id' => $id]);
-
-        Audit::log('api.content.delete', 'page:' . $id, ['title' => (string)$existing['title']]);
         apiPurgeCaches();
 
-        apiRespond(200, ['status' => 'success', 'message' => 'Entry deleted successfully.']);
+        apiRespond(200, ['status' => 'success', 'message' => $message]);
     }
 
     header('Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS');

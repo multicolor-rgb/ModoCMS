@@ -185,7 +185,7 @@ if ($editId > 0 && $_SERVER['REQUEST_METHOD'] !== 'POST') {
 $allTypes = $db->query("
     SELECT t.*,
         (SELECT COUNT(*) FROM page_type_fields f WHERE f.type_id = t.id) AS field_count,
-        (SELECT COUNT(*) FROM pages p WHERE p.page_type_id = t.id) AS usage_count
+        (SELECT COUNT(*) FROM pages p WHERE p.page_type_id = t.id AND p.deleted_at IS NULL) AS usage_count
     FROM page_types t
     ORDER BY t.sort_order ASC, t.name ASC
 ")->fetchAll();

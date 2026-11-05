@@ -67,7 +67,7 @@ final class Analytics
             $uriPath = '/';
         }
 
-        if (str_starts_with($uriPath, '/admin') || str_starts_with($uriPath, '/api')) {
+        if (str_starts_with($uriPath, '/admin') || str_starts_with($uriPath, '/api') || $uriPath === '/preview') {
             return;
         }
 

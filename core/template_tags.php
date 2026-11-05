@@ -161,7 +161,7 @@ if (!function_exists('render_pages_fallback_menu')) {
         $stmt = $db->prepare("
             SELECT title, slug
             FROM pages
-            WHERE type = 'page' AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now')) AND parent_id = 0
+            WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL AND (published_at IS NULL OR published_at <= datetime('now')) AND parent_id = 0
               AND (lang = :lg OR lang = '')
             ORDER BY id ASC
         ");
@@ -290,7 +290,7 @@ if (!function_exists('get_recent_posts')) {
             SELECT p.*, u.username as author_name
             FROM pages p
             LEFT JOIN users u ON p.author_id = u.id
-            WHERE p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
+            WHERE p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
               AND (p.lang = :lg OR p.lang = '')
             ORDER BY p.created_at DESC
             LIMIT :limit

@@ -90,6 +90,7 @@ final class Database {
                 meta_description TEXT,
                 author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 published_at DATETIME,
+                deleted_at DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -100,6 +101,7 @@ final class Database {
             CREATE INDEX IF NOT EXISTS idx_pages_page_type ON pages(page_type_id);
             CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang);
             CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at);
+            CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at);
 
             -- Tabela na pola niestandardowe (Custom Fields) z obsługą typów danych
             CREATE TABLE IF NOT EXISTS page_meta (
@@ -339,6 +341,7 @@ final class Database {
             'analytics_retention_days' => '365',
             'audit_retention_days' => '365',
             'api_token_lifetime_days' => '0',
+            'trash_retention_days' => '30',
             'cache_enabled' => '0',
             'cache_ttl' => '3600',
             'webp_enabled' => '0',
@@ -568,6 +571,7 @@ final class Database {
         self::ensureColumn($db, 'users', 'totp_secret', 'TEXT');
         self::ensureColumn($db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'pages', 'published_at', 'DATETIME');
+        self::ensureColumn($db, 'pages', 'deleted_at', 'DATETIME');
         self::ensureColumn($db, 'media', 'webp_path', 'TEXT');
         self::ensureColumn($db, 'media', 'alt_text', 'TEXT');
         self::ensureColumn($db, 'media', 'caption', 'TEXT');
@@ -580,6 +584,7 @@ final class Database {
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_page_type ON pages(page_type_id)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at)");
+            $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at)");
         } catch (PDOException $e) {
             // Optional — ignore.
         }
@@ -611,6 +616,7 @@ final class Database {
                 'analytics_retention_days' => '365',
                 'audit_retention_days' => '365',
                 'api_token_lifetime_days' => '0',
+                'trash_retention_days' => '30',
                 'cache_enabled' => '0',
                 'cache_ttl' => '3600',
                 'webp_enabled' => '0',

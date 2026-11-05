@@ -195,6 +195,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: settings.php?redirect_deleted=1');
         exit;
+    } elseif (($_POST['action'] ?? '') === 'run_cron') {
+        \Core\Scheduler::run();
+        header('Location: settings.php?tab=tools&cron_run=1');
+        exit;
     } elseif (($_POST['action'] ?? '') === 'send_test_email') {
         $testEmail = filter_var($_POST['test_email'] ?? '', FILTER_VALIDATE_EMAIL);
         if (!$testEmail) {
@@ -253,6 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'login_attempts_retention_days' => (string)max(1, (int)($_POST['login_attempts_retention_days'] ?? 30)),
             'analytics_retention_days'     => (string)max(30, (int)($_POST['analytics_retention_days'] ?? 365)),
             'audit_retention_days'         => (string)max(30, (int)($_POST['audit_retention_days'] ?? 365)),
+            'trash_retention_days'         => (string)max(1, (int)($_POST['trash_retention_days'] ?? 30)),
             'api_token_lifetime_days'      => (string)max(0, (int)($_POST['api_token_lifetime_days'] ?? 0)),
             'cache_enabled'                => isset($_POST['cache_enabled']) ? '1' : '0',
             'cache_ttl'                    => (string)max(1, (int)($_POST['cache_ttl'] ?? 3600)),
@@ -391,7 +396,7 @@ $basePrefix = class_exists('Core\Router') ? Router::getBaseSubdirectory() : '';
 $availablePages = $db->query("
     SELECT id, title, slug, lang 
     FROM pages 
-    WHERE type = 'page' AND status = 'published' 
+    WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL
     ORDER BY lang ASC, title ASC
 ")->fetchAll();
 
@@ -422,6 +427,11 @@ require_once __DIR__ . '/views/header.php';
 <?php if (isset($_GET['redirects_cleared'])): ?>
     <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 24px;">
         <?= _e('All automatic redirects have been removed.') ?>
+    </div>
+<?php endif; ?>
+<?php if (isset($_GET['cron_run'])): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 24px;">
+        <?= _e('Scheduled tasks completed.') ?>
     </div>
 <?php endif; ?>
 <?php if (isset($_GET['redirect_deleted'])): ?>
@@ -906,7 +916,7 @@ require_once __DIR__ . '/views/header.php';
                 <input class="form-control" type="number" min="1" id="cache_ttl" name="cache_ttl" value="<?= (int)Router::getOption('cache_ttl', '3600') ?>">
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-top: 18px;">
                 <div class="form-group" style="margin: 0;">
                     <label class="form-label" for="analytics_retention_days"><?= _e('Keep statistics (days)') ?></label>
                     <input class="form-control" type="number" min="30" id="analytics_retention_days" name="analytics_retention_days" value="<?= (int)Router::getOption('analytics_retention_days', '365') ?>">
@@ -918,6 +928,10 @@ require_once __DIR__ . '/views/header.php';
                 <div class="form-group" style="margin: 0;">
                     <label class="form-label" for="audit_retention_days"><?= _e('Keep audit log (days)') ?></label>
                     <input class="form-control" type="number" min="30" id="audit_retention_days" name="audit_retention_days" value="<?= (int)Router::getOption('audit_retention_days', '365') ?>">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="trash_retention_days"><?= _e('Keep trash (days)') ?></label>
+                    <input class="form-control" type="number" min="1" id="trash_retention_days" name="trash_retention_days" value="<?= (int)Router::getOption('trash_retention_days', '30') ?>">
                 </div>
             </div>
         </div>
@@ -1299,6 +1313,9 @@ require_once __DIR__ . '/views/header.php';
     $cacheStats = class_exists(\Core\PageCache::class) ? \Core\PageCache::stats() : ['count' => 0, 'bytes' => 0];
     $redirectList = class_exists(\Core\Redirects::class) ? \Core\Redirects::all() : [];
     $auditRows = class_exists(\Core\Audit::class) ? \Core\Audit::recent(15) : [];
+    $cronLastRun = Router::getOption('scheduler_last_run', '');
+    $cronToken = class_exists(\Core\Scheduler::class) ? \Core\Scheduler::token() : '';
+    $cronHttpUrl = Router::getSiteUrl() . '/cron.php?token=' . urlencode($cronToken);
 ?>
 <div class="settings-panel" data-tab="tools" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
     <div class="card">
@@ -1358,6 +1375,33 @@ require_once __DIR__ . '/views/header.php';
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+        <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+            <?= _e('Scheduled tasks (cron)') ?>
+        </h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 12px 0;">
+            <?= _e('Runs scheduled publishing cache refresh, trash cleanup, statistics retention and sitemap regeneration.') ?>
+        </p>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px 0;">
+            <?= _e('Last run') ?>: <strong><?= $cronLastRun !== '' ? Security::sanitize($cronLastRun) : _e('never') ?></strong>
+        </p>
+        <div style="display: grid; gap: 12px; margin-bottom: 14px;">
+            <div>
+                <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px;"><?= _e('Command line (recommended)') ?></div>
+                <code style="display:block; background: var(--bg-surface, #1e293b); padding: 8px 10px; border-radius: 6px; font-size: 12px; word-break: break-all;">php <?= Security::sanitize(dirname(__DIR__)) ?>/tools/cron.php</code>
+            </div>
+            <div>
+                <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px;"><?= _e('HTTP URL (shared hosting)') ?></div>
+                <code style="display:block; background: var(--bg-surface, #1e293b); padding: 8px 10px; border-radius: 6px; font-size: 12px; word-break: break-all;"><?= Security::sanitize($cronHttpUrl) ?></code>
+            </div>
+        </div>
+        <form method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
+            <input type="hidden" name="action" value="run_cron">
+            <button type="submit" class="btn btn-secondary"><?= _e('Run now') ?></button>
+        </form>
     </div>
 
     <div class="card" style="grid-column: 1 / -1;">

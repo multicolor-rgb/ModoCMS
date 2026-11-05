@@ -29,6 +29,7 @@
 | Styl motywu w edytorze | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
 | API treści | [docs/en/api.md](docs/en/api.md) | [docs/pl/api.md](docs/pl/api.md) |
 | Ustawienia motywu (Customizer) | [docs/en/customizer.md](docs/en/customizer.md) | [docs/pl/customizer.md](docs/pl/customizer.md) |
+| Automatyzacja i konserwacja | [docs/en/automation.md](docs/en/automation.md) | [docs/pl/automatyzacja.md](docs/pl/automatyzacja.md) |
 | Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
@@ -44,6 +45,15 @@
 * **Edytor treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) dołączony lokalnie. Presety paska narzędzi, biblioteka mediów, kreator siatek i przyciski wtyczek działają od razu.
 * **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
+
+---
+
+## 🆕 Co nowego w 3.2.0
+
+* **Site Health:** ocena instalacji i lista problemów do naprawy na dashboardzie.
+* **Kosz i podglądy:** przywracanie usuniętych treści oraz podpisane linki do szkiców.
+* **RSS i cron:** kanał `/feed.xml`, zadania cykliczne, czyszczenie kosza i odświeżanie sitemapy.
+* **Dokumentacja:** nowy przewodnik po automatyzacji i konserwacji na GitHub Pages.
 
 ---
 

@@ -9,6 +9,7 @@ use Core\I18n;
 use Core\MediaLibrary;
 use Core\PageSlug;
 use Core\PageTypes;
+use Core\Preview;
 use Core\Router;
 use Core\Sitemap;
 
@@ -46,6 +47,10 @@ if ($id > 0) {
     $stmt->execute([':id' => $id]);
     $existing = $stmt->fetch();
     if ($existing) {
+        if (!empty($existing['deleted_at'])) {
+            header('Location: pages.php?trash=1');
+            exit;
+        }
         if (!Auth::can('edit_others_pages') && (int)$existing['author_id'] !== (int)Auth::id()) {
             http_response_code(403);
             die('Access denied to this article.');
@@ -535,7 +540,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Fetch all pages of matching language
-$allLangPages = $db->prepare("SELECT id, parent_id, title, slug FROM pages WHERE type = 'page' AND lang = :lang ORDER BY title ASC");
+$allLangPages = $db->prepare("SELECT id, parent_id, title, slug FROM pages WHERE type = 'page' AND lang = :lang AND deleted_at IS NULL ORDER BY title ASC");
 $allLangPages->execute([':lang' => $item['lang']]);
 $lookupPages = [];
 foreach ($allLangPages->fetchAll() as $p) {
@@ -868,6 +873,11 @@ require_once __DIR__ . '/views/header.php';
         <p style="color: var(--text-muted); font-size: 13px; margin: 4px 0 0;"><?= _e('Manage page content, parent hierarchy, and SEO meta tags') ?></p>
     </div>
     <div style="display: flex; gap: 10px; align-items: center;">
+        <?php if ($id > 0): ?>
+            <a href="<?= htmlspecialchars(Preview::url($id), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" class="btn btn-secondary" title="<?= _e('Open the saved version in a new tab') ?>">
+                <?= _e('Preview') ?> &nearr;
+            </a>
+        <?php endif; ?>
         <a href="pages.php" class="btn btn-secondary">&larr; <?= _e('Content') ?></a>
     </div>
 </div>

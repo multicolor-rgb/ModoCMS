@@ -14,6 +14,7 @@ $db = Database::getConnection();
 $currentType = $_GET['type'] ?? 'all';
 $currentLang = $_GET['lang'] ?? 'all';
 $currentPageType = isset($_GET['page_type']) ? (int) $_GET['page_type'] : 0;
+$showTrash = (($_GET['trash'] ?? '') === '1');
 $pageTypes = PageTypes::all();
 
 // Fetch all pages to calculate full hierarchical URL paths
@@ -143,25 +144,58 @@ function buildIdPlaceholders(array $ids): array {
 
 
 
-// Handle Document Deletion (POST only: destructive actions must not be GET)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
-    if (Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
-        Auth::requireCapability('delete_pages');
-        $delId = (int)($_POST['id'] ?? 0);
+// Handle document actions (POST only: destructive actions must not be GET)
+$pageAction = $_SERVER['REQUEST_METHOD'] === 'POST' ? (string)($_POST['action'] ?? '') : '';
+if (in_array($pageAction, ['delete', 'restore', 'force_delete'], true)
+    && Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    $delId = (int)($_POST['id'] ?? 0);
+    $returnType = (string)($_POST['type'] ?? $currentType);
+    $returnLang = (string)($_POST['lang'] ?? $currentLang);
 
-        \Core\Audit::log('page.delete', 'page:' . $delId);
-        if (deleteDocumentCascade($db, $delId, $lookupPages)) {
-            // Zregeneruj sitemapę
+    if ($pageAction === 'delete') {
+        Auth::requireCapability('delete_pages');
+        $owned = $db->prepare("SELECT author_id FROM pages WHERE id = :id AND deleted_at IS NULL LIMIT 1");
+        $owned->execute([':id' => $delId]);
+        $authorId = $owned->fetchColumn();
+        if ($authorId !== false && (Auth::can('edit_others_pages') || (int)$authorId === Auth::id())) {
+            $db->prepare("UPDATE pages SET deleted_at = CURRENT_TIMESTAMP WHERE id = :id")
+                ->execute([':id' => $delId]);
+            \Core\Audit::log('page.trash', 'page:' . $delId);
+            if (class_exists('Core\PageCache')) {
+                \Core\PageCache::purge();
+            }
             if (class_exists('Core\Sitemap')) {
-                try {
-                    Sitemap::generate();
-                } catch (\Throwable $e) {}
+                try { Sitemap::generate(); } catch (\Throwable $e) {}
             }
         }
+        header('Location: pages.php?type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '') . '&trashed=1');
+        exit;
+    }
 
-        $returnType = (string)($_POST['type'] ?? $currentType);
-        $returnLang = (string)($_POST['lang'] ?? $currentLang);
-        header('Location: pages.php?type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '') . '&deleted=1');
+    if ($pageAction === 'restore') {
+        Auth::requireCapability('delete_pages');
+        $db->prepare("UPDATE pages SET deleted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = :id")
+            ->execute([':id' => $delId]);
+        \Core\Audit::log('page.restore', 'page:' . $delId);
+        if (class_exists('Core\PageCache')) {
+            \Core\PageCache::purge();
+        }
+        if (class_exists('Core\Sitemap')) {
+            try { Sitemap::generate(); } catch (\Throwable $e) {}
+        }
+        header('Location: pages.php?trash=1&type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . '&restored=1');
+        exit;
+    }
+
+    if ($pageAction === 'force_delete') {
+        Auth::requireCapability('delete_pages');
+        \Core\Audit::log('page.delete', 'page:' . $delId);
+        if (deleteDocumentCascade($db, $delId, $lookupPages)) {
+            if (class_exists('Core\Sitemap')) {
+                try { Sitemap::generate(); } catch (\Throwable $e) {}
+            }
+        }
+        header('Location: pages.php?trash=1&type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . '&deleted=1');
         exit;
     }
 }
@@ -193,15 +227,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
 
         if ($bulkType === 'delete') {
             Auth::requireCapability('delete_pages');
-            foreach ($selectedIds as $id) {
-                if (deleteDocumentCascade($db, (int)$id, $lookupPages)) {
-                    $affected++;
-                }
+            $params = $baseParams;
+            $stmt = $db->prepare("UPDATE pages SET deleted_at = CURRENT_TIMESTAMP WHERE id IN ($inClause) AND deleted_at IS NULL$ownershipClause");
+            $stmt->execute($params);
+            $affected = $stmt->rowCount();
+            if ($affected > 0 && class_exists('Core\PageCache')) {
+                \Core\PageCache::purge();
             }
             if ($affected > 0 && class_exists('Core\Sitemap')) {
                 try { Sitemap::generate(); } catch (\Throwable $e) {}
             }
-            $bulkResult = 'deleted';
+            $bulkResult = 'trashed';
         } elseif ($bulkType === 'status') {
             Auth::requireCapability('publish_pages');
             $newStatus = ($_POST['bulk_status'] ?? '') === 'published' ? 'published' : 'draft';
@@ -239,7 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
 
     header('Location: pages.php?type=' . urlencode($currentType) . '&lang=' . urlencode($currentLang)
         . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '')
-        . '&bulk=' . urlencode($bulkResult) . '&count=' . (int)$affected);
+        . ($showTrash ? '&trash=1' : '') . '&bulk=' . urlencode($bulkResult) . '&count=' . (int)$affected);
     exit;
 }
 
@@ -253,6 +289,12 @@ $sql = "SELECT p.*, u.username as author_name,
         LEFT JOIN page_types pt ON pt.id = p.page_type_id";
 $conditions = [];
 $params = [];
+
+if ($showTrash) {
+    $conditions[] = "p.deleted_at IS NOT NULL";
+} else {
+    $conditions[] = "p.deleted_at IS NULL";
+}
 
 if ($currentType === 'post' || $currentType === 'page') {
     $conditions[] = "p.type = :tp";
@@ -284,11 +326,12 @@ $stmt->execute($params);
 $items = $stmt->fetchAll();
 
 // Counts for filter pills
-$countAll = (int)$db->query("SELECT COUNT(*) FROM pages")->fetchColumn();
-$countPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post'")->fetchColumn();
-$countPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page'")->fetchColumn();
+$countAll = (int)$db->query("SELECT COUNT(*) FROM pages WHERE deleted_at IS NULL")->fetchColumn();
+$countPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post' AND deleted_at IS NULL")->fetchColumn();
+$countPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page' AND deleted_at IS NULL")->fetchColumn();
+$countTrash = (int)$db->query("SELECT COUNT(*) FROM pages WHERE deleted_at IS NOT NULL")->fetchColumn();
 $pageTypeCounts = [];
-foreach ($db->query("SELECT page_type_id, COUNT(*) AS total FROM pages WHERE page_type_id IS NOT NULL GROUP BY page_type_id")->fetchAll() as $countRow) {
+foreach ($db->query("SELECT page_type_id, COUNT(*) AS total FROM pages WHERE page_type_id IS NOT NULL AND deleted_at IS NULL GROUP BY page_type_id")->fetchAll() as $countRow) {
     $pageTypeCounts[(int) $countRow['page_type_id']] = (int) $countRow['total'];
 }
 // Authors list for the bulk "Change author" action (privileged users only)
@@ -298,6 +341,8 @@ if (Auth::can('edit_others_pages')) {
 }
 
 
+
+$trashQuery = $showTrash ? '&trash=1' : '';
 
 require_once __DIR__ . '/views/header.php';
 ?>
@@ -323,9 +368,19 @@ require_once __DIR__ . '/views/header.php';
     </div>
 </div>
 
+<?php if (isset($_GET['trashed'])): ?>
+    <div class="card" style="border-left: 4px solid var(--warning, #f59e0b); padding: 12px 16px; margin-bottom: 20px;">
+        <?= _e('Document moved to trash. You can restore it from the Trash view.') ?>
+    </div>
+<?php endif; ?>
+<?php if (isset($_GET['restored'])): ?>
+    <div class="card" style="border-left: 4px solid var(--success, #10b981); padding: 12px 16px; margin-bottom: 20px;">
+        <?= _e('Document restored successfully.') ?>
+    </div>
+<?php endif; ?>
 <?php if (isset($_GET['deleted'])): ?>
     <div class="card" style="border-left: 4px solid var(--success, #10b981); background: rgba(16, 185, 129, 0.08); padding: 12px 16px; margin-bottom: 20px; color: #34d399; font-weight: 500;">
-        <?= _e('Document deleted successfully and removed from menus.') ?>
+        <?= _e('Document deleted permanently and removed from menus.') ?>
     </div>
 <?php endif; ?>
 
@@ -338,20 +393,25 @@ require_once __DIR__ . '/views/header.php';
 <!-- Filters Toolbar -->
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
     <div style="display: flex; gap: 8px; align-items: center;">
-        <a href="pages.php?type=all&lang=<?= urlencode($currentLang) ?>" 
+        <a href="pages.php?type=all&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>"
            class="btn <?= $currentType === 'all' ? 'btn-primary' : 'btn-secondary' ?>" 
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('All') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countAll ?>)</span>
         </a>
-        <a href="pages.php?type=post&lang=<?= urlencode($currentLang) ?>" 
+        <a href="pages.php?type=post&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>"
            class="btn <?= $currentType === 'post' ? 'btn-primary' : 'btn-secondary' ?>" 
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('Posts') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countPosts ?>)</span>
         </a>
-        <a href="pages.php?type=page&lang=<?= urlencode($currentLang) ?>" 
+        <a href="pages.php?type=page&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>"
            class="btn <?= $currentType === 'page' ? 'btn-primary' : 'btn-secondary' ?>" 
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('Pages') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countPages ?>)</span>
+        </a>
+        <a href="pages.php?trash=1&type=<?= urlencode($currentType) ?>&lang=<?= urlencode($currentLang) ?>"
+           class="btn <?= $showTrash ? 'btn-primary' : 'btn-secondary' ?>"
+           style="padding: 6px 14px; font-size: 12px;">
+            <?= _e('Trash') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countTrash ?>)</span>
         </a>
     </div>
 
@@ -360,7 +420,7 @@ require_once __DIR__ . '/views/header.php';
         <?php if (!empty($pageTypes)): ?>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Page type:') ?></span>
-                <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="const value = this.value; const opt = this.options[this.selectedIndex]; const base = value === '0' ? <?= json_encode((string) $currentType) ?> : (opt.dataset.base || 'all'); location.href = 'pages.php?type=' + encodeURIComponent(base) + '&lang=<?= urlencode($currentLang) ?>&page_type=' + encodeURIComponent(value);">
+                <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="const value = this.value; const opt = this.options[this.selectedIndex]; const base = value === '0' ? <?= json_encode((string) $currentType) ?> : (opt.dataset.base || 'all'); location.href = 'pages.php?type=' + encodeURIComponent(base) + '&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>&page_type=' + encodeURIComponent(value);">
                     <option value="0"><?= _e('All page types') ?></option>
                     <?php foreach ($pageTypes as $preset): ?>
                         <option value="<?= (int) $preset['id'] ?>" data-base="<?= htmlspecialchars((string) $preset['base_type'], ENT_QUOTES, 'UTF-8') ?>" <?= $currentPageType === (int) $preset['id'] ? 'selected' : '' ?>>
@@ -372,7 +432,7 @@ require_once __DIR__ . '/views/header.php';
         <?php endif; ?>
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Language:') ?></span>
-            <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="location.href='pages.php?type=<?= urlencode($currentType) ?>&lang=' + this.value<?= $currentPageType > 0 ? " + '&page_type=" . $currentPageType . "'" : '' ?>">
+            <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="location.href='pages.php?type=<?= urlencode($currentType) ?>&lang=' + this.value<?= $currentPageType > 0 ? " + '&page_type=" . $currentPageType . "'" : '' ?><?= $showTrash ? " + '&trash=1'" : '' ?>">
                 <option value="all" <?= $currentLang === 'all' ? 'selected' : '' ?>><?= _e('All Languages') ?></option>
                 <?php foreach (\Core\I18n::getAvailableLanguages() as $code => $name): ?>
                     <option value="<?= $code ?>" <?= $currentLang === $code ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?> (<?= strtoupper($code) ?>)</option>
@@ -388,6 +448,7 @@ require_once __DIR__ . '/views/header.php';
 <input type="hidden" name="bulk_action_type" id="bulk-action-type" value="">
 
 <!-- Bulk Actions Bar -->
+<?php if (!$showTrash): ?>
 <div id="bulk-bar" class="card" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 16px; border: 1px solid var(--border-subtle);">
     <span id="bulk-count" style="font-size: 13px; font-weight: 600; color: var(--text-main);"></span>
     <select class="form-control" id="bulk-action-picker" style="width: auto; padding: 6px 10px; font-size: 13px;">
@@ -426,12 +487,13 @@ require_once __DIR__ . '/views/header.php';
     <button type="button" class="btn btn-primary" id="bulk-apply-btn" style="padding: 6px 16px; font-size: 13px;"><?= _e('Apply') ?></button>
     <button type="button" class="btn btn-secondary" id="bulk-clear-btn" style="padding: 6px 16px; font-size: 13px;"><?= _e('Cancel') ?></button>
 </div>
+<?php endif; ?>
 
 <div class="table-container card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-subtle);">
     <table class="pro-table">
         <thead>
             <tr>
-                <th style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" aria-label="<?= _e('Select all') ?>"></th>
+                <?php if (!$showTrash): ?><th style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" aria-label="<?= _e('Select all') ?>"></th><?php else: ?><th style="width: 40px;"></th><?php endif; ?>
                 <th style="width: 54px; text-align: center;"><?= _e('Image') ?></th>
                 <th><?= _e('Title & Route') ?></th>
                 <th style="width: 90px;"><?= _e('Type') ?></th>
@@ -455,7 +517,9 @@ require_once __DIR__ . '/views/header.php';
                 ?>
                     <tr>
                         <td style="text-align: center; vertical-align: middle;">
-                            <input type="checkbox" class="bulk-checkbox" name="ids[]" value="<?= (int)$item['id'] ?>" aria-label="<?= _e('Select') ?>">
+                            <?php if (!$showTrash): ?>
+                                <input type="checkbox" class="bulk-checkbox" name="ids[]" value="<?= (int)$item['id'] ?>" aria-label="<?= _e('Select') ?>">
+                            <?php endif; ?>
                         </td>
                         <td style="text-align: center; vertical-align: middle;">
                             <?php if (!empty($item['featured_image'])): ?>
@@ -485,9 +549,13 @@ require_once __DIR__ . '/views/header.php';
                             </span>
                         </td>
                         <td>
-                            <span class="badge <?= $item['status'] === 'published' ? 'badge-success' : 'badge-warning' ?>" style="font-size: 11px;">
-                                <?= $item['status'] === 'published' ? _e('Published') : _e('Draft') ?>
-                            </span>
+                            <?php if ($showTrash): ?>
+                                <span class="badge badge-warning" style="font-size: 11px;"><?= _e('Deleted') ?></span>
+                            <?php else: ?>
+                                <span class="badge <?= $item['status'] === 'published' ? 'badge-success' : 'badge-warning' ?>" style="font-size: 11px;">
+                                    <?= $item['status'] === 'published' ? _e('Published') : _e('Draft') ?>
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td style="text-align: center;">
                             <span class="badge" style="background: rgba(59, 130, 246, 0.12); color: var(--accent, #60a5fa); border: 1px solid rgba(59, 130, 246, 0.25); font-size: 11px; font-weight: 700;">
@@ -498,23 +566,36 @@ require_once __DIR__ . '/views/header.php';
                             <?= Security::sanitize($item['author_name'] ?? 'System') ?>
                         </td>
                         <td style="color: var(--text-muted); font-size: 12px;">
-                            <?= date('d.m.Y H:i', strtotime($item['updated_at'])) ?>
+                            <?= date('d.m.Y H:i', strtotime((string)($showTrash && !empty($item['deleted_at']) ? $item['deleted_at'] : $item['updated_at']))) ?>
                         </td>
                         <td style="text-align: right; vertical-align: middle;">
                             <div style="display: inline-flex; gap: 6px;">
-                                <a href="page-edit.php?id=<?= $item['id'] ?>" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;">
-                                    <?= _e('Edit') ?>
-                                </a>
-                                <a href="page-edit.php?id=<?= $item['id'] ?>#revisions-card" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; line-height: 1;" title="<?= _e('Revision History') ?>" aria-label="<?= _e('Revision History') ?>">
-                                    <svg style="width: 14px; height: 14px; vertical-align: middle;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </a>
-                                <?php if (Auth::can('delete_pages')): ?>
-                                    <button type="button" 
-                                            class="btn btn-danger-ghost" 
-                                            style="padding: 4px 8px; font-size: 12px; line-height: 1;" 
-                                            onclick="confirmDeletePage(<?= (int)$item['id'] ?>, '<?= htmlspecialchars(addslashes($item['title']), ENT_QUOTES, 'UTF-8') ?>')">
-                                        &times;
+                                <?php if ($showTrash): ?>
+                                    <button type="button" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;"
+                                            onclick="submitPageAction('restore', <?= (int)$item['id'] ?>)">
+                                        <?= _e('Restore') ?>
                                     </button>
+                                    <?php if (Auth::can('delete_pages')): ?>
+                                        <button type="button" class="btn btn-danger-ghost" style="padding: 4px 8px; font-size: 12px;"
+                                                onclick="if (confirm(<?= json_encode(__('Delete this document permanently? This cannot be undone.')) ?>)) submitPageAction('force_delete', <?= (int)$item['id'] ?>)">
+                                            <?= _e('Delete permanently') ?>
+                                        </button>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <a href="page-edit.php?id=<?= $item['id'] ?>" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;">
+                                        <?= _e('Edit') ?>
+                                    </a>
+                                    <a href="page-edit.php?id=<?= $item['id'] ?>#revisions-card" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; line-height: 1;" title="<?= _e('Revision History') ?>" aria-label="<?= _e('Revision History') ?>">
+                                        <svg style="width: 14px; height: 14px; vertical-align: middle;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </a>
+                                    <?php if (Auth::can('delete_pages')): ?>
+                                        <button type="button"
+                                                class="btn btn-danger-ghost"
+                                                style="padding: 4px 8px; font-size: 12px; line-height: 1;"
+                                                onclick="confirmDeletePage(<?= (int)$item['id'] ?>, '<?= htmlspecialchars(addslashes($item['title']), ENT_QUOTES, 'UTF-8') ?>')">
+                                            &times;
+                                        </button>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>
@@ -534,14 +615,14 @@ require_once __DIR__ . '/views/header.php';
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
         </div>
-        <h3 style="font-size: 16px; font-weight: 700; margin: 0 0 8px; color: var(--text-main);"><?= _e('Delete Document') ?></h3>
+        <h3 style="font-size: 16px; font-weight: 700; margin: 0 0 8px; color: var(--text-main);"><?= _e('Move to Trash') ?></h3>
         <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 20px; line-height: 1.5;">
-            <?= _e('Are you sure you want to permanently delete') ?> <strong id="delete-title-placeholder" style="color: var(--text-main);"></strong>? <?= _e('It will also be removed from any navigation menus. This action cannot be undone.') ?>
+            <?= _e('Move') ?> <strong id="delete-title-placeholder" style="color: var(--text-main);"></strong> <?= _e('to the trash? You can restore it later.') ?>
         </p>
         <div style="display: flex; gap: 10px; justify-content: center;">
             <button type="button" class="btn btn-secondary" style="flex: 1; padding: 9px;" onclick="closeDeleteModal()"><?= _e('Cancel') ?></button>
             <button type="button" id="confirm-delete-btn" class="btn btn-primary" style="background: var(--danger, #ef4444); border-color: var(--danger, #ef4444); flex: 1; padding: 9px; text-align: center;">
-                <?= _e('Delete') ?>
+                <?= _e('Move to Trash') ?>
             </button>
         </div>
     </div>
@@ -551,6 +632,29 @@ require_once __DIR__ . '/views/header.php';
 const delModal = document.getElementById('delete-page-modal');
 const delBtn = document.getElementById('confirm-delete-btn');
 const delPlaceholder = document.getElementById('delete-title-placeholder');
+
+function submitPageAction(action, id) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'pages.php';
+    const fields = {
+        action: action,
+        id: String(id),
+        csrf_token: <?= json_encode(Security::generateCsrfToken()) ?>,
+        type: <?= json_encode($currentType) ?>,
+        lang: <?= json_encode($currentLang) ?>,
+        trash: <?= json_encode($showTrash ? '1' : '') ?>
+    };
+    Object.keys(fields).forEach((name) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = fields[name];
+        form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+}
 
 function confirmDeletePage(id, title) {
     delPlaceholder.textContent = title;
@@ -565,26 +669,7 @@ function closeDeleteModal() {
 delBtn.addEventListener('click', () => {
     const id = delBtn.dataset.pageId || '';
     if (!id) return;
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'pages.php';
-    const fields = {
-        action: 'delete',
-        id: id,
-        csrf_token: <?= json_encode(Security::generateCsrfToken()) ?>,
-        type: <?= json_encode($currentType) ?>,
-        lang: <?= json_encode($currentLang) ?>
-    };
-    Object.keys(fields).forEach((name) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = fields[name];
-        form.appendChild(input);
-    });
-    document.body.appendChild(form);
-    form.submit();
+    submitPageAction('delete', id);
 });
 
 delModal.addEventListener('click', (e) => {
@@ -595,11 +680,11 @@ delModal.addEventListener('click', (e) => {
 <script>
 (function () {
     const form = document.getElementById('bulk-form');
-    if (!form) return;
+    const bar = document.getElementById('bulk-bar');
+    if (!form || !bar) return;
 
     const selectAll = document.getElementById('bulk-select-all');
     const checkboxes = Array.from(document.querySelectorAll('.bulk-checkbox'));
-    const bar = document.getElementById('bulk-bar');
     const countEl = document.getElementById('bulk-count');
     const picker = document.getElementById('bulk-action-picker');
     const typeField = document.getElementById('bulk-action-type');

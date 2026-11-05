@@ -4,6 +4,27 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] — 2026-11-05
+
+### Added
+
+- **Site Health dashboard card** — installation score and actionable checks: installer, permissions, HTTPS, debug, headers, cache, backups, cron, PHP and the default password.
+- **Trash and restore** — deleting a document moves it to the trash; restore it or delete permanently. Automatic cleanup after `trash_retention_days`.
+- **Signed preview links** — the editor's Preview button creates a 24-hour link to the saved draft, uncached and noindex.
+- **RSS 2.0 feed** — `/feed.xml` and `/{lang}/feed.xml`, with an automatic `<link rel="alternate">` from `theme_head()`.
+- **Scheduled tasks (cron)** — `tools/cron.php` and `cron.php?token=...`; scheduled publishing, trash cleanup, retention, sitemap and cache.
+- **Cron card in Settings** — last run, CLI command, HTTP URL, token and a "Run now" button.
+
+### Changed
+
+- **Content API** — `DELETE` moves entries to the trash by default; `?force=1` deletes permanently and `?trash=1` lists the trash.
+- **GitHub Pages documentation** — new "Automation and maintenance" page and expanded usage, API and theme guides.
+
+### Fixed
+
+- Deleted documents are consistently excluded from the site, menus, sitemap, RSS, API, search and counters.
+- Fixed the `ThemeState` call in the maintenance response.
+
 ## [3.1.1] — 2026-11-05
 
 ### Fixed

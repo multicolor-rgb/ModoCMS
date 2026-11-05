@@ -4,6 +4,27 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.2.0] — 2026-11-05
+
+### Dodane
+
+- **Site Health na dashboardzie** — ocena instalacji i lista problemów: installer, uprawnienia, HTTPS, debug, nagłówki, cache, backupy, cron, PHP i domyślne hasło.
+- **Kosz i przywracanie** — usuwanie dokumentów trafia do kosza, z możliwością przywrócenia lub trwałego usunięcia; automatyczne czyszczenie po `trash_retention_days`.
+- **Podpisane linki podglądu** — przycisk Podgląd w edytorze generuje link do zapisanej wersji szkicu, ważny 24 h, bez cache i z `noindex`.
+- **Kanał RSS 2.0** — `/feed.xml` oraz `/{lang}/feed.xml`, z automatycznym `<link rel="alternate">` w `theme_head()`.
+- **Zadania cykliczne (cron)** — `tools/cron.php` i `cron.php?token=...`; publikacja zaplanowana, czyszczenie kosza, retencja, sitemap i cache.
+- **Panel cron w Ustawieniach** — ostatnie uruchomienie, polecenie CLI, URL HTTP, token i przycisk „Uruchom teraz”.
+
+### Zmienione
+
+- **API treści** — `DELETE` domyślnie przenosi do kosza; `?force=1` usuwa trwale, `?trash=1` pokazuje kosz.
+- **Dokumentacja GitHub Pages** — nowe strony „Automatyzacja i konserwacja”, rozbudowane „Obsługa systemu”, API, motywy i table of contents.
+
+### Poprawione
+
+- Usunięte dokumenty są konsekwentnie wykluczane ze strony, menu, sitemapy, RSS, API, wyszukiwania i liczników.
+- Naprawiono wywołanie `ThemeState` w komunikacie trybu konserwacji.
+
 ## [3.1.1] — 2026-11-05
 
 ### Naprawione

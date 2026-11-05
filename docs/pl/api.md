@@ -64,6 +64,7 @@ curl -sS \
 | `q` | — | Szukanie w tytule i treści. |
 | `page` | `1` | Numer strony. |
 | `per_page` | `20` | 1–100 wpisów. |
+| `trash` | — | `1` pokazuje wpisy z kosza. |
 
 Odpowiedź:
 
@@ -86,6 +87,7 @@ Odpowiedź:
       "meta_title": "",
       "meta_description": "",
       "published_at": "2026-12-01 09:00:00",
+      "deleted_at": null,
       "created_at": "2026-11-05 10:00:00",
       "updated_at": "2026-11-05 10:00:00",
       "author_id": 1,
@@ -203,8 +205,18 @@ curl -sS -X DELETE \
   "https://example.com/api/content.php?id=42"
 ```
 
-Usunięcie usuwa dokument oraz jego tagi, kategorie i pola niestandardowe.
-Rewizje pozostają do celów audytowych.
+Domyślnie wpis trafia do kosza (`deleted_at`), więc znika ze strony, wyszukiwania,
+feeda, sitemapy i zwykłych list API. Dodaj `?force=1`, aby usunąć go trwale wraz
+z tagami, kategoriami i polami własnymi:
+
+```bash
+curl -sS -X DELETE \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  "https://example.com/api/content.php?id=42&force=1"
+```
+
+Użyj `GET /api/content.php?trash=1`, aby pokazać wpisy z kosza. Rewizje pozostają
+do celów audytowych.
 
 ---
 

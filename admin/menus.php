@@ -97,7 +97,7 @@ if (isset($_GET['delete_item']) && isset($_GET['csrf'])) {
 }
 
 // Fetch published pages for quick links
-$allPages = $db->query("SELECT id, parent_id, title, slug, type FROM pages WHERE status = 'published' ORDER BY parent_id ASC, title ASC")->fetchAll();
+$allPages = $db->query("SELECT id, parent_id, title, slug, type FROM pages WHERE status = 'published' AND deleted_at IS NULL ORDER BY parent_id ASC, title ASC")->fetchAll();
 $pageLookup = [];
 foreach ($allPages as $p) {
     $pageLookup[$p['id']] = $p;

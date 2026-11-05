@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.1.1.
+# Release notes for Modo CMS 3.2.0.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,15 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.1.1
-            - **Admin theme per account:** dark/light/auto is stored in the database and survives re-login and other devices.
-            - **Toggle fix:** unified `localStorage` keys, legacy migration and the correct TinyMCE skin.
-            - **Documentation:** theme creation, system usage and the complete Content API on GitHub Pages.
+            ### What's new in 3.2.0
+            - **Site Health:** installation score and actionable checks on the dashboard.
+            - **Trash and previews:** restore deleted content and share signed draft links.
+            - **RSS and cron:** `/feed.xml`, scheduled tasks, trash cleanup and sitemap refresh.
+            - **Documentation:** new automation and maintenance guide on GitHub Pages.
 
-            ### Najważniejsze zmiany w 3.1.1
-            - **Motyw panelu per konto:** ciemny/jasny/auto jest zapisywany w bazie i działa po ponownym logowaniu oraz na innych urządzeniach.
-            - **Poprawka przełącznika:** ujednolicone klucze `localStorage`, migracja starych wartości i właściwy skin TinyMCE.
-            - **Dokumentacja:** tworzenie motywów, obsługa systemu i pełne API treści na GitHub Pages.
+            ### Najważniejsze zmiany w 3.2.0
+            - **Site Health:** ocena instalacji i lista problemów na dashboardzie.
+            - **Kosz i podglądy:** przywracanie usuniętych treści i podpisane linki do szkiców.
+            - **RSS i cron:** `/feed.xml`, zadania cykliczne, czyszczenie kosza i odświeżanie sitemapy.
+            - **Dokumentacja:** nowy przewodnik po automatyzacji i konserwacji na GitHub Pages.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

@@ -62,7 +62,7 @@ final class Router {
         $queryOffset = ($currentPageNumber - 1) * $postsPerPageLimit;
 
         // Licznik wpisów
-        $countStmt = $database->prepare("SELECT COUNT(*) FROM pages WHERE type = 'post' AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now')) AND (lang = :lang OR lang = '')");
+        $countStmt = $database->prepare("SELECT COUNT(*) FROM pages WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND (published_at IS NULL OR published_at <= datetime('now')) AND (lang = :lang OR lang = '')");
         $countStmt->execute([':lang' => $activeLocale]);
         $totalPostsCount = (int)$countStmt->fetchColumn();
 
@@ -71,7 +71,7 @@ final class Router {
             SELECT p.*, u.username as author_name 
             FROM pages p 
             LEFT JOIN users u ON p.author_id = u.id 
-            WHERE p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
+            WHERE p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
             ORDER BY p.created_at DESC 
             LIMIT :lim OFFSET :off
         ");
@@ -110,7 +110,7 @@ final class Router {
         $offset = ($pageNumber - 1) * $perPage;
 
         $params = [':lang' => $activeLocale];
-        $where = "p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')";
+        $where = "p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')";
         if ($query !== '') {
             $where .= " AND (p.title LIKE :q OR p.content LIKE :q)";
             $params[':q'] = '%' . $query . '%';
@@ -157,6 +157,65 @@ final class Router {
             'archiveTitle' => $title,
             'searchQuery' => $query,
         ]);
+    }
+
+    /**
+     * Renders a saved document for a valid preview token, regardless of its
+     * status. The content is never cached and is marked noindex.
+     */
+    private static function renderPreviewPage(int $pageId): void {
+        $database = Database::getConnection();
+        $stmt = $database->prepare("
+            SELECT p.*, u.username AS author_name
+            FROM pages p
+            LEFT JOIN users u ON p.author_id = u.id
+            WHERE p.id = :id AND p.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmt->execute([':id' => $pageId]);
+        $page = $stmt->fetch();
+
+        if (!$page) {
+            http_response_code(404);
+            $theme = basename(self::getOption('active_theme', 'default'));
+            $themeDirectory = __DIR__ . '/../themes/' . $theme . '/';
+            if (is_file($themeDirectory . '404.php')) {
+                View::render($themeDirectory . '404.php');
+            } else {
+                echo '<h1>404 - Not found</h1>';
+            }
+            return;
+        }
+
+        if (!empty($page['lang'])) {
+            I18n::setLocale((string)$page['lang']);
+        }
+
+        header('X-Robots-Tag: noindex, nofollow');
+        header('Cache-Control: no-store, private');
+
+        \ThemeState::$currentPage = $page;
+        \ThemeState::$seoPayload = [
+            'title' => self::formatDocumentTitle((string)$page['title'], false),
+            'description' => (string)($page['meta_description'] ?? ''),
+            'og_image' => (string)($page['featured_image'] ?? ''),
+        ];
+
+        $theme = basename(self::getOption('active_theme', 'default'));
+        $themeDirectory = __DIR__ . '/../themes/' . $theme . '/';
+        if ((string)$page['type'] === 'post') {
+            $template = is_file($themeDirectory . 'single.php') ? 'single.php' : 'page.php';
+        } else {
+            $template = is_file($themeDirectory . 'page.php') ? 'page.php' : 'index.php';
+        }
+
+        if (!is_file($themeDirectory . $template)) {
+            http_response_code(404);
+            echo '<h1>404 - Not found</h1>';
+            return;
+        }
+
+        View::render($themeDirectory . $template);
     }
 
     /**
@@ -208,7 +267,7 @@ final class Router {
     public static function publishedCondition(string $alias = ''): string {
         $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
 
-        return $prefix . "status = 'published' AND (" . $prefix . "published_at IS NULL OR " . $prefix . "published_at <= datetime('now'))";
+        return $prefix . "status = 'published' AND " . $prefix . "deleted_at IS NULL AND (" . $prefix . "published_at IS NULL OR " . $prefix . "published_at <= datetime('now'))";
     }
 
     public static function addressMatches(string $address, string $entry): bool {
@@ -279,7 +338,7 @@ final class Router {
         $themeDirectory = __DIR__ . '/../themes/' . $activeTheme . '/';
 
         if (is_file($themeDirectory . 'maintenance.php')) {
-            ThemeState::$seoPayload = [
+            \ThemeState::$seoPayload = [
                 'title' => self::formatDocumentTitle(__('Maintenance'), false),
                 'description' => $message !== '' ? $message : __('The site is temporarily unavailable.'),
                 'og_image' => '',
@@ -362,6 +421,34 @@ final class Router {
             return;
         }
 
+        // RSS feed (/feed.xml and /{lang}/feed.xml).
+        if (preg_match('#^/(?:([a-z0-9_-]+)/)?feed\.xml$#i', $normalizedPath, $feedMatch) === 1) {
+            $feedLocale = I18n::getDefaultLocale();
+            $feedSegment = strtolower((string)($feedMatch[1] ?? ''));
+            if ($feedSegment !== '' && array_key_exists($feedSegment, I18n::getAvailableLanguages())) {
+                $feedLocale = $feedSegment;
+                I18n::setLocale($feedLocale);
+            }
+            header('Content-Type: application/rss+xml; charset=utf-8');
+            header('X-Content-Type-Options: nosniff');
+            echo Feed::render($feedLocale);
+            return;
+        }
+
+        // Signed preview links for drafts and scheduled content.
+        if ($normalizedPath === '/preview') {
+            $token = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
+            $previewId = Preview::validate($token);
+            if ($previewId === null) {
+                http_response_code(403);
+                header('Content-Type: text/html; charset=utf-8');
+                echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Preview expired</title></head><body style="font-family:system-ui;padding:40px"><h1>Preview link expired</h1><p>Ask an administrator for a new preview link.</p></body></html>';
+                return;
+            }
+            self::renderPreviewPage($previewId);
+            return;
+        }
+
         // Maintenance mode: visitors get a 503 page, the admin area and the
         // allow-listed addresses keep working while the site is being updated.
         if (self::maintenanceActive()) {
@@ -435,7 +522,7 @@ final class Router {
                 SELECT COUNT(p.id) 
                 FROM pages p
                 JOIN page_tags pt ON pt.page_id = p.id
-                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
+                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
             ");
             $countStmt->execute([':tid' => $tag['id'], ':lang' => $activeLocale]);
             $totalPostsCount = (int)$countStmt->fetchColumn();
@@ -445,7 +532,7 @@ final class Router {
                 FROM pages p
                 JOIN page_tags pt ON pt.page_id = p.id
                 LEFT JOIN users u ON p.author_id = u.id
-                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
+                WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
                 ORDER BY p.created_at DESC 
                 LIMIT :lim OFFSET :off
             ");
@@ -495,7 +582,7 @@ final class Router {
                 SELECT COUNT(p.id) 
                 FROM pages p
                 JOIN page_categories pc ON pc.page_id = p.id
-                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
+                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
             ");
             $countStmt->execute([':cid' => $category['id'], ':lang' => $activeLocale]);
             $totalPostsCount = (int)$countStmt->fetchColumn();
@@ -505,7 +592,7 @@ final class Router {
                 FROM pages p
                 JOIN page_categories pc ON pc.page_id = p.id
                 LEFT JOIN users u ON p.author_id = u.id
-                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
+                WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
                 ORDER BY p.created_at DESC 
                 LIMIT :lim OFFSET :off
             ");
@@ -565,7 +652,7 @@ final class Router {
                     LEFT JOIN users u ON p.author_id = u.id 
                     WHERE (p.id = :hid OR p.translation_group = (SELECT translation_group FROM pages WHERE id = :hid2))
                       AND (p.lang = :lang OR p.lang = '')
-                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
+                      AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $stmt->execute([':hid' => $configuredHomeId, ':hid2' => $configuredHomeId, ':lang' => $activeLocale]);
@@ -580,7 +667,7 @@ final class Router {
                     LEFT JOIN users u ON p.author_id = u.id 
                     WHERE p.slug = 'home' 
                       AND (p.lang = :lang OR p.lang = '') 
-                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
+                      AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $stmt->execute([':lang' => $activeLocale]);
@@ -593,7 +680,7 @@ final class Router {
                     SELECT p.*, u.username as author_name 
                     FROM pages p 
                     LEFT JOIN users u ON p.author_id = u.id 
-                    WHERE p.type = 'page' AND p.status = 'published' 
+                    WHERE p.type = 'page' AND p.status = 'published' AND p.deleted_at IS NULL
                       AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     ORDER BY p.id ASC 
                     LIMIT 1
@@ -615,7 +702,7 @@ final class Router {
                       AND p.type = 'page' 
                       AND p.parent_id = :pid 
                       AND (p.lang = :lang OR p.lang = '') 
-                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
+                      AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $stmt->execute([':s' => $slug, ':pid' => $parentId, ':lang' => $activeLocale]);
@@ -642,7 +729,7 @@ final class Router {
                     WHERE p.slug = :s 
                       AND p.type = 'post' 
                       AND (p.lang = :lang OR p.lang = '') 
-                      AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
+                      AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
                     LIMIT 1
                 ");
                 $postStmt->execute([':s' => $pathSegments[1], ':lang' => $activeLocale]);
@@ -819,7 +906,7 @@ final class Router {
         $configuredPostsId = (int)self::getOption('posts_page_id', '0');
         if ($configuredPostsId > 0) {
             $database = Database::getConnection();
-            $statement = $database->prepare("SELECT slug FROM pages WHERE id = :pid LIMIT 1");
+            $statement = $database->prepare("SELECT slug FROM pages WHERE id = :pid AND deleted_at IS NULL LIMIT 1");
             $statement->execute([':pid' => $configuredPostsId]);
             $resolvedSlug = $statement->fetchColumn();
             if ($resolvedSlug !== false && $resolvedSlug !== null && $resolvedSlug !== '') {

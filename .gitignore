@@ -9,6 +9,7 @@ data/*.sqlite
 data/*.sqlite3
 data/*.db
 data/installed.lock
+data/*.key
 
 # --- Runtime directories (keep only the .htaccess guards) ---
 data/backups/*

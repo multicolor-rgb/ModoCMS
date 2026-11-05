@@ -63,6 +63,7 @@ curl -sS \
 | `q` | — | Search in title and content. |
 | `page` | `1` | Page number. |
 | `per_page` | `20` | 1–100 entries. |
+| `trash` | — | `1` lists deleted entries (trash). |
 
 Response:
 
@@ -85,6 +86,7 @@ Response:
       "meta_title": "",
       "meta_description": "",
       "published_at": "2026-12-01 09:00:00",
+      "deleted_at": null,
       "created_at": "2026-11-05 10:00:00",
       "updated_at": "2026-11-05 10:00:00",
       "author_id": 1,
@@ -202,8 +204,18 @@ curl -sS -X DELETE \
   "https://example.com/api/content.php?id=42"
 ```
 
-Deleting removes the document and its tags, categories and custom fields.
-Revisions are kept for audit purposes.
+By default the entry is moved to the trash (`deleted_at`), so it disappears from
+the site, search, feed, sitemap and normal API lists. Add `?force=1` to delete it
+permanently, including its tags, categories and custom fields:
+
+```bash
+curl -sS -X DELETE \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  "https://example.com/api/content.php?id=42&force=1"
+```
+
+Use `GET /api/content.php?trash=1` to list trashed entries. Revisions are kept
+for audit purposes.
 
 ---
 

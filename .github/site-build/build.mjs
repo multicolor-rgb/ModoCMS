@@ -52,6 +52,17 @@ const DOCS = [
     icon: 'book'
   },
   {
+    slug: 'automation',
+    pl: 'automatyzacja.md',
+    en: 'automation.md',
+    title: { pl: 'Automatyzacja i konserwacja', en: 'Automation and maintenance' },
+    desc: {
+      pl: 'Site Health, kosz, podglądy, RSS i zadania cron.',
+      en: 'Site Health, trash, previews, RSS and cron jobs.'
+    },
+    icon: 'bolt'
+  },
+  {
     slug: 'plugins',
     pl: 'pluginy.md',
     en: 'plugins.md',

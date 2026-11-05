@@ -28,6 +28,7 @@ panelu, motyw panelu (`Automatyczny`, `Jasny`, `Ciemny`), hasło, 2FA i token AP
 
 Dashboard pokazuje:
 
+- ocenę **Site Health** z listą problemów do naprawy,
 - liczbę stron, wpisów i użytkowników,
 - ruch dzisiaj i w wybranym okresie,
 - najczęściej odwiedzane strony,
@@ -71,6 +72,17 @@ przywrócić lub usunąć wersję. Autosave zapisuje szkic co skonfigurowany cza
 Ustaw **Datę publikacji** na przyszłość i pozostaw status **Opublikowany**.
 Wpis nie pojawi się na stronie, w sitemapie, archiwum ani wyszukiwaniu do tego
 dnia. Cache strony jest odświeżany przy zapisie.
+
+### Kosz i podgląd
+
+Usunięcie wpisu przenosi go do **Kosza**; możesz go przywrócić lub usunąć trwale
+z widoku Kosza. Przycisk **Podgląd** w edytorze tworzy podpisany link dla
+klienta — działa bez konta i pokazuje zapisaną wersję.
+
+### RSS
+
+Strona udostępnia `/feed.xml` (oraz `/pl/feed.xml` w trybie wielojęzycznym).
+Odpowiedni `<link rel="alternate">` dodaje automatycznie `theme_head()`.
 
 ---
 
@@ -216,3 +228,6 @@ Endpointy, uprawnienia, przykłady i kody błędów: [API treści](api.md).
   katalog motywu z backupu.
 
 Problemy serwerowe: [Instalacja](instalacja.md).
+
+Zobacz [Automatyzacja i konserwacja](automatyzacja.md) — Site Health, kosz,
+podglądy, RSS i cron.

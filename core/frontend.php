@@ -257,7 +257,7 @@ function page_url(?array $page = null, bool $echo = true): string {
     if ($parentId > 0) {
         $db = Database::getConnection();
         while ($parentId > 0) {
-            $stmt = $db->prepare("SELECT slug, parent_id FROM pages WHERE id = :id LIMIT 1");
+            $stmt = $db->prepare("SELECT slug, parent_id FROM pages WHERE id = :id AND deleted_at IS NULL LIMIT 1");
             $stmt->execute([':id' => $parentId]);
             $parent = $stmt->fetch();
             if (!$parent) break;
@@ -284,7 +284,7 @@ function resolve_page_hierarchy_path(string $slug): string {
     }
 
     $db = Database::getConnection();
-    $stmt = $db->prepare("SELECT id, slug, parent_id, type FROM pages WHERE slug = :s LIMIT 1");
+    $stmt = $db->prepare("SELECT id, slug, parent_id, type FROM pages WHERE slug = :s AND deleted_at IS NULL LIMIT 1");
     $stmt->execute([':s' => $cleanSlug]);
     $page = $stmt->fetch();
 
@@ -527,7 +527,7 @@ function modo_locale_url(array $page, string $lang, string $defaultLang, string 
         $db = Database::getConnection();
         $guard = 0;
         while ($parentId > 0 && $guard++ < 50) {
-            $stmt = $db->prepare("SELECT slug, parent_id FROM pages WHERE id = :id LIMIT 1");
+            $stmt = $db->prepare("SELECT slug, parent_id FROM pages WHERE id = :id AND deleted_at IS NULL LIMIT 1");
             $stmt->execute([':id' => $parentId]);
             $parent = $stmt->fetch();
             if (!$parent) break;
@@ -563,7 +563,7 @@ function hreflang_tags(bool $echo = true): string {
     $urlsByLang = [];
     if ($group) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now'))");
+        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published' AND deleted_at IS NULL AND (published_at IS NULL OR published_at <= datetime('now'))");
         $stmt->execute([':g' => $group]);
         foreach ($stmt->fetchAll() as $row) {
             $urlsByLang[$row['lang']] = modo_locale_url($row, (string)$row['lang'], $default, $basePrefix);
@@ -601,7 +601,7 @@ function lang_switch(string $cssClass = 'lang-switcher'): void {
 
     if ($group) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published' AND (published_at IS NULL OR published_at <= datetime('now'))");
+        $stmt = $db->prepare("SELECT * FROM pages WHERE translation_group = :g AND status = 'published' AND deleted_at IS NULL AND (published_at IS NULL OR published_at <= datetime('now'))");
         $stmt->execute([':g' => $group]);
         while ($r = $stmt->fetch()) {
             $translations[$r['lang']] = $r;
@@ -766,6 +766,12 @@ function theme_head(): void {
     echo '<meta property="og:type" content="website">' . PHP_EOL;
     echo '<link rel="canonical" href="' . htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
     echo '<meta property="og:url" content="' . htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+
+    if (class_exists('Core\Feed')) {
+        echo '<link rel="alternate" type="application/rss+xml" title="'
+            . htmlspecialchars(Router::getOption('site_title', 'Modo CMS') . ' RSS', ENT_QUOTES, 'UTF-8')
+            . '" href="' . htmlspecialchars(\Core\Feed::url(), ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+    }
 
     // Multilingual hreflang alternates (Settings → SEO).
     if (function_exists('hreflang_tags')) {

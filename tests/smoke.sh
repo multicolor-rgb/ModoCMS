@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
-PORT="${SMOKE_PORT:-8099}"
+PORT="${SMOKE_PORT:-8123}"
 SERVER_PID=""
 
 cleanup() {

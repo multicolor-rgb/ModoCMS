@@ -536,6 +536,7 @@ HTACCESS;
                 'analytics_retention_days'     => '365',
                 'audit_retention_days'         => '365',
                 'api_token_lifetime_days'      => '0',
+                'trash_retention_days'         => '30',
                 'cache_enabled'                => '0',
                 'cache_ttl'                    => '3600',
                 'webp_enabled'                 => '0',

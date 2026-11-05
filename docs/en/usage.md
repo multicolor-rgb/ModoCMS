@@ -30,6 +30,7 @@ token.
 
 The dashboard shows:
 
+- a **Site Health** score with actionable checks,
 - page/post/user counts,
 - traffic for today and the selected period,
 - the most visited pages,
@@ -73,6 +74,17 @@ configured interval.
 Set **Publish Date** to a future date and keep the status **Published**. The
 entry is excluded from the frontend, sitemap, archives and search until that
 date. The page cache is refreshed when the entry is saved.
+
+### Trash and preview
+
+Deleting an entry moves it to **Trash**; restore it or delete it permanently
+from the Trash view. Use the **Preview** button in the editor to create a signed
+link for a client — it works without an account and shows the saved version.
+
+### RSS
+
+The site exposes `/feed.xml` (and `/pl/feed.xml` in multilingual mode). The
+matching `<link rel="alternate">` is added automatically by `theme_head()`.
 
 ---
 
@@ -218,5 +230,7 @@ error codes.
 - **Theme error** — switch to another theme in the database
   (`active_theme` setting) or restore the theme folder from a backup.
 
-For server-level issues see [Installation](installation.md) and the
-[troubleshooting section](../en/installation.md#troubleshooting).
+For server-level issues see [Installation](installation.md).
+
+See [Automation and maintenance](automation.md) for Site Health, Trash, preview
+links, RSS and cron.

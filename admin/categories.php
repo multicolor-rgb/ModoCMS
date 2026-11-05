@@ -96,7 +96,7 @@ $allCategories = $db->query("
     SELECT c.*, (
         SELECT COUNT(*)
         FROM page_categories pc
-        JOIN pages p ON p.id = pc.page_id
+        JOIN pages p ON p.id = pc.page_id AND p.deleted_at IS NULL
         WHERE pc.category_id = c.id AND p.type = 'post'
     ) AS post_count
     FROM categories c

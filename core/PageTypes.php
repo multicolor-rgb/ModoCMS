@@ -417,7 +417,7 @@ class PageTypes
             return 0;
         }
 
-        $stmt = self::db()->prepare("SELECT COUNT(*) FROM pages WHERE page_type_id = :id");
+        $stmt = self::db()->prepare("SELECT COUNT(*) FROM pages WHERE page_type_id = :id AND deleted_at IS NULL");
         $stmt->execute([':id' => $typeId]);
 
         return (int) $stmt->fetchColumn();

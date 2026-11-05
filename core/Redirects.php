@@ -110,7 +110,7 @@ final class Redirects
     {
         $lookup = [];
         try {
-            foreach (Database::getConnection()->query("SELECT id, parent_id, slug, lang, type FROM pages") as $row) {
+            foreach (Database::getConnection()->query("SELECT id, parent_id, slug, lang, type FROM pages WHERE deleted_at IS NULL") as $row) {
                 $lookup[(int)$row['id']] = $row;
             }
         } catch (\Throwable $e) {

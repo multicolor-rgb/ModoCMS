@@ -446,6 +446,7 @@ final class Customizer
                 SELECT id, title, slug, type, lang, parent_id
                 FROM pages
                 WHERE status = 'published'
+                  AND deleted_at IS NULL
                   AND (published_at IS NULL OR published_at <= datetime('now'))
                 ORDER BY type ASC, title ASC
             ");

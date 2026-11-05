@@ -8,6 +8,7 @@ use Core\Security;
 use Core\Auth;
 use Core\Hooks;
 use Core\PageTypes;
+use Core\SiteHealth;
 use Core\Sitemap;
 
 $db = Database::getConnection();
@@ -53,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // 1. High-level metric counts
-$totalPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page'")->fetchColumn();
-$totalPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post'")->fetchColumn();
+$totalPages = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'page' AND deleted_at IS NULL")->fetchColumn();
+$totalPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post' AND deleted_at IS NULL")->fetchColumn();
 $totalUsers = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
 
 // 2. Traffic analytics (all views + unique visitors)
@@ -77,11 +78,18 @@ $recentContent = $db->query("
     SELECT p.id, p.title, p.slug, p.type, p.status, p.updated_at, u.username as author_name 
     FROM pages p 
     LEFT JOIN users u ON p.author_id = u.id 
+    WHERE p.deleted_at IS NULL
     ORDER BY p.updated_at DESC 
     LIMIT 6
 ")->fetchAll();
 ?>
 
+<?php
+$healthRows = SiteHealth::checks();
+$healthScore = SiteHealth::score($healthRows);
+$healthIssues = SiteHealth::issues($healthRows);
+$healthOk = count($healthRows) - count($healthIssues);
+?>
 <div class="page-header">
     <div>
         <h1 class="page-title"><?= _e('System Overview') ?></h1>
@@ -108,6 +116,49 @@ $recentContent = $db->query("
         <?= htmlspecialchars($msg, ENT_QUOTES, 'UTF-8') ?>
     </div>
 <?php endif; ?>
+
+<?php
+$healthRows = SiteHealth::checks();
+$healthScore = SiteHealth::score($healthRows);
+$healthIssues = SiteHealth::issues($healthRows);
+$healthOk = count($healthRows) - count($healthIssues);
+?>
+<div class="card" style="padding: 18px 20px; margin-bottom: 22px; border-left: 4px solid <?= $healthScore >= 80 ? 'var(--success, #10b981)' : ($healthScore >= 50 ? 'var(--warning, #f59e0b)' : 'var(--danger, #ef4444)') ?>;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;">
+        <div>
+            <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px; color: var(--text-main);"><?= _e('Site Health') ?></h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                <?= sprintf(__('%d of %d checks are healthy.'), $healthOk, count($healthRows)) ?>
+            </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <strong style="font-size: 24px; color: <?= $healthScore >= 80 ? 'var(--success, #10b981)' : ($healthScore >= 50 ? 'var(--warning, #f59e0b)' : 'var(--danger, #ef4444)') ?>;"><?= (int)$healthScore ?>%</strong>
+            <a href="settings.php?tab=system" class="btn btn-secondary" style="font-size: 12px;"><?= _e('System status') ?></a>
+        </div>
+    </div>
+
+    <?php if (empty($healthIssues)): ?>
+        <p style="font-size: 13px; color: var(--success, #10b981); margin: 0;"><?= _e('All checks passed. Your site is in good shape.') ?></p>
+    <?php else: ?>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;">
+            <?php foreach (array_slice($healthIssues, 0, 4) as $issue): ?>
+                <div style="display: flex; gap: 10px; align-items: flex-start; background: var(--bg-surface, #1e293b); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 12px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; background: <?= $issue['status'] === 'error' ? 'var(--danger, #ef4444)' : 'var(--warning, #f59e0b)' ?>;"></span>
+                    <div style="min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 700; color: var(--text-main);"><?= Security::sanitize($issue['label']) ?></div>
+                        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin-top: 2px;"><?= Security::sanitize($issue['detail']) ?></div>
+                        <?php if ($issue['action'] !== ''): ?>
+                            <a href="<?= htmlspecialchars($issue['action'], ENT_QUOTES, 'UTF-8') ?>" style="font-size: 11px; color: var(--accent, #60a5fa); display: inline-block; margin-top: 4px;"><?= _e('Fix') ?> &rarr;</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php if (count($healthIssues) > 4): ?>
+            <p style="font-size: 11px; color: var(--text-muted); margin: 10px 0 0;"><?= sprintf(__('%d more check(s) need attention.'), count($healthIssues) - 4) ?></p>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
 
 <!-- Primary Metrics Row -->
 <div class="metrics-grid">
