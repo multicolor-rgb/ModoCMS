@@ -169,16 +169,31 @@ The full list is in [CHANGELOG.md](CHANGELOG.md).
 
 ## 🏷️ Post categories (blog)
 
-Blog posts can be grouped into **flat categories** (no hierarchy). Support covers the panel, the theme and SEO:
+Blog posts can be grouped into **hierarchical categories** with multiple nesting levels. Existing categories become top-level entries, so the migration is backwards compatible. Support covers the panel, the theme and SEO:
 
-* **Panel:** *Categories* (`admin/categories.php`, capability `manage_pages`) — add, edit (name, slug, description) and delete categories together with the number of assigned posts. The slug is generated automatically from the name when the field is left empty.
-* **Assignment:** in the post editor (`page-edit.php`) the sidebar contains a **Categories** section (visible only for the *Post* type) — a list of checkboxes with a search filter. Deleting a category automatically detaches it from all posts (`page_categories` with `ON DELETE CASCADE`).
+* **Panel:** *Categories* (`admin/categories.php`, capability `manage_pages`) — add, edit (name, slug, description, parent category) and delete categories together with the number of assigned posts. The list is indented to show the hierarchy. The slug is generated automatically from the name when the field is left empty.
+* **Assignment:** in the post editor (`page-edit.php`) the sidebar contains a **Categories** section (visible only for the *Post* type) — a list of checkboxes with a search filter that keeps the same indented tree order.
+* **Deleting:** removing a category moves its subcategories up to the deleted category's parent instead of orphaning or deleting them. Posts assigned to the deleted category are detached automatically (`page_categories` with `ON DELETE CASCADE`).
 * **Frontend (theme functions):**
-  * `get_post_categories(?int $pageId = null): array` — array of the post's categories (`id`, `name`, `slug`, `description`).
+  * `get_post_categories(?int $pageId = null): array` — array of the post's categories (`id`, `parent_id`, `name`, `slug`, `description`, `depth`).
   * `has_categories(?int $pageId = null): bool` — whether the post has any categories assigned.
   * `post_categories(?int $pageId = null, string $cssClass = 'post-categories', bool $echo = true)` — links to category archives (class `category-badge`).
-* **Archive:** `/{blog-page-slug}/category/{slug}` (e.g. `/blog/category/technology`) with pagination (`?page=N`) and the heading `Category: {name}`. The description in `<meta name="description">` comes from the category's *Description* field, otherwise it is generated automatically. An unknown slug returns 404.
+  * `get_categories(array $args = []): array` — the full hierarchy as an indented pre-order list (`parent_id`, `depth`).
+  * `get_category_tree(array $args = []): array` — the hierarchy as nested arrays with `children`.
+  * `get_category_children(int $parentId = 0, array $args = []): array` — direct children of a category.
+* **Archive:** `/{blog-page-slug}/category/{slug}` (e.g. `/blog/category/technology`) with pagination (`?page=N`) and the heading `Category: {name}`. Archives list posts assigned directly to that category; the hierarchy is available to themes for navigation. The description in `<meta name="description">` comes from the category's *Description* field, otherwise it is generated automatically. An unknown slug returns 404.
 * **Sitemap:** category archives are added to `sitemap.xml` (priority `0.5`), just like tag archives.
+
+---
+
+## 🌳 Page tree in the content list
+
+Pages keep their existing parent-child relationships. **Content → All content** now
+renders them as an expandable/collapsible tree with indentation, persisted
+expansion state and **Expand all** / **Collapse all** controls. Filters never
+hide matching rows: a child whose parent is filtered out is shown at the top
+level. The trash view stays flat so mixed deleted/restored states are not
+confusing.
 
 ---
 

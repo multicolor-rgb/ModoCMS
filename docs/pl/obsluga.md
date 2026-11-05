@@ -62,6 +62,28 @@ status, autora i język.
 | Meta / opis | Opis SEO/OG oraz tagi i kategorie. |
 | Pola niestandardowe | Dodatkowe wartości czytane przez `get_meta()` w motywie. |
 
+### Drzewo stron
+
+Strony, które mają rodzica, są wyświetlane w **Treść → Cała treść** jako drzewo
+z rozwijaniem i zwijaniem. Użyj strzałki obok tytułu, aby pokazać lub ukryć
+podstrony; nad tabelą dostępne są przyciski **Rozwiń wszystkie** i **Zwiń
+wszystkie**, a stan rozwinięcia jest zapamiętywany w przeglądarce. Filtry zawsze
+zachowują pasujące wiersze: jeśli rodzic został odfiltrowany, jego dziecko jest
+pokazywane na poziomie głównym. Widok kosza pozostaje płaską listą.
+
+### Kategorie
+
+Kategorie wpisów obsługują wiele poziomów zagnieżdżenia. W **Treść → Kategorie**
+wybierz **Kategorię nadrzędną**, aby zagnieździć kategorię; pozostaw pole puste
+dla kategorii głównej. Lista jest wyświetlana z wcięciami, a edytor wpisu pokazuje
+tę samą hierarchię na liście checkboxów.
+
+Usunięcie kategorii przenosi jej podkategorie do kategorii nadrzędnej. Wpisy
+przypisane do usuwanej kategorii zostają odłączone, ale drzewo kategorii nie
+zostaje zniszczone. Archiwa kategorii listują wpisy przypisane bezpośrednio do
+danej kategorii; sama hierarchia jest dostępna w motywie przez `get_categories()`,
+`get_category_tree()` i `get_category_children()`.
+
 ### Rewizje i autosave
 
 Edytor prowadzi historię wersji. Otwórz **Historia rewizji**, aby porównać,

@@ -63,6 +63,28 @@ author and language.
 | Excerpt / meta | Search/OG description and tags/categories. |
 | Custom fields | Extra values read with `get_meta()` in the theme. |
 
+### Page tree
+
+Pages that have a parent are shown in **Content → All content** as an
+expandable/collapsible tree. Use the chevron next to a title to show or hide its
+subpages; **Expand all** and **Collapse all** are available above the table, and
+the expansion state is remembered in the browser. Filters always keep matching
+rows visible: if a parent is filtered out, its child is shown at the top level.
+The trash view remains a flat list.
+
+### Categories
+
+Blog categories support multiple nesting levels. In **Content → Categories**
+choose a **Parent Category** to nest a category; leave it empty for a top-level
+entry. The list is indented to show the hierarchy, and the post editor shows the
+same indented checkbox list.
+
+Deleting a category moves its subcategories up to the deleted category's parent.
+Posts assigned to the deleted category are detached, but the category tree is
+not destroyed. Category archives list posts assigned directly to that category;
+the hierarchy itself is available to themes through `get_categories()`,
+`get_category_tree()` and `get_category_children()`.
+
 ### Revisions and autosave
 
 The editor keeps a revision history. Open **Revision History** in the editor to

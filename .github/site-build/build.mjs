@@ -46,8 +46,8 @@ const DOCS = [
     en: 'usage.md',
     title: { pl: 'Obsługa systemu', en: 'Using Modo CMS' },
     desc: {
-      pl: 'Logowanie, treść, media, motywy, ustawienia, użytkownicy i backupy.',
-      en: 'Sign-in, content, media, themes, settings, users and backups.'
+      pl: 'Logowanie, treść, drzewo stron, kategorie, media, motywy, ustawienia, użytkownicy i backupy.',
+      en: 'Sign-in, content, page tree, categories, media, themes, settings, users and backups.'
     },
     icon: 'book'
   },

@@ -169,16 +169,26 @@ Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
 ## 🏷️ Kategorie wpisów (blog)
 
-Wpisy blogowe można grupować w **płaskie kategorie** (bez hierarchii). Obsługa obejmuje panel, motyw i SEO:
+Wpisy blogowe można grupować w **hierarchiczne kategorie** z wieloma poziomami zagnieżdżenia. Istniejące kategorie stają się kategoriami głównymi, więc migracja jest zgodna wstecz. Obsługa obejmuje panel, motyw i SEO:
 
-* **Panel:** *Kategorie* (`admin/categories.php`, uprawnienie `manage_pages`) — dodawanie, edycja (nazwa, slug, opis) i usuwanie kategorii wraz z liczbą przypisanych wpisów. Slug generuje się automatycznie z nazwy, gdy pole pozostanie puste.
-* **Przypisywanie:** w edytorze wpisu (`page-edit.php`) w kolumnie bocznej znajduje się sekcja **Kategorie** (widoczna tylko dla typu *Wpis*) — lista checkboxów z filtrem wyszukiwania. Usunięcie kategorii automatycznie odłącza ją od wszystkich wpisów (`page_categories` z `ON DELETE CASCADE`).
+* **Panel:** *Kategorie* (`admin/categories.php`, uprawnienie `manage_pages`) — dodawanie, edycja (nazwa, slug, opis, kategoria nadrzędna) i usuwanie kategorii wraz z liczbą przypisanych wpisów. Lista jest wyświetlana hierarchicznie z wcięciami. Slug generuje się automatycznie z nazwy, gdy pole pozostanie puste.
+* **Przypisywanie:** w edytorze wpisu (`page-edit.php`) w kolumnie bocznej znajduje się sekcja **Kategorie** (widoczna tylko dla typu *Wpis*) — lista checkboxów z filtrem wyszukiwania, zachowująca kolejność i wcięcia drzewa.
+* **Usuwanie:** usunięcie kategorii przenosi jej podkategorie do kategorii nadrzędnej usuwanej kategorii — nie są osierocane ani usuwane. Wpisy przypisane do usuwanej kategorii są automatycznie odłączane (`page_categories` z `ON DELETE CASCADE`).
 * **Frontend (funkcje motywu):**
-  * `get_post_categories(?int $pageId = null): array` — tablica kategorii wpisu (`id`, `name`, `slug`, `description`).
+  * `get_post_categories(?int $pageId = null): array` — tablica kategorii wpisu (`id`, `parent_id`, `name`, `slug`, `description`, `depth`).
   * `has_categories(?int $pageId = null): bool` — czy wpis ma przypisane kategorie.
   * `post_categories(?int $pageId = null, string $cssClass = 'post-categories', bool $echo = true)` — linki do archiwów kategorii (klasa `category-badge`).
-* **Archiwum:** `/{slug-strony-bloga}/category/{slug}` (np. `/blog/category/technology`) z paginacją (`?page=N`) i nagłówkiem `Kategoria: {nazwa}`. Opis w `<meta name="description">` pochodzi z pola *Opis* kategorii, w razie braku jest generowany automatycznie. Nieznany slug zwraca 404.
+  * `get_categories(array $args = []): array` — cała hierarchia jako płaska lista pre-order z wcięciem (`parent_id`, `depth`).
+  * `get_category_tree(array $args = []): array` — hierarchia jako zagnieżdżone tablice z `children`.
+  * `get_category_children(int $parentId = 0, array $args = []): array` — bezpośrednie dzieci kategorii.
+* **Archiwum:** `/{slug-strony-bloga}/category/{slug}` (np. `/blog/category/technology`) z paginacją (`?page=N`) i nagłówkiem `Kategoria: {nazwa}`. Archiwum listuje wpisy przypisane bezpośrednio do kategorii; hierarchia jest dostępna w motywie do budowy nawigacji. Opis w `<meta name="description">` pochodzi z pola *Opis* kategorii, w razie braku jest generowany automatycznie. Nieznany slug zwraca 404.
 * **Sitemap:** archiwa kategorii trafiają do `sitemap.xml` (priorytet `0.5`), analogicznie do archiwów tagów.
+
+---
+
+## 🌳 Drzewo stron w liście treści
+
+Strony zachowują istniejące relacje rodzic–dziecko. **Treść → Cała treść** wyświetla je teraz jako drzewo z rozwijaniem i zwijaniem, wcięciami, zapamiętywaniem stanu oraz przyciskami **Rozwiń wszystkie** / **Zwiń wszystkie**. Filtry nie ukrywają pasujących wierszy: dziecko, którego rodzic został odfiltrowany, jest pokazywane na poziomie głównym. Widok kosza pozostaje płaski, aby nie mieszać stanów usuniętych i przywróconych dokumentów.
 
 ---
 
