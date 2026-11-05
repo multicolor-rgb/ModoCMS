@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.0.7.
+# Release notes for Modo CMS 3.0.8.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,17 +53,17 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.0.7
-            - **Thumbnail template helpers:** `post_thumbnail_image()` / `page_thumbnail_image()` and `post_image_srcset()` / `page_image_srcset()` use the selected featured image's generated thumbnails.
-            - **Phone photo orientation fixed:** EXIF Orientation is now applied to WebP copies too, so portrait 9:16 photos stay portrait instead of becoming 16:9.
-            - **Old media corrected:** force regeneration rebuilds thumbnails and WebP copies; `webp_url()` falls back to the original when an old WebP has the wrong orientation.
-            - **Complete translations:** all missing EN/PL/DE/ES keys were filled; `tools/i18n-audit.php` reports future gaps.
+            ### What's new in 3.0.8
+            - **Customizer without sidebar reloads:** the settings panel and the live preview are separate documents; changing a setting refreshes only the preview iframe, so the sidebar keeps its scroll, expanded sections and focus.
+            - **Instant CSS variable preview:** CSS variables are applied inside the preview document and re-applied after every refresh.
+            - **Predictable publish/reset:** both actions still reload the editor so every field shows the committed values.
+            - **Cleaner preview:** the admin bar is hidden inside the preview frame.
 
-            ### Najważniejsze zmiany w 3.0.7
-            - **Helpery miniatur w motywie:** `post_thumbnail_image()` / `page_thumbnail_image()` oraz `post_image_srcset()` / `page_image_srcset()` korzystają z miniatur wybranego obrazka wyróżniającego.
-            - **Poprawiona orientacja zdjęć z telefonu:** EXIF Orientation jest stosowany także przy WebP, więc pionowe zdjęcia 9:16 pozostają pionowe.
-            - **Poprawka istniejących mediów:** wymuszone generowanie odtwarza miniatury i kopie WebP; `webp_url()` wraca do oryginału przy złej orientacji starej kopii.
-            - **Kompletne tłumaczenia:** uzupełniono brakujące klucze EN/PL/DE/ES; `tools/i18n-audit.php` raportuje przyszłe braki.
+            ### Najważniejsze zmiany w 3.0.8
+            - **Customizer bez przeładowywania panelu:** panel ustawień i podgląd to osobne dokumenty; zmiana ustawienia odświeża tylko iframe, więc sidebar zachowuje przewinięcie, rozwinięte sekcje i fokus.
+            - **Natychmiastowy podgląd zmiennych CSS:** wartości `css_var` są aplikowane w dokumencie podglądu i ponownie po każdym odświeżeniu.
+            - **Przewidywalna publikacja i reset:** obie akcje nadal przeładowują edytor, aby pola pokazywały zapisane wartości.
+            - **Czystszy podgląd:** pasek administratora jest ukryty w ramce podglądu.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

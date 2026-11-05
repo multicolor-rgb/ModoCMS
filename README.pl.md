@@ -43,6 +43,14 @@
 
 ---
 
+## 🆕 Co nowego w 3.0.8
+
+* **Customizer bez przeładowywania sidebara:** panel ustawień i podgląd strony to teraz osobne dokumenty. Zmiana ustawienia odświeża wyłącznie iframe podglądu, więc panel zachowuje przewinięcie, rozwinięte sekcje i fokus.
+* **Szybszy podgląd CSS:** zmienne CSS są aplikowane bezpośrednio w dokumencie podglądu i ponownie po każdym odświeżeniu ramki.
+* **Przewidywalna publikacja i reset:** publikacja oraz reset nadal przeładowują cały edytor, aby każde pole od razu pokazywało zapisane wartości.
+
+---
+
 ## 🆕 Co nowego w 3.0.7
 
 * **Helpery miniatur w motywie:** `post_thumbnail_image()` / `page_thumbnail_image()` oraz `post_image_srcset()` / `page_image_srcset()` korzystają z miniatur wybranego obrazka wyróżniającego.
@@ -280,7 +288,7 @@ php -S localhost:8000
 
 Panel w backendzie: **Wygląd → Customizer** (`/admin/customize.php`) służy **wyłącznie do zarządzania ustawieniami** (builder sekcji i pól zapisywany w bazie). Nie zawiera podglądu szablonu ani edycji wartości — te czynności wykonuje się na froncie.
 
-Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu”** w pasku administratora otwiera wysuwaną z prawej strony sekcję z ustawieniami motywu na **żywej stronie** — bez `iframe`, podglądem jest sama witryna. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają stronę z nałożonym szkicem dopiero po zakończeniu edycji (po wyjściu z pola tekstowego lub przełączeniu kontrolki), więc pisanie nie wywołuje przeładowania. Sekcje ustawień są domyślnie zwinięte, a te rozwinięte podczas edycji pozostają otwarte po tych przeładowaniach. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie. Klasa `Core\CustomizerPanel` jest wpięta w `theme-header`/`theme-footer`, więc działa w każdym motywie.
+Edycja wartości (z podglądem na żywo) dostępna jest bezpośrednio na froncie: link **„Edytuj ustawienia szablonu”** w pasku administratora otwiera wysuwaną z lewej strony sekcję z ustawieniami motywu na **żywej stronie**. Panel i podgląd są osobnymi dokumentami — witryna renderuje się w iframe obok sidebara — więc odświeżenie podglądu podczas edycji nigdy nie odtwarza panelu: jego przewinięcie, rozwinięte sekcje i fokus pozostają nienaruszone. Kontrolki powiązane ze zmienną CSS (`css_var`) aktualizują wygląd natychmiast, pozostałe odświeżają wyłącznie iframe podglądu z nałożonym szkicem dopiero po zakończeniu edycji (po wyjściu z pola tekstowego lub przełączeniu kontrolki), więc pisanie nie wywołuje przeładowania. Sekcje ustawień są domyślnie zwinięte. Zmiany zapisują się jako szkic, a przycisk **Opublikuj** utrwala je w bazie (publikacja i reset celowo przeładowują cały edytor, aby pola pokazały zapisane wartości). Klasa `Core\CustomizerPanel` obsługuje powłokę edytora i jest wpięta w `theme-header`/`theme-footer` dla podglądu, więc działa w każdym motywie.
 
 ### Typy pól
 

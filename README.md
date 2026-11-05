@@ -43,6 +43,14 @@
 
 ---
 
+## 🆕 What's new in 3.0.8
+
+* **Theme Customizer without sidebar reloads:** the settings panel and the live preview are now separate documents. Changing a setting refreshes only the preview iframe, so the panel keeps its scroll position, expanded sections and focus.
+* **Faster live CSS preview:** CSS variables are applied directly inside the preview document and re-applied after every preview refresh.
+* **Predictable publish/reset:** publishing or resetting still reloads the whole editor so every field immediately shows the committed values.
+
+---
+
 ## 🆕 What's new in 3.0.7
 
 * **Thumbnail template helpers:** `post_thumbnail_image()` / `page_thumbnail_image()` and `post_image_srcset()` / `page_image_srcset()` use the selected featured image's generated thumbnails.
@@ -280,7 +288,7 @@ php -S localhost:8000
 
 The backend panel **Appearance → Customizer** (`/admin/customize.php`) is used **only to manage settings** (the section and field builder stored in the database). It contains no template preview or value editing — those happen on the frontend.
 
-Value editing (with live preview) is available directly on the frontend: the **"Edit template settings"** link in the admin bar opens a panel sliding in from the right with the theme settings on the **live site** — no `iframe`, the preview is the site itself. Controls bound to a CSS variable (`css_var`) update the appearance instantly; the others reload the page with the draft applied only once editing is finished (when leaving a text field or toggling a switch), so typing never triggers a refresh. Settings sections are collapsed by default and the ones expanded during editing stay expanded across those reloads. Changes are saved as a draft, and the **Publish** button commits them to the database. The `Core\CustomizerPanel` class is hooked into `theme-header`/`theme-footer`, so it works in every theme.
+Value editing (with live preview) is available directly on the frontend: the **"Edit template settings"** link in the admin bar opens a panel sliding in from the left with the theme settings on the **live site**. The panel and the preview live in separate documents — the site is rendered in an iframe next to the sidebar — so refreshing the preview during editing never rebuilds the panel: its scroll position, expanded sections and focus stay intact. Controls bound to a CSS variable (`css_var`) update the appearance instantly; the others refresh only the preview iframe with the draft applied once editing is finished (when leaving a text field or toggling a switch), so typing never triggers a refresh. Settings sections are collapsed by default. Changes are saved as a draft, and the **Publish** button commits them to the database (publishing and resetting intentionally reload the whole editor so the fields show the committed values). The `Core\CustomizerPanel` class handles the shell and is hooked into `theme-header`/`theme-footer` for the preview, so it works in every theme.
 
 ### Field types
 

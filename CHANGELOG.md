@@ -4,6 +4,18 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.0.8] — 2026-11-05
+
+### Zmienione
+
+- **Customizer bez przeładowywania panelu** — panel ustawień motywu i podgląd strony są teraz osobnymi dokumentami. Podgląd renderuje się w iframe, a zmiany odświeżają wyłącznie tę ramkę, więc sidebar zachowuje przewinięcie, rozwinięte sekcje i fokus.
+- **Podgląd zmiennych CSS** — wartości `css_var` są aplikowane bezpośrednio w dokumencie iframe i ponownie po każdym odświeżeniu podglądu.
+- **Publikacja i reset** — nadal przeładowują cały edytor, aby panel od razu pokazywał wartości zapisane w bazie.
+
+### Poprawione
+
+- Pasek administratora nie jest renderowany w ramce podglądu, więc nie zasłania strony ani nie dubluje nawigacji.
+
 ## [3.0.7] — 2026-11-04
 
 ### Dodane

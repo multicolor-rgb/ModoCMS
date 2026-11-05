@@ -10,12 +10,14 @@ namespace Core;
  * frontend ("Edit template settings"), so administrators can tweak the active
  * theme's settings while looking at the real page instead of an admin iframe.
  *
- * The whole page acts as the live preview: controls mapped to a CSS custom
- * property (via the "css_var" key) update a <style> block instantly, while the
- * remaining ones reload the page with the session draft overlaid on top of the
- * published values (see Customizer::activatePreview()). The reload happens only
- * after editing is committed (field blur, switch/select change), and the
- * settings sections — collapsed by default — keep their expanded state.
+ * The page acts as the live preview inside an iframe that is rendered next to
+ * the panel. Controls mapped to a CSS custom property (via the "css_var" key)
+ * update a <style> block inside that frame instantly, while the remaining ones
+ * reload only the frame with the session draft overlaid on top of the published
+ * values (see Customizer::activatePreview()). The panel itself is never
+ * re-rendered during editing, so its scroll position, open sections and focus
+ * survive every preview refresh. The reload happens only after editing is
+ * committed (field blur, switch/select change).
  *
  * Scope: value editing only (the schema builder "Manage settings" stays in the
  * admin at /admin/customize.php). It never renders inside the admin area and
@@ -28,6 +30,9 @@ final class CustomizerPanel
 
     /** Query flag that opens the panel. */
     private const OPEN_PARAM = 'modo_customize';
+
+    /** Query flag used by the iframe that renders the live preview. */
+    private const FRAME_PARAM = 'modo_frame';
 
     public static function init(): void
     {
@@ -42,8 +47,49 @@ final class CustomizerPanel
             Customizer::activatePreview();
         }
 
+        // The iframe only renders the theme. The panel lives in the parent
+        // document (see renderShellIfRequested()).
+        if (self::isFrameRequest()) {
+            Hooks::addAction('theme-footer', [self::class, 'renderFrameBridge']);
+            return;
+        }
+
         Hooks::addAction('theme-header', [self::class, 'renderHead']);
         Hooks::addAction('theme-footer', [self::class, 'render']);
+    }
+
+    /**
+     * Whether the current request renders the preview frame rather than the
+     * top-level customizer shell.
+     */
+    public static function isFrameRequest(): bool
+    {
+        return isset($_GET[self::FRAME_PARAM]);
+    }
+
+    /**
+     * Renders the customizer shell (panel + preview iframe) when the panel is
+     * open, then tells the caller to stop the normal frontend request.
+     *
+     * The shell keeps the sidebar in a separate document from the preview, so
+     * refreshing the preview never rebuilds the panel.
+     */
+    public static function renderShellIfRequested(): bool
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+            return false;
+        }
+        if (!self::isEnabled() || self::isFrameRequest()) {
+            return false;
+        }
+        if (!isset($_GET[self::OPEN_PARAM]) && !isset($_GET['modo_preview'])) {
+            return false;
+        }
+
+        self::ensurePreviewToken();
+        self::renderShell();
+
+        return true;
     }
 
     /**
@@ -66,6 +112,7 @@ final class CustomizerPanel
     public static function isOpen(): bool
     {
         return self::isEnabled()
+            && !self::isFrameRequest()
             && (isset($_GET[self::OPEN_PARAM]) || isset($_GET['modo_preview']));
     }
 
@@ -79,6 +126,125 @@ final class CustomizerPanel
             $token = Customizer::startPreview();
         }
         return $token;
+    }
+
+    /**
+     * Builds the URL loaded by the preview iframe: the current frontend URL
+     * with the customizer flags, a valid preview token and the frame marker.
+     */
+    private static function frameUrl(): string
+    {
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
+        $query = $_GET;
+        $query[self::OPEN_PARAM] = '1';
+        $query[self::FRAME_PARAM] = '1';
+        $query['modo_preview'] = self::ensurePreviewToken();
+
+        return $path . '?' . http_build_query($query);
+    }
+
+    /**
+     * Outputs the standalone customizer document: the settings panel plus the
+     * live preview iframe. The panel and the preview live in separate documents,
+     * so refreshing the preview never re-renders the sidebar.
+     */
+    private static function renderShell(): void
+    {
+        $frameUrl = self::frameUrl();
+        $title = __('Edit template settings');
+        $locale = class_exists(I18n::class) ? I18n::getLocale() : 'en';
+        $cssUrl = self::assetUrl('assets/css/customizer-panel.css');
+        ?>
+<!DOCTYPE html>
+<html lang="<?= htmlspecialchars($locale, ENT_QUOTES, 'UTF-8') ?>" class="modo-cz-shell">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
+    <link rel="stylesheet" href="<?= htmlspecialchars($cssUrl, ENT_QUOTES, 'UTF-8') ?>">
+</head>
+<body class="modo-cz-shell-body">
+    <iframe id="modo-czp-frame" class="modo-czp-frame" src="<?= htmlspecialchars($frameUrl, ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?>"></iframe>
+    <?php self::render(); ?>
+</body>
+</html>
+        <?php
+    }
+
+    /**
+     * Keeps the customizer parameters on links and forms used inside the preview
+     * frame, so navigating the preview never drops the draft overlay.
+     */
+    public static function renderFrameBridge(): void
+    {
+        if (!self::isFrameRequest() || !Customizer::isPreviewActive()) {
+            return;
+        }
+
+        $params = [
+            self::OPEN_PARAM => '1',
+            self::FRAME_PARAM  => '1',
+            'modo_preview'     => self::ensurePreviewToken(),
+        ];
+        ?>
+<script>
+(function () {
+    'use strict';
+
+    var PARAMS = <?= json_encode($params, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+    function withPreviewParams(rawUrl) {
+        try {
+            var url = new URL(rawUrl, window.location.href);
+            if (url.origin !== window.location.origin) return rawUrl;
+            if (url.pathname.indexOf('/admin/') !== -1) return rawUrl;
+            Object.keys(PARAMS).forEach(function (key) {
+                url.searchParams.set(key, PARAMS[key]);
+            });
+            return url.toString();
+        } catch (e) {
+            return rawUrl;
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        if (event.defaultPrevented || event.button !== 0) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+        var link = event.target.closest ? event.target.closest('a[href]') : null;
+        if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+
+        var href = link.getAttribute('href') || '';
+        if (!href || href.charAt(0) === '#' || /^(mailto|tel|javascript):/i.test(href)) return;
+
+        link.href = withPreviewParams(link.href);
+    }, true);
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!form || !form.action) return;
+
+        if (String(form.method).toLowerCase() === 'get') {
+            Object.keys(PARAMS).forEach(function (key) {
+                var input = form.querySelector('input[name="' + key + '"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    form.appendChild(input);
+                }
+                input.value = PARAMS[key];
+            });
+            return;
+        }
+
+        form.action = withPreviewParams(form.action);
+    }, true);
+})();
+</script>
+        <?php
     }
 
     /**

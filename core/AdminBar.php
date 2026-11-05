@@ -36,6 +36,11 @@ final class AdminBar
         if (defined('IN_ADMIN') && IN_ADMIN === true) {
             return false;
         }
+        // The customizer preview iframe already sits under the settings panel;
+        // a second admin bar there would only cover the preview.
+        if (isset($_GET['modo_frame'])) {
+            return false;
+        }
         if (!class_exists(Auth::class) || !Auth::check()) {
             return false;
         }

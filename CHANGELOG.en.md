@@ -4,6 +4,18 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.8] — 2026-11-05
+
+### Changed
+
+- **Customizer without sidebar reloads** — the theme settings panel and the page preview are now separate documents. The preview renders in an iframe and changes refresh only that frame, so the sidebar keeps its scroll position, expanded sections and focus.
+- **CSS variable preview** — `css_var` values are applied directly inside the iframe document and re-applied after every preview refresh.
+- **Publish and reset** — still reload the whole editor so the panel immediately shows the values stored in the database.
+
+### Fixed
+
+- The admin bar is not rendered inside the preview frame, so it no longer covers the page or duplicates navigation.
+
 ## [3.0.7] — 2026-11-04
 
 ### Added

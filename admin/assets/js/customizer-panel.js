@@ -1,11 +1,12 @@
 /* Modo CMS — Frontend Theme Settings Panel ("Edit template settings")
- * A slide-in sidebar rendered on the live frontend. The page itself is the
- * preview: controls mapped to a CSS custom property update instantly, while the
- * remaining ones reload the page with the session draft overlaid on top of the
- * published values (see Core\CustomizerPanel / Core\Customizer). The reload only
- * happens once editing is committed (field blur, switch/select change), so
- * typing never interrupts the user. Settings sections are collapsed by default
- * and their expanded state is remembered across those reloads.
+ * The panel and the live preview live in separate documents: the sidebar is in
+ * the customizer shell, while the site is rendered in an iframe. Controls mapped
+ * to a CSS custom property update the frame instantly, while the remaining ones
+ * reload only the frame with the session draft overlaid on top of the published
+ * values (see Core\CustomizerPanel / Core\Customizer). The sidebar itself is
+ * never re-rendered during editing, so its scroll position, open sections and
+ * focus survive every preview refresh. Reloads only happen once editing is
+ * committed (field blur, switch/select change), so typing never interrupts it.
  */
 (function () {
     'use strict';
@@ -23,6 +24,10 @@
     };
     const root = document.getElementById('modo-cz-panel');
     if (!root) return;
+
+    // The live preview iframe. When it is absent (older embedded mode) the
+    // script falls back to refreshing the whole page.
+    const frame = document.getElementById('modo-czp-frame');
 
     const apiUrl = CFG.apiUrl || '/admin/customize-api.php';
     const uploadUrl = CFG.uploadUrl || '/admin/upload.php';
@@ -76,14 +81,35 @@
     }
 
     // ------------------------------------------------------------------
-    // Live preview (the current page is the preview)
+    // Live preview (rendered in the iframe next to the panel)
     // ------------------------------------------------------------------
+    function previewDocument() {
+        if (!frame) return document;
+        try {
+            return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document) || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function reloadPreviewFrame() {
+        if (frame && frame.contentWindow) {
+            frame.contentWindow.location.reload();
+            return;
+        }
+        // Fallback for the old embedded mode without a preview frame.
+        window.location.reload();
+    }
+
     function applyCssVars(values) {
-        let style = document.getElementById('modo-panel-live-vars');
+        const doc = previewDocument();
+        if (!doc || !doc.head) return;
+
+        let style = doc.getElementById('modo-panel-live-vars');
         if (!style) {
-            style = document.createElement('style');
+            style = doc.createElement('style');
             style.id = 'modo-panel-live-vars';
-            document.head.appendChild(style);
+            doc.head.appendChild(style);
         }
 
         let css = ':root{';
@@ -101,15 +127,31 @@
 
     function reloadPage() {
         if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
-        // The URL keeps ?modo_customize=1, so the panel and the draft persist.
+        // Publish/reset rebuild the whole shell so the panel picks up the
+        // committed values from the server.
         window.location.reload();
     }
 
     function reloadPreview() {
         if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
-        // Store the pending draft first, so the reloaded page already shows the
+
+        // Values that the refreshed frame will display. Updating the baseline
+        // here keeps later change detection accurate (e.g. toggling a switch
+        // back to its original value still triggers a reload).
+        const baseline = collectValues();
+
+        // Store the pending draft first, so the reloaded frame already shows the
         // value the user just edited.
-        saveDraftNow().catch(() => {}).finally(reloadPage);
+        saveDraftNow().catch(() => {}).finally(() => {
+            initialValues = baseline;
+            reloadPreviewFrame();
+        });
+    }
+
+    if (frame) {
+        // The frame document is replaced on every preview reload: re-apply the
+        // live CSS variables to the new document.
+        frame.addEventListener('load', () => applyCssVars(collectValues()));
     }
 
     function saveDraft() {
