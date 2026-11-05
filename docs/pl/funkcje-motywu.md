@@ -2,6 +2,8 @@
 
 **Polski** | [English](../en/theme-functions.md)
 
+> Zaczynasz z motywami? Zacznij od [Tworzenia motywów](motywy.md) — struktura katalogów i szablony — oraz [Ustawień theme customizera](customizer.md) — konfigurowalne pola.
+
 Każdy motyw i plugin w Modo CMS korzysta z zestawu **globalnych funkcji pomocniczych**. Ta strona wyjaśnia każdą z nich po ludzku: *co robi*, *co jej podajesz*, *co zwraca* i *jak jej użyć*. Nie musisz być ekspertem od PHP — większość to jednolinijkowce.
 
 > Większość funkcji **domyślnie wypisuje wynik** (`$echo = true`) i jednocześnie **go zwraca**, więc możesz albo użyć `<?php page_title(); ?>` do wypisania, albo `$t = page_title(false);` do zapisania w zmiennej.

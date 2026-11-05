@@ -2,6 +2,8 @@
 
 [Polski](../pl/funkcje-motywu.md) | **English**
 
+> New to themes? Start with [Creating themes](themes.md) for the folder structure and template files, and [Theme Customizer settings](customizer.md) for configurable fields.
+
 Every theme and plugin in Modo CMS is built from a set of **global helper functions**. This page explains each one in plain language: *what it does*, *what you give it*, *what it gives back*, and *how to use it*. You do not need to be a PHP expert to start — most of them are one-liners.
 
 > Most functions **print output by default** (`$echo = true`) and also **return** the value, so you can either use `<?php page_title(); ?>` to print, or `$t = page_title(false);` to store.

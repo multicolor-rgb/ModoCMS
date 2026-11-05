@@ -20,6 +20,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 // Dynamically compute the admin directory base URL for asset resolution
 $scriptDir = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
+$adminTheme = Auth::adminTheme();
+$resetThemeCache = !empty($_SESSION['admin_theme_reset']);
+unset($_SESSION['admin_theme_reset']);
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars(I18n::getAdminLocale(), ENT_QUOTES, 'UTF-8') ?>">
@@ -31,15 +34,35 @@ $adminBase = ($scriptDir !== '' ? '/' . $scriptDir : '') . '/';
     <title>Modo CMS &bull; <?= _e('Dashboard') ?></title>
     <script>window.MODO_CSRF = document.querySelector('meta[name="csrf-token"]').content;</script>
     
-    <!-- Instant Dark Mode Init Script (Prevents FOUC) -->
+    <!-- Instant theme init (prevents FOUC). The account preference wins; the
+         localStorage value is a cache and a migration path for old keys. -->
     <script>
-        (function() {
-            const savedTheme = localStorage.getItem('clean_cms_theme');
-            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-                document.documentElement.setAttribute('data-theme', 'light');
+        window.MODO_ADMIN_THEME = <?= json_encode($adminTheme) ?>;
+        (function () {
+            var KEY = 'modo_cms_theme';
+            var resetCache = <?= $resetThemeCache ? 'true' : 'false' ?>;
+            if (resetCache) {
+                try {
+                    localStorage.removeItem(KEY);
+                    localStorage.removeItem('clean_cms_theme');
+                    localStorage.removeItem('theme');
+                } catch (e) {}
             }
+
+            var stored = localStorage.getItem(KEY);
+            var legacy = localStorage.getItem('clean_cms_theme') || localStorage.getItem('theme');
+            if (!stored && legacy) {
+                stored = legacy;
+                try { localStorage.setItem(KEY, stored); } catch (e) {}
+            }
+
+            var theme = window.MODO_ADMIN_THEME || 'auto';
+            if (theme === 'auto') {
+                theme = (stored === 'dark' || stored === 'light')
+                    ? stored
+                    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+            document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
 

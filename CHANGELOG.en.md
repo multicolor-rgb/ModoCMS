@@ -4,6 +4,20 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.1.1] — 2026-11-05
+
+### Fixed
+
+- **Dark/light mode is now saved per account** in `users.admin_theme`; the choice survives page navigation, reload, logout/login and other devices.
+- Unified the `localStorage` key (`modo_cms_theme`) and added migration for the old `clean_cms_theme` / `theme` values that caused the theme to reset.
+- TinyMCE in the content editor now uses the correct dark/light skin.
+- The selected Settings tab is also stored in the URL, so saving a form or reloading no longer jumps back to "General".
+
+### Added
+
+- **Complete GitHub Pages documentation**: a theme-creation guide, an administrator usage guide and an expanded Content API guide (tokens, CRUD, curl, permissions, errors).
+- New documentation-hub entries, README links and cross-links.
+
 ## [3.1.0] — 2026-11-05
 
 ### Added

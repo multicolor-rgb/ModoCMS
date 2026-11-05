@@ -42,14 +42,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!isset($_POST['action']) || $_POST
 
     $email = trim($_POST['email'] ?? '');
     $adminLang = trim($_POST['admin_lang'] ?? 'en');
+    $adminTheme = trim((string)($_POST['admin_theme'] ?? 'auto'));
+    $adminTheme = in_array($adminTheme, ['auto', 'light', 'dark'], true) ? $adminTheme : 'auto';
     $newPass = $_POST['new_password'] ?? '';
     $confirmPass = $_POST['confirm_password'] ?? '';
 
     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
         try {
-            $stmt = $db->prepare("UPDATE users SET email = :e, admin_lang = :l WHERE id = :id");
-            $stmt->execute([':e' => $email, ':l' => $adminLang, ':id' => Auth::id()]);
+            $stmt = $db->prepare("UPDATE users SET email = :e, admin_lang = :l, admin_theme = :theme WHERE id = :id");
+            $stmt->execute([':e' => $email, ':l' => $adminLang, ':theme' => $adminTheme, ':id' => Auth::id()]);
             $_SESSION['user_email'] = $email;
+            $_SESSION['user_admin_theme'] = $adminTheme;
+            if ($adminTheme === 'auto') {
+                $_SESSION['admin_theme_reset'] = 1;
+            }
             I18n::setAdminLocale($adminLang);
             $msg = __('Profile updated successfully.');
 
@@ -193,6 +199,15 @@ require_once __DIR__ . '/views/header.php';
                             <?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?> (<?= strtoupper($code) ?>)
                         </option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="admin_theme"><?= _e('Admin Panel Theme') ?></label>
+                <select class="form-control" name="admin_theme" id="admin_theme">
+                    <option value="auto" <?= ($user['admin_theme'] ?? 'auto') === 'auto' ? 'selected' : '' ?>><?= _e('Auto (system)') ?></option>
+                    <option value="light" <?= ($user['admin_theme'] ?? 'auto') === 'light' ? 'selected' : '' ?>><?= _e('Light') ?></option>
+                    <option value="dark" <?= ($user['admin_theme'] ?? 'auto') === 'dark' ? 'selected' : '' ?>><?= _e('Dark') ?></option>
                 </select>
             </div>
 

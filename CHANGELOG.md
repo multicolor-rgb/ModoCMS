@@ -4,6 +4,20 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.1.1] — 2026-11-05
+
+### Naprawione
+
+- **Tryb ciemny/jasny zapisuje się teraz per konto** w kolumnie `users.admin_theme`; wybór przetrwa przejście między podstronami, odświeżenie, wylogowanie i ponowne logowanie oraz inne urządzenie.
+- Ujednolicono klucz `localStorage` (`modo_cms_theme`) i dodano migrację starych wartości `clean_cms_theme` / `theme`, które wcześniej powodowały reset motywu.
+- TinyMCE w edytorze treści korzysta z właściwego trybu ciemnego/jasnego.
+- Zakładka Ustawień jest zapisywana także w adresie URL, więc zapis formularza i odświeżenie nie wracają do „Ogólne”.
+
+### Dodane
+
+- **Pełna dokumentacja GitHub Pages**: przewodnik po tworzeniu motywów, obsłudze systemu oraz rozbudowany przewodnik po API treści (tokeny, CRUD, `curl`, uprawnienia, błędy).
+- Nowe wpisy w hubie dokumentacji, README i linki między stronami.
+
 ## [3.1.0] — 2026-11-05
 
 ### Dodane

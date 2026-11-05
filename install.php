@@ -310,6 +310,7 @@ HTACCESS;
                     email TEXT UNIQUE NOT NULL,
                     role TEXT NOT NULL DEFAULT 'admin',
                     admin_lang TEXT NOT NULL DEFAULT 'en',
+                    admin_theme TEXT NOT NULL DEFAULT 'auto',
                     api_token TEXT UNIQUE,
                     reset_token TEXT UNIQUE,
                     reset_expires DATETIME,

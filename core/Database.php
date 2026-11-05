@@ -63,6 +63,7 @@ final class Database {
                 email TEXT UNIQUE NOT NULL,
                 role TEXT NOT NULL DEFAULT 'editor',
                 admin_lang TEXT NOT NULL DEFAULT 'en',
+                admin_theme TEXT NOT NULL DEFAULT 'auto',
                 api_token TEXT UNIQUE,
                 api_token_expires DATETIME,
                 reset_token TEXT UNIQUE,
@@ -561,6 +562,7 @@ final class Database {
         }
 
         // Additive column migrations (idempotent — guarded by a column presence check).
+        self::ensureColumn($db, 'users', 'admin_theme', "TEXT NOT NULL DEFAULT 'auto'");
         self::ensureColumn($db, 'users', 'api_token_expires', 'DATETIME');
         self::ensureColumn($db, 'users', 'password_changed_at', 'DATETIME');
         self::ensureColumn($db, 'users', 'totp_secret', 'TEXT');

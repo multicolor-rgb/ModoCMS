@@ -4,6 +4,8 @@
 
 Ten przewodnik przeprowadzi Cię przez instalację Modo CMS — od wymagań po działającą stronę. Działa zarówno w **katalogu głównym domeny**, jak i w **podkatalogu**.
 
+Dalej: [Obsługa systemu](obsluga.md) opisuje panel, treść, media, ustawienia i backupy.
+
 ---
 
 ## 1. Wymagania

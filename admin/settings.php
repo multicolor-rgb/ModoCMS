@@ -1651,6 +1651,11 @@ filePicker.addEventListener('change', () => {
         var submitCard = document.getElementById('settings-submit-card');
         if (submitCard) submitCard.style.display = (name === 'tools' || name === 'system') ? 'none' : 'flex';
         try { localStorage.setItem('modo_settings_tab', name); } catch (e) {}
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.set('tab', name);
+            window.history.replaceState(null, '', url.toString());
+        } catch (e) {}
     }
     tabs.forEach(function (t) {
         t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });

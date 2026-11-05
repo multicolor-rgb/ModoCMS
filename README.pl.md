@@ -24,6 +24,8 @@
 | Hooki (akcje i filtry) | [docs/en/hooks.md](docs/en/hooks.md) | [docs/pl/hooki.md](docs/pl/hooki.md) |
 | Typy stron | [docs/en/page-types.md](docs/en/page-types.md) | [docs/pl/typy-stron.md](docs/pl/typy-stron.md) |
 | Przykłady | [docs/en/examples.md](docs/en/examples.md) | [docs/pl/przyklady.md](docs/pl/przyklady.md) |
+| Obsługa systemu | [docs/en/usage.md](docs/en/usage.md) | [docs/pl/obsluga.md](docs/pl/obsluga.md) |
+| Tworzenie motywów | [docs/en/themes.md](docs/en/themes.md) | [docs/pl/motywy.md](docs/pl/motywy.md) |
 | Styl motywu w edytorze | [docs/en/theme-editor-styles.md](docs/en/theme-editor-styles.md) | [docs/pl/styl-motywu-w-edytorze.md](docs/pl/styl-motywu-w-edytorze.md) |
 | API treści | [docs/en/api.md](docs/en/api.md) | [docs/pl/api.md](docs/pl/api.md) |
 | Ustawienia motywu (Customizer) | [docs/en/customizer.md](docs/en/customizer.md) | [docs/pl/customizer.md](docs/pl/customizer.md) |
@@ -42,6 +44,14 @@
 * **Edytor treści (bez CDN):** klasyczny WYSIWYG (TinyMCE 6.8.3) dołączony lokalnie. Presety paska narzędzi, biblioteka mediów, kreator siatek i przyciski wtyczek działają od razu.
 * **Siatki / frameworki CSS (bez CDN):** Wybór popularnego systemu siatek (Bootstrap, Bulma, Pico, UIkit, Foundation, Tailwind, własny „Modo Grid” lub Custom). Ten sam bundled CSS trafia na frontend i do edytora treści, więc siatka ułożona w edytorze wygląda identycznie na stronie.
 * **Bezpieczeństwo:** Ochrona przed SQL Injection (PDO Prepared Statements), CSRF, weryfikacja uprawnień i sanityzacja danych wyjściowych.
+
+---
+
+## 🆕 Co nowego w 3.1.1
+
+* **Motyw panelu per konto:** ciemny/jasny/auto zapisuje się w bazie i działa po ponownym logowaniu oraz na innych urządzeniach.
+* **Poprawka przełącznika:** ujednolicone klucze `localStorage`, migracja starych wartości i właściwy skin TinyMCE.
+* **Dokumentacja:** przewodnik po tworzeniu motywów, obsłudze systemu i pełne API treści na GitHub Pages.
 
 ---
 

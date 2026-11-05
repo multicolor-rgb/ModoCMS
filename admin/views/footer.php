@@ -37,6 +37,19 @@ use Core\Hooks;
             }
         };
 
+        const saveThemePreference = (theme) => {
+            const body = new URLSearchParams();
+            body.set('theme', theme);
+            body.set('csrf_token', window.MODO_CSRF || '');
+
+            return fetch('theme.php', {
+                method: 'POST',
+                body,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).catch(() => null);
+        };
+
         if (toggleBtn) {
             updateThemeUI();
 
@@ -45,8 +58,11 @@ use Core\Hooks;
                 const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
                 document.documentElement.setAttribute('data-theme', nextTheme);
-                localStorage.setItem('modo_cms_theme', nextTheme);
+                try { localStorage.setItem('modo_cms_theme', nextTheme); } catch (e) {}
                 updateThemeUI();
+
+                // Persist per account so the choice survives a new login/device.
+                saveThemePreference(nextTheme);
             });
         }
     });

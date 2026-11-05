@@ -62,7 +62,7 @@ final class Auth {
         $db = Database::getConnection();
 
         $stmt = $db->prepare("
-            SELECT id, username, password_hash, email, role, admin_lang, totp_secret, totp_enabled
+            SELECT id, username, password_hash, email, role, admin_lang, admin_theme, totp_secret, totp_enabled
             FROM users
             WHERE username = :id OR email = :id
             LIMIT 1
@@ -120,6 +120,7 @@ final class Auth {
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['user_role'] = $user['role'];
         $_SESSION['user_admin_lang'] = $user['admin_lang'] ?? 'en';
+        $_SESSION['user_admin_theme'] = self::normalizeAdminTheme((string)($user['admin_theme'] ?? 'auto'));
         $_SESSION['auth_time'] = time();
         $_SESSION['last_activity'] = time();
 
@@ -164,7 +165,7 @@ final class Auth {
         }
 
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT id, username, email, role, admin_lang, totp_secret FROM users WHERE id = :id LIMIT 1");
+        $stmt = $db->prepare("SELECT id, username, email, role, admin_lang, admin_theme, totp_secret FROM users WHERE id = :id LIMIT 1");
         $stmt->execute([':id' => $id]);
         $user = $stmt->fetch();
 
@@ -234,10 +235,41 @@ final class Auth {
         return (string)($_SESSION['user_admin_lang'] ?? 'en');
     }
 
+    /** Admin panel colour mode: auto, light or dark. */
+    public static function adminTheme(): string {
+        return self::normalizeAdminTheme((string)($_SESSION['user_admin_theme'] ?? 'auto'));
+    }
+
+    /** Persists the admin theme for the current user and updates the session. */
+    public static function setAdminTheme(string $theme): bool {
+        $theme = self::normalizeAdminTheme($theme);
+        if (!self::check()) {
+            return false;
+        }
+
+        try {
+            Database::getConnection()
+                ->prepare("UPDATE users SET admin_theme = :theme WHERE id = :id")
+                ->execute([':theme' => $theme, ':id' => self::id()]);
+            $_SESSION['user_admin_theme'] = $theme;
+            if ($theme === 'auto') {
+                $_SESSION['admin_theme_reset'] = 1;
+            }
+            return true;
+        } catch (\Throwable $e) {
+            Logger::exception($e, 'Could not save the admin theme');
+            return false;
+        }
+    }
+
+    private static function normalizeAdminTheme(string $theme): string {
+        return in_array($theme, ['auto', 'light', 'dark'], true) ? $theme : 'auto';
+    }
+
     public static function user(): array {
         if (!self::check()) return [];
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT id, username, email, role, admin_lang, created_at FROM users WHERE id = :id LIMIT 1");
+        $stmt = $db->prepare("SELECT id, username, email, role, admin_lang, admin_theme, created_at FROM users WHERE id = :id LIMIT 1");
         $stmt->execute([':id' => self::id()]);
         return $stmt->fetch() ?: [];
     }

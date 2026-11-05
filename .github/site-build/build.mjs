@@ -41,6 +41,17 @@ const DOCS = [
     icon: 'download'
   },
   {
+    slug: 'usage',
+    pl: 'obsluga.md',
+    en: 'usage.md',
+    title: { pl: 'Obsługa systemu', en: 'Using Modo CMS' },
+    desc: {
+      pl: 'Logowanie, treść, media, motywy, ustawienia, użytkownicy i backupy.',
+      en: 'Sign-in, content, media, themes, settings, users and backups.'
+    },
+    icon: 'book'
+  },
+  {
     slug: 'plugins',
     pl: 'pluginy.md',
     en: 'plugins.md',
@@ -72,6 +83,17 @@ const DOCS = [
       en: 'A full reference of every function — explained in plain language.'
     },
     icon: 'code'
+  },
+  {
+    slug: 'themes',
+    pl: 'motywy.md',
+    en: 'themes.md',
+    title: { pl: 'Tworzenie motywów', en: 'Creating themes' },
+    desc: {
+      pl: 'Struktura motywu, theme.json, szablony, pętle i pakowanie.',
+      en: 'Theme structure, theme.json, templates, loops and packaging.'
+    },
+    icon: 'layers'
   },
   {
     slug: 'hooks',
@@ -116,6 +138,17 @@ const DOCS = [
       en: 'Predefined theme fields, control types, TinyMCE and internal links.'
     },
     icon: 'sliders'
+  },
+  {
+    slug: 'api',
+    pl: 'api.md',
+    en: 'api.md',
+    title: { pl: 'API treści', en: 'Content API' },
+    desc: {
+      pl: 'Tokeny, endpointy CRUD, uprawnienia, przykłady curl i błędy.',
+      en: 'Tokens, CRUD endpoints, permissions, curl examples and errors.'
+    },
+    icon: 'code'
   },
   {
     slug: 'examples',
@@ -382,7 +415,8 @@ function icon(name) {
     bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
     grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
     spark: '<path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2L12 3z"/>',
-    sliders: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/>'
+    sliders: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'
   };
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.spark}</svg>`;
 }

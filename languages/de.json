@@ -1535,5 +1535,9 @@
   "Link types (page,post)": "Linktypen (page,post)",
   "Select a menu": "Menü auswählen",
   "Select an internal page or post": "Interne Seite oder Beitrag auswählen",
-  "Unavailable page or post": "Nicht verfügbare Seite oder Beitrag"
+  "Unavailable page or post": "Nicht verfügbare Seite oder Beitrag",
+  "Admin Panel Theme": "Admin-Theme",
+  "Auto (system)": "Automatisch (System)",
+  "Dark": "Dunkel",
+  "Light": "Hell"
 }

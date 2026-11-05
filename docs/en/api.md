@@ -1,84 +1,253 @@
 # Content API
 
-The API is available at `/api/content.php` and authenticates with a personal
-bearer token:
+[Polski](../pl/api.md) | **English**
+
+The Content API lets external tools create, read, update and delete pages and
+posts. It is a small JSON API built into the CMS — no extra package is needed.
+
+---
+
+## 1. Authentication
+
+Generate a token in **My Profile → REST API Access → Generate API Token**.
+
+- The raw token (`cms_...`) is shown **once**.
+- The database stores only its SHA-256 hash.
+- Regenerating the token immediately invalidates the old one.
+- An administrator can set an expiry in **Settings → Security → API token
+  lifetime** (`0` = never).
+- Tokens inherit the role of the user who created them.
+
+Send the token on every request:
 
 ```http
 Authorization: Bearer cms_...
+Content-Type: application/json
 ```
 
-Generate or regenerate a token in **My Profile → REST API Access**. The raw token
-is shown only once; the database stores a SHA-256 hash. Tokens can optionally
-expire (Settings → Security → *API token lifetime*).
+Tokens are personal. Do not embed them in public JavaScript or commit them to a
+repository.
 
-## Capabilities
+---
 
-The token inherits the role of the user who created it:
+## 2. Capabilities
 
 | Action | Required capability |
 |---|---|
 | List / read | `manage_pages` |
 | Create | `create_pages` |
-| Publish | `publish_pages` |
+| Publish (`status: published`) | `publish_pages` |
 | Update own entries | `edit_own_pages` |
 | Update any entry | `edit_others_pages` |
 | Delete | `delete_pages` |
 
-Authors can only read/write their own entries and cannot publish.
+An **author** token can only read, create, update and delete its own drafts; it
+cannot publish. An **editor** or **administrator** token can manage all entries.
 
-## Endpoints
+---
 
-### List entries
+## 3. List entries
 
-```http
-GET /api/content.php?type=post&status=published&lang=en&per_page=20&page=1&q=hello
+```bash
+curl -sS \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  "https://example.com/api/content.php?type=post&status=published&lang=en&per_page=20&page=1"
 ```
 
-Supports `type`, `status`, `lang`, `page_type`, `q`, `page`, `per_page`.
+| Parameter | Default | Description |
+|---|---|---|
+| `type` | all | `page` or `post`. |
+| `status` | all | `published` or `draft`. |
+| `lang` | all | Language code, e.g. `en`. |
+| `page_type` | all | Page type slug, e.g. `article`. |
+| `q` | — | Search in title and content. |
+| `page` | `1` | Page number. |
+| `per_page` | `20` | 1–100 entries. |
 
-### Read one entry
+Response:
 
-```http
-GET /api/content.php?id=42
-```
-
-### Create
-
-```http
-POST /api/content.php
-Content-Type: application/json
-
+```json
 {
-  "title": "Hello",
-  "content": "<p>Body</p>",
-  "type": "post",
-  "status": "draft",
-  "lang": "en",
-  "page_type": "article",
-  "published_at": "2026-12-01 09:00:00",
-  "meta": {
-    "subtitle": "A short lead",
-    "price": { "type": "number", "value": "19.99" }
+  "status": "success",
+  "data": [
+    {
+      "id": 42,
+      "title": "Hello",
+      "slug": "hello",
+      "content": "<p>Body</p>",
+      "type": "post",
+      "status": "published",
+      "lang": "en",
+      "page_type_id": null,
+      "parent_id": 0,
+      "translation_group": "…",
+      "featured_image": "",
+      "meta_title": "",
+      "meta_description": "",
+      "published_at": "2026-12-01 09:00:00",
+      "created_at": "2026-11-05 10:00:00",
+      "updated_at": "2026-11-05 10:00:00",
+      "author_id": 1,
+      "meta": {},
+      "author": "admin",
+      "page_type": ""
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 1,
+    "pages": 1
   }
 }
 ```
 
-### Update
+`per_page` and `page` are clamped to safe values. Authors only see their own
+entries; editors/administrators see all.
 
-`PUT` or `PATCH` with the entry `id` in the body (or `?id=`). Only the fields
-present in the request are changed; `meta` keys are upserted.
+---
 
-### Delete
+## 4. Read one entry
 
-```http
-DELETE /api/content.php?id=42
+```bash
+curl -sS \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  "https://example.com/api/content.php?id=42"
 ```
 
-## Responses
+`meta` contains custom fields as `{ "value": ..., "type": "..." }`.
 
-Successful responses use `{"status":"success","data":...}`. Errors use
-`{"status":"error","message":"..."}` with `400`, `401`, `403`, `404`, `405`,
-`422`, `429` or `500`.
+---
 
-Rate limit: 120 requests per minute per token. Cache and sitemap are refreshed
-after every successful write.
+## 5. Create an entry
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Hello",
+    "slug": "hello",
+    "content": "<p>Body</p>",
+    "type": "post",
+    "status": "draft",
+    "lang": "en",
+    "page_type": "article",
+    "featured_image": "/uploads/photo.webp",
+    "meta_title": "Hello",
+    "meta_description": "A short summary",
+    "meta": {
+      "subtitle": "A short lead",
+      "price": { "type": "number", "value": "19.99" },
+      "gallery": { "type": "gallery", "value": { "items": [] } }
+    }
+  }' \
+  "https://example.com/api/content.php"
+```
+
+Fields:
+
+| Field | Required | Notes |
+|---|---|---|
+| `title` | yes | Non-empty. |
+| `slug` | no | Generated from the title when empty; unique per language. |
+| `content` | no | HTML body. |
+| `type` | no | `post` (default) or `page`. |
+| `status` | no | `published` (default) or `draft`. Publishing needs `publish_pages`. |
+| `lang` | no | Must be an available language; defaults to the site language. |
+| `page_type` / `page_type_id` | no | Preset slug or id. |
+| `parent_id` | no | Parent page for hierarchical pages. |
+| `translation_group` | no | Groups translations; generated when empty. |
+| `featured_image` | no | Media path or URL. |
+| `meta_title`, `meta_description` | no | SEO fields. |
+| `published_at` | no | `YYYY-MM-DD HH:MM:SS`; future dates schedule the entry. |
+| `meta` | no | Custom fields. Each value may be a scalar or `{ "type": …, "value": … }`. |
+
+Allowed custom-field types: `text`, `textarea`, `number`, `checkbox`, `boolean`,
+`color`, `image`, `gallery`, `json`, `richtext`.
+
+A successful create returns `201` with the created entry and `data.url`.
+
+---
+
+## 6. Update an entry
+
+Use `PUT` (or `PATCH`) with the `id` in the body or query string. Only the fields
+present in the request are changed; omitted fields keep their current value.
+`meta` keys are upserted.
+
+```bash
+curl -sS -X PATCH \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 42,
+    "status": "published",
+    "meta": { "subtitle": "Updated lead" }
+  }' \
+  "https://example.com/api/content.php"
+```
+
+Changing `status` from `draft` to `published` requires `publish_pages`.
+Changing the slug or language creates a unique slug when needed. Authors can
+only update their own entries.
+
+---
+
+## 7. Delete an entry
+
+```bash
+curl -sS -X DELETE \
+  -H "Authorization: Bearer $MODO_TOKEN" \
+  "https://example.com/api/content.php?id=42"
+```
+
+Deleting removes the document and its tags, categories and custom fields.
+Revisions are kept for audit purposes.
+
+---
+
+## 8. Errors and limits
+
+Successful responses:
+
+```json
+{ "status": "success", "data": { } }
+```
+
+Errors:
+
+```json
+{ "status": "error", "message": "Entry not found." }
+```
+
+| Status | Meaning |
+|---|---|
+| `400` | Malformed request. |
+| `401` | Missing, invalid or expired token. |
+| `403` | Token role lacks the required capability. |
+| `404` | Entry not found. |
+| `405` | Unsupported HTTP method. |
+| `422` | Validation error (e.g. missing title, invalid date). |
+| `429` | Rate limit exceeded (120 requests/minute per token). |
+| `500` | Internal error; details are written to the server log. |
+
+After every successful write the page cache is purged and `sitemap.xml` is
+regenerated. If a write succeeds but the frontend still shows old content, purge
+the cache in **Settings → Tools**.
+
+The OpenAPI description is available in
+[`docs/openapi.yaml`](https://github.com/multicolor-rgb/ModoCMS/blob/main/docs/openapi.yaml).
+
+---
+
+## 9. Quick troubleshooting
+
+- **401** — check the `Bearer` prefix, token expiry and that the token belongs
+  to an active user.
+- **403** — the user role cannot publish/edit others; use an editor token or
+  create the entry as a draft.
+- **422** — title is required and dates must use `YYYY-MM-DD HH:MM:SS`.
+- **429** — wait a minute or reduce request frequency.
+- **CORS** — the endpoint sends `Access-Control-Allow-Origin: *`; custom headers
+  must be allowed by your client/proxy.

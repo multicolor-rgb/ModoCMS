@@ -4,6 +4,8 @@
 
 This guide walks you through installing Modo CMS, from requirements to a working site. It works both in the **domain root** and in a **subdirectory**.
 
+Next: [Using Modo CMS](usage.md) explains the dashboard, content, media, settings and backups.
+
 ---
 
 ## 1. Requirements

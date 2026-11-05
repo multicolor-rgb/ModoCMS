@@ -1473,7 +1473,7 @@ const isDarkActive = () => {
            document.body.getAttribute('data-theme') === 'dark' ||
            document.body.classList.contains('dark') ||
            document.body.classList.contains('dark-theme') ||
-           localStorage.getItem('theme') === 'dark';
+           (localStorage.getItem('modo_cms_theme') || localStorage.getItem('clean_cms_theme')) === 'dark';
 };
 
 function initCleanTinyMCE() {
