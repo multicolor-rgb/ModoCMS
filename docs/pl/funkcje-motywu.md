@@ -226,7 +226,9 @@ Wypisuje linki do tagów (każdy z klasą `tag-badge`) w `<div class="$cssClass"
 
 ### `get_post_categories(?int $pageId = null): array`
 
-Zwraca tablicę kategorii (`id`, `name`, `slug`, `description`).
+Zwraca tablicę kategorii (`id`, `parent_id`, `name`, `slug`, `description`,
+`depth`). `depth` wynosi `0` dla kategorii głównych i rośnie z każdym poziomem
+zagnieżdżenia.
 
 ### `has_categories(?int $pageId = null): bool`
 
@@ -241,6 +243,47 @@ Wypisuje linki do archiwów kategorii (każdy z klasą `category-badge`).
     <div class="cats"><?php post_categories(); ?></div>
 <?php endif; ?>
 ```
+
+### `get_categories(array $args = []): array`
+
+Zwraca całą hierarchię kategorii jako płaską listę w kolejności pre-order.
+Każdy element ma `id`, `parent_id`, `name`, `slug`, `description` oraz `depth`.
+Argument `['with_post_counts' => true]` dodaje licznik bezpośrednich wpisów.
+
+```php
+<?php foreach (get_categories() as $category): ?>
+    <a href="<?= site_url('blog/category/' . $category['slug'], false) ?>"
+       style="padding-left: <?= (int) $category['depth'] * 16 ?>px">
+        <?= htmlspecialchars($category['name']) ?>
+    </a>
+<?php endforeach; ?>
+```
+
+### `get_category_tree(array $args = []): array`
+
+Zwraca hierarchię jako zagnieżdżone tablice. Każdy element zawiera tablicę
+`children` z bezpośrednimi podkategoriami.
+
+```php
+<?php
+$renderCategories = function (array $categories) use (&$renderCategories): void {
+    if ($categories === []) return;
+    echo '<ul>';
+    foreach ($categories as $category) {
+        echo '<li>' . htmlspecialchars($category['name']);
+        $renderCategories($category['children'] ?? []);
+        echo '</li>';
+    }
+    echo '</ul>';
+};
+$renderCategories(get_category_tree());
+?>
+```
+
+### `get_category_children(int $parentId = 0, array $args = []): array`
+
+Zwraca bezpośrednie dzieci kategorii (`0` = poziom główny). Każde dziecko
+zachowuje własną tablicę `children`.
 
 ---
 
@@ -545,7 +588,7 @@ To samo, ale wypisuje z escapowaniem.
 
 ## Szybki indeks
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `get_categories`, `get_category_tree`, `get_category_children`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 

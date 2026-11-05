@@ -418,12 +418,14 @@ HTACCESS;
 
                 CREATE TABLE categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    parent_id INTEGER NOT NULL DEFAULT 0,
                     name TEXT NOT NULL,
                     slug TEXT NOT NULL UNIQUE,
                     description TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX idx_categories_slug ON categories(slug);
+                CREATE INDEX idx_categories_parent ON categories(parent_id);
 
                 CREATE TABLE page_categories (
                     page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,

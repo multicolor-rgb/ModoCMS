@@ -104,6 +104,7 @@ require_once __DIR__ . '/views/header.php';
             <input type="hidden" name="action" value="save_translations">
             <input type="hidden" name="csrf_token" value="<?= Security::generateCsrfToken() ?>">
 
+            <div class="table-responsive">
             <table class="pro-table" style="margin-bottom: 16px;">
                 <thead>
                     <tr><th><?= _e('Original Source Key') ?></th><th><?= _e('Translation') ?> (<?= strtoupper(Security::sanitize($activeLang)) ?>)</th></tr>
@@ -129,6 +130,7 @@ require_once __DIR__ . '/views/header.php';
                     </tr>
                 </tbody>
             </table>
+            </div>
 
             <button type="submit" class="btn btn-primary"><?= _e('Save Dictionary') ?> (<?= strtoupper(Security::sanitize($activeLang)) ?>)</button>
         </form>

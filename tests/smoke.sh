@@ -31,6 +31,11 @@ require "core/bootstrap.php";
 $db = \Core\Database::getConnection();
 $db->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (\"install_completed\", \"1\")")->execute();
 $db->prepare("UPDATE users SET password_hash = :h WHERE id = 1")->execute([":h" => password_hash("test1234", PASSWORD_BCRYPT)]);
+$columns = array_column($db->query("PRAGMA table_info(categories)")->fetchAll(), "name");
+if (!in_array("parent_id", $columns, true)) {
+    fwrite(STDERR, "FAIL: categories.parent_id is missing\n");
+    exit(1);
+}
 ' "$TMP"
 
 php -S "127.0.0.1:${PORT}" -t "$TMP" "$TMP/tests/router.php" >"$TMP/server.log" 2>&1 &
@@ -63,5 +68,7 @@ expect_status "/sitemap.xml" 200
 expect_status "/robots.txt" 200
 expect_status "/api/content.php" 401
 expect_status "/admin/upload.php" 401
+
+php "$ROOT/tests/category-tree.php"
 
 echo "Smoke test passed."

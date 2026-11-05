@@ -611,9 +611,54 @@ body {
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     box-shadow: var(--shadow-sm);
     width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+}
+
+/* Page hierarchy tree */
+.page-tree-toggle,
+.page-tree-toggle-spacer {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    margin-top: -1px;
+}
+
+.page-tree-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.page-tree-toggle:hover {
+    background: var(--bg-surface-hover, rgba(148, 163, 184, 0.12));
+    color: var(--text-main);
+}
+
+.page-tree-chevron {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.18s ease;
+}
+
+.page-tree-toggle.is-collapsed .page-tree-chevron {
+    transform: rotate(-90deg);
 }
 
 table.pro-table {
@@ -1068,6 +1113,10 @@ html.ui-modal-open { overflow: hidden; }
     #topbar { padding: 0 16px; gap: 10px; }
     .content-area { padding: 18px; }
     .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+
+    /* Keep wide admin tables usable instead of clipping their last columns */
+    .pro-table { min-width: 720px; }
+    table.pro-table.table-wide { min-width: 940px; }
 }
 
 @media (max-width: 640px) {
@@ -1087,7 +1136,9 @@ html.ui-modal-open { overflow: hidden; }
 
     /* Tables become horizontally scrollable */
     .table-container { overflow-x: auto !important; }
+    .table-responsive { overflow-x: auto; }
     .pro-table { min-width: 560px; }
+    table.pro-table.table-wide { min-width: 820px; }
 
     /* Collapse common inline two-column grids into a single column */
     [style*="grid-template-columns: 2fr 1fr"],

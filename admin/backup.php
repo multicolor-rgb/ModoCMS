@@ -174,6 +174,7 @@ require_once __DIR__ . '/views/header.php';
         <?= _e('Existing Backup Files') ?>
     </div>
 
+    <div class="table-responsive">
     <table class="pro-table">
         <thead>
             <tr>
@@ -243,6 +244,7 @@ require_once __DIR__ . '/views/header.php';
             <?php endif; ?>
         </tbody>
     </table>
+    </div>
 </div>
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>

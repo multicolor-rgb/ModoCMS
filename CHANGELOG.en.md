@@ -4,6 +4,24 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.3.0] — 2026-11-05
+
+### Added
+
+- **Hierarchical categories** — categories now have a `parent_id` and support multiple nesting levels. Existing categories become top-level entries, so the migration is fully backwards compatible.
+- **Category tree in the admin** — the category form has a parent selector and the list is rendered hierarchically with indentation. Deleting a category promotes its subcategories to the deleted category's parent.
+- **Category hierarchy in the post editor** — category checkboxes keep the tree order and indentation.
+- **Page tree in the content list** — pages are displayed as an expandable/collapsible tree with persisted state and "Expand all" / "Collapse all" buttons.
+- **Theme functions for the hierarchy** — `get_categories()`, `get_category_tree()` and `get_category_children()`; `get_post_categories()` now also returns `parent_id` and `depth`.
+
+### Changed
+
+- **Responsive admin tables** — tables get a horizontal scrollbar on medium and small screens instead of clipping their last columns. This covers the content list, categories and page types, among others.
+
+### Fixed
+
+- Fixed the missing horizontal scrollbar in admin tables at 641–900 px widths.
+
 ## [3.2.0] — 2026-11-05
 
 ### Added

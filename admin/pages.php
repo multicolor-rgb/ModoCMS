@@ -44,6 +44,79 @@ function resolveFullSlug(array $item, array $lookup): string {
 }
 
 /**
+ * Builds a pre-order forest from the already filtered page rows. A row whose
+ * parent is hidden by the current filters becomes a root, so no matching
+ * document disappears from the listing.
+ *
+ * @param array<int,array<string,mixed>> $items
+ * @return array<int,array<string,mixed>>
+ */
+function buildPageTreeRows(array $items): array {
+    $byId = [];
+    foreach ($items as $item) {
+        $byId[(int) $item['id']] = $item;
+    }
+
+    $children = [];
+    $roots = [];
+    foreach ($items as $item) {
+        $id = (int) $item['id'];
+        $parentId = (int) ($item['parent_id'] ?? 0);
+        if ($parentId > 0 && $parentId !== $id && isset($byId[$parentId])) {
+            $children[$parentId][] = $id;
+        } else {
+            $roots[] = $id;
+        }
+    }
+
+    $ordered = [];
+    $visited = [];
+    $walk = static function (int $id, int $depth) use (&$walk, &$byId, &$children, &$visited, &$ordered): void {
+        if (isset($visited[$id])) {
+            return;
+        }
+        $visited[$id] = true;
+        $node = $byId[$id];
+        $node['tree_depth'] = $depth;
+        $node['has_children'] = !empty($children[$id]);
+        $ordered[] = $node;
+        foreach ($children[$id] ?? [] as $childId) {
+            $walk($childId, $depth + 1);
+        }
+    };
+
+    foreach ($roots as $id) {
+        $walk($id, 0);
+    }
+
+    // Corrupted legacy data can contain cycles. Promote the remaining rows to
+    // roots and mark them as visited through the normal walk.
+    foreach ($byId as $id => $item) {
+        if (isset($visited[$id])) {
+            continue;
+        }
+        $byId[$id]['parent_id'] = 0;
+        $walk($id, 0);
+    }
+
+    return $ordered;
+}
+
+/**
+ * @param array<int,array<string,mixed>> $items
+ * @return array<int,array<string,mixed>>
+ */
+function flattenPageRows(array $items): array {
+    $rows = [];
+    foreach ($items as $item) {
+        $item['tree_depth'] = 0;
+        $item['has_children'] = false;
+        $rows[] = $item;
+    }
+    return $rows;
+}
+
+/**
  * Recursively deletes a menu item and all its nested sub-items (children).
  */
 function deleteMenuItemCascade(\PDO $db, int $menuItemId): void {
@@ -325,6 +398,17 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $items = $stmt->fetchAll();
 
+// Pages use parent_id for hierarchy; posts are always roots. Trash stays flat
+// so mixed deleted/restored states do not create confusing branches.
+$treeItems = $showTrash ? flattenPageRows($items) : buildPageTreeRows($items);
+$hasPageChildren = false;
+foreach ($treeItems as $treeItem) {
+    if (!empty($treeItem['has_children'])) {
+        $hasPageChildren = true;
+        break;
+    }
+}
+
 // Counts for filter pills
 $countAll = (int)$db->query("SELECT COUNT(*) FROM pages WHERE deleted_at IS NULL")->fetchColumn();
 $countPosts = (int)$db->query("SELECT COUNT(*) FROM pages WHERE type = 'post' AND deleted_at IS NULL")->fetchColumn();
@@ -489,8 +573,18 @@ require_once __DIR__ . '/views/header.php';
 </div>
 <?php endif; ?>
 
-<div class="table-container card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-subtle);">
-    <table class="pro-table">
+<?php if (!$showTrash && $hasPageChildren): ?>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+    <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Pages are shown as a tree. Use the arrows to expand or collapse subpages.') ?></span>
+    <div style="display: flex; gap: 6px;">
+        <button type="button" class="btn btn-secondary" id="pages-expand-all" style="padding: 4px 10px; font-size: 12px;"><?= _e('Expand all') ?></button>
+        <button type="button" class="btn btn-secondary" id="pages-collapse-all" style="padding: 4px 10px; font-size: 12px;"><?= _e('Collapse all') ?></button>
+    </div>
+</div>
+<?php endif; ?>
+
+<div class="table-container card table-responsive" style="padding: 0; border: 1px solid var(--border-subtle);">
+    <table class="pro-table table-wide">
         <thead>
             <tr>
                 <?php if (!$showTrash): ?><th style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" aria-label="<?= _e('Select all') ?>"></th><?php else: ?><th style="width: 40px;"></th><?php endif; ?>
@@ -504,18 +598,23 @@ require_once __DIR__ . '/views/header.php';
                 <th style="text-align: right; width: 110px;"><?= _e('Actions') ?></th>
             </tr>
         </thead>
-        <tbody>
-            <?php if (empty($items)): ?>
+        <tbody id="pages-tree-body">
+            <?php if (empty($treeItems)): ?>
                 <tr>
                     <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 48px 20px;">
                         <p style="margin: 0; font-size: 14px;"><?= _e('No matching documents found.') ?></p>
                     </td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($items as $item): 
+                <?php foreach ($treeItems as $item):
                     $fullPath = resolveFullSlug($item, $lookupPages);
+                    $treeDepth = (int) ($item['tree_depth'] ?? 0);
                 ?>
-                    <tr>
+                    <tr class="page-tree-row"
+                        data-page-id="<?= (int) $item['id'] ?>"
+                        data-parent-id="<?= (int) ($item['parent_id'] ?? 0) ?>"
+                        data-depth="<?= $treeDepth ?>"
+                        data-has-children="<?= !empty($item['has_children']) ? '1' : '0' ?>">
                         <td style="text-align: center; vertical-align: middle;">
                             <?php if (!$showTrash): ?>
                                 <input type="checkbox" class="bulk-checkbox" name="ids[]" value="<?= (int)$item['id'] ?>" aria-label="<?= _e('Select') ?>">
@@ -534,13 +633,24 @@ require_once __DIR__ . '/views/header.php';
                             <?php endif; ?>
                         </td>
                         <td>
-                            <strong style="font-size: 14px;">
-                                <a href="page-edit.php?id=<?= $item['id'] ?>" style="color: var(--text-main); text-decoration: none;">
-                                    <?= Security::sanitize($item['title']) ?>
-                                </a>
-                            </strong>
-                            <div style="color: var(--text-muted); font-size: 12px; font-family: ui-monospace, monospace; margin-top: 2px;">
-                                <?= htmlspecialchars($fullPath, ENT_QUOTES, 'UTF-8') ?>
+                            <div style="display: flex; align-items: flex-start; gap: 6px; padding-left: <?= $treeDepth * 20 ?>px;">
+                                <?php if (!$showTrash && !empty($item['has_children'])): ?>
+                                    <button type="button" class="page-tree-toggle" data-target-id="<?= (int) $item['id'] ?>" aria-expanded="true" aria-label="<?= _e('Toggle subpages') ?>" title="<?= _e('Toggle subpages') ?>">
+                                        <svg class="page-tree-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7 5l6 5-6 5"/></svg>
+                                    </button>
+                                <?php else: ?>
+                                    <span class="page-tree-toggle-spacer" aria-hidden="true"></span>
+                                <?php endif; ?>
+                                <div style="min-width: 0;">
+                                    <strong style="font-size: 14px;">
+                                        <a href="page-edit.php?id=<?= $item['id'] ?>" style="color: var(--text-main); text-decoration: none;">
+                                            <?= Security::sanitize($item['title']) ?>
+                                        </a>
+                                    </strong>
+                                    <div style="color: var(--text-muted); font-size: 12px; font-family: ui-monospace, monospace; margin-top: 2px;">
+                                        <?= htmlspecialchars($fullPath, ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                         <td>
@@ -768,5 +878,84 @@ delModal.addEventListener('click', (e) => {
 })();
 </script>
 
+
+<?php if (!$showTrash): ?>
+<script>
+(function () {
+    const body = document.getElementById('pages-tree-body');
+    if (!body) return;
+
+    const rows = Array.from(body.querySelectorAll('tr.page-tree-row'));
+    if (!rows.length) return;
+
+    const rowById = new Map(rows.map((row) => [row.dataset.pageId, row]));
+    const storageKey = 'modo_pages_collapsed';
+    let collapsed = new Set();
+
+    try {
+        const raw = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        if (Array.isArray(raw)) collapsed = new Set(raw.map(String));
+    } catch (e) {
+        collapsed = new Set();
+    }
+
+    const save = () => {
+        try { localStorage.setItem(storageKey, JSON.stringify(Array.from(collapsed))); } catch (e) {}
+    };
+
+    const hiddenByAncestor = (row) => {
+        let parentId = row.dataset.parentId;
+        const seen = new Set();
+        while (parentId && parentId !== '0' && rowById.has(parentId)) {
+            if (collapsed.has(parentId)) return true;
+            if (seen.has(parentId)) break;
+            seen.add(parentId);
+            parentId = rowById.get(parentId).dataset.parentId;
+        }
+        return false;
+    };
+
+    const apply = () => {
+        rows.forEach((row) => {
+            row.style.display = hiddenByAncestor(row) ? 'none' : '';
+            const toggle = row.querySelector('.page-tree-toggle');
+            if (!toggle) return;
+            const isCollapsed = collapsed.has(row.dataset.pageId);
+            toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+            toggle.classList.toggle('is-collapsed', isCollapsed);
+        });
+    };
+
+    body.addEventListener('click', (event) => {
+        const button = event.target.closest('.page-tree-toggle');
+        if (!button) return;
+        const row = button.closest('tr.page-tree-row');
+        if (!row) return;
+        const id = row.dataset.pageId;
+        if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+        save();
+        apply();
+    });
+
+    const expandAll = document.getElementById('pages-expand-all');
+    if (expandAll) {
+        expandAll.addEventListener('click', () => { collapsed.clear(); save(); apply(); });
+    }
+
+    const collapseAll = document.getElementById('pages-collapse-all');
+    if (collapseAll) {
+        collapseAll.addEventListener('click', () => {
+            rows.forEach((row) => {
+                if (row.dataset.hasChildren === '1') collapsed.add(row.dataset.pageId);
+            });
+            save();
+            apply();
+        });
+    }
+
+    apply();
+})();
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>

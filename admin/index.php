@@ -211,6 +211,7 @@ $healthOk = count($healthRows) - count($healthIssues);
             <!-- Top Visited Routes -->
             <div style="margin-top: 16px;">
                 <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;"><?= _e('Top Visited Pages') ?></span>
+                <div class="table-responsive">
                 <table class="pro-table" style="margin-top: 8px;">
                     <thead>
                         <tr>
@@ -241,6 +242,7 @@ $healthOk = count($healthRows) - count($healthIssues);
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 

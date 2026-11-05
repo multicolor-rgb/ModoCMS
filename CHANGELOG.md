@@ -4,6 +4,24 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.3.0] — 2026-11-05
+
+### Dodane
+
+- **Hierarchiczne kategorie** — kategorie mają teraz `parent_id` i obsługują wiele poziomów zagnieżdżenia. Istniejące kategorie stają się kategoriami głównymi, więc migracja jest w pełni zgodna wstecz.
+- **Drzewo kategorii w adminie** — formularz kategorii ma wybór rodzica, a lista jest wyświetlana hierarchicznie z wcięciami. Usunięcie kategorii przepina jej podkategorie do kategorii nadrzędnej.
+- **Hierarchia kategorii w edytorze wpisu** — checkboxy kategorii zachowują kolejność i wcięcia drzewa.
+- **Drzewo stron w liście treści** — strony są wyświetlane jako drzewo z rozwijaniem i zwijaniem, zapamiętywaniem stanu oraz przyciskami „Rozwiń wszystkie” i „Zwiń wszystkie”.
+- **Funkcje motywu dla hierarchii** — `get_categories()`, `get_category_tree()` i `get_category_children()`; `get_post_categories()` zwraca teraz również `parent_id` i `depth`.
+
+### Zmienione
+
+- **Responsywne tabele w adminie** — tabele mają poziomy suwak na średnich i małych ekranach, zamiast ucinać ostatnie kolumny. Dotyczy to m.in. listy treści, kategorii i typów stron.
+
+### Poprawione
+
+- Naprawiono brak widocznego suwaka poziomego w tabelach admina na ekranach o szerokości 641–900 px.
+
 ## [3.2.0] — 2026-11-05
 
 ### Dodane

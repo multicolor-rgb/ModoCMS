@@ -183,12 +183,14 @@ final class Database {
 
             CREATE TABLE IF NOT EXISTS categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parent_id INTEGER NOT NULL DEFAULT 0,
                 name TEXT NOT NULL,
                 slug TEXT NOT NULL UNIQUE,
                 description TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+            CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
 
             CREATE TABLE IF NOT EXISTS page_categories (
                 page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -500,12 +502,14 @@ final class Database {
 
                 CREATE TABLE IF NOT EXISTS categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    parent_id INTEGER NOT NULL DEFAULT 0,
                     name TEXT NOT NULL,
                     slug TEXT NOT NULL UNIQUE,
                     description TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+                CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
 
                 CREATE TABLE IF NOT EXISTS page_categories (
                     page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -578,6 +582,7 @@ final class Database {
         self::ensureColumn($db, 'pages', 'page_type_id', 'INTEGER');
         self::ensureColumn($db, 'page_meta', 'meta_label', 'TEXT');
         self::ensureColumn($db, 'page_revisions', 'page_type_id', 'INTEGER');
+        self::ensureColumn($db, 'categories', 'parent_id', 'INTEGER NOT NULL DEFAULT 0');
 
         // The index can only be created after the column exists on older installs.
         try {
@@ -585,6 +590,7 @@ final class Database {
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at)");
+            $db->exec("CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id)");
         } catch (PDOException $e) {
             // Optional — ignore.
         }

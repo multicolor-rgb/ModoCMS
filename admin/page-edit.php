@@ -547,8 +547,8 @@ foreach ($allLangPages->fetchAll() as $p) {
     $lookupPages[(int)$p['id']] = $p;
 }
 
-// Categories available for assignment (flat list, shown for blog posts only).
-$allCategories = $db->query("SELECT id, name, slug FROM categories ORDER BY name ASC")->fetchAll();
+// Categories available for assignment (hierarchical, shown for blog posts only).
+$allCategories = \Core\CategoryTree::flatten(\Core\CategoryTree::all());
 
 function resolveParentPath(int $parentId, array $lookup): string {
     $slugs = [];
@@ -1164,7 +1164,7 @@ require_once __DIR__ . '/views/header.php';
                         <input class="form-control" type="text" id="category-filter" placeholder="<?= _e('Filter categories...') ?>" style="margin-bottom: 8px; font-size: 12px;">
                         <div id="category-checkbox-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface, #1e293b);">
                             <?php foreach ($allCategories as $category): ?>
-                                <label class="category-option" style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin: 0;">
+                                <label class="category-option" style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin: 0; padding-left: <?= (int) $category['depth'] * 16 ?>px;">
                                     <input type="checkbox" name="categories[]" value="<?= (int) $category['id'] ?>" <?= in_array((int) $category['id'], $assignedCategoryIds, true) ? 'checked' : '' ?>>
                                     <span><?= Security::sanitize((string) $category['name']) ?></span>
                                 </label>

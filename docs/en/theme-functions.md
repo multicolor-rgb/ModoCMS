@@ -222,7 +222,9 @@ Prints links to the tags (each with class `tag-badge`) wrapped in a `<div class=
 
 ### `get_post_categories(?int $pageId = null): array`
 
-Returns an array of categories (`id`, `name`, `slug`, `description`).
+Returns an array of categories (`id`, `parent_id`, `name`, `slug`, `description`,
+`depth`). `depth` is `0` for top-level categories and grows with each nesting
+level.
 
 ### `has_categories(?int $pageId = null): bool`
 
@@ -237,6 +239,47 @@ Prints links to the category archives (each with class `category-badge`).
     <div class="cats"><?php post_categories(); ?></div>
 <?php endif; ?>
 ```
+
+### `get_categories(array $args = []): array`
+
+Returns the whole category hierarchy as a flat pre-order list. Every entry has
+`id`, `parent_id`, `name`, `slug`, `description` and `depth`. Pass
+`['with_post_counts' => true]` to include a direct post counter.
+
+```php
+<?php foreach (get_categories() as $category): ?>
+    <a href="<?= site_url('blog/category/' . $category['slug'], false) ?>"
+       style="padding-left: <?= (int) $category['depth'] * 16 ?>px">
+        <?= htmlspecialchars($category['name']) ?>
+    </a>
+<?php endforeach; ?>
+```
+
+### `get_category_tree(array $args = []): array`
+
+Returns the hierarchy as nested arrays. Each entry contains a `children` array
+with its direct subcategories.
+
+```php
+<?php
+$renderCategories = function (array $categories) use (&$renderCategories): void {
+    if ($categories === []) return;
+    echo '<ul>';
+    foreach ($categories as $category) {
+        echo '<li>' . htmlspecialchars($category['name']);
+        $renderCategories($category['children'] ?? []);
+        echo '</li>';
+    }
+    echo '</ul>';
+};
+$renderCategories(get_category_tree());
+?>
+```
+
+### `get_category_children(int $parentId = 0, array $args = []): array`
+
+Returns the direct children of a category (`0` = top level). Each child keeps
+its own nested `children` array.
 
 ---
 
@@ -531,7 +574,7 @@ Same, but prints it escaped.
 
 ## Quick index
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `get_categories`, `get_category_tree`, `get_category_children`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 
