@@ -1427,7 +1427,7 @@ function uploadFiles(files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', MEDIA_CURRENT_FOLDER);
-        formData.append('csrf', csrf);
+        formData.append('csrf', window.MODO_CSRF || '');
 
         fetch('upload.php', { method: 'POST', body: formData })
             .then((res) => res.json())

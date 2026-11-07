@@ -4,6 +4,12 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.3.1] — 2026-11-07
+
+### Fixed
+
+- **File uploads in the Media tab** — the "+ Upload File" button and drag-and-drop now send files to the server again. Since version 3.0.9 `admin/media.php` referenced an undefined `csrf` variable, so the browser aborted the request before sending it (`ReferenceError: csrf is not defined`) and the UI showed no error. The CSRF token is now read from `window.MODO_CSRF`, matching the other admin panels. The regression was introduced in commit `5c9f5d6` ("release: 3.0.9 — security hardening, content API and tooling").
+
 ## [3.3.0] — 2026-11-05
 
 ### Added

@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.2.0.
+# Release notes for Modo CMS 3.3.1.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,17 +53,11 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.2.0
-            - **Site Health:** installation score and actionable checks on the dashboard.
-            - **Trash and previews:** restore deleted content and share signed draft links.
-            - **RSS and cron:** `/feed.xml`, scheduled tasks, trash cleanup and sitemap refresh.
-            - **Documentation:** new automation and maintenance guide on GitHub Pages.
+            ### What's new in 3.3.1
+            - **Media uploads fixed:** files can be uploaded from the Media tab again; the request no longer fails on an undefined CSRF variable.
 
-            ### Najważniejsze zmiany w 3.2.0
-            - **Site Health:** ocena instalacji i lista problemów na dashboardzie.
-            - **Kosz i podglądy:** przywracanie usuniętych treści i podpisane linki do szkiców.
-            - **RSS i cron:** `/feed.xml`, zadania cykliczne, czyszczenie kosza i odświeżanie sitemapy.
-            - **Dokumentacja:** nowy przewodnik po automatyzacji i konserwacji na GitHub Pages.
+            ### Najważniejsze zmiany w 3.3.1
+            - **Naprawiony upload w Mediach:** pliki znów wgrywają się z zakładki Media; żądanie nie przerywa się już na niezdefiniowanej zmiennej CSRF.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
