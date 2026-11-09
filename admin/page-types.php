@@ -70,6 +70,7 @@ if (!function_exists('renderTypeFieldRow')) {
 
         $removeLabel = htmlspecialchars(__('Remove'), ENT_QUOTES, 'UTF-8');
         $upLabel = htmlspecialchars(__('Move up'), ENT_QUOTES, 'UTF-8');
+        $dragLabel = htmlspecialchars(__('Drag to reorder'), ENT_QUOTES, 'UTF-8');
         $downLabel = htmlspecialchars(__('Move down'), ENT_QUOTES, 'UTF-8');
         $keyLabel = htmlspecialchars(__('Field key'), ENT_QUOTES, 'UTF-8');
         $labelLabel = htmlspecialchars(__('Label'), ENT_QUOTES, 'UTF-8');
@@ -80,6 +81,7 @@ if (!function_exists('renderTypeFieldRow')) {
         return <<<HTML
 <div class="pt-field-row" style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-surface, #1e293b);">
     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        <span class="field-order-handle pt-field-drag" draggable="true" title="{$dragLabel}" aria-hidden="true">&#8942;&#8942;</span>
         <input class="form-control pt-field-key" type="text" name="fields_key[]" value="{$key}" placeholder="{$keyLabel}" style="flex: 1 1 140px; min-width: 110px; font-size: 13px;">
         <input class="form-control pt-field-label" type="text" name="fields_label[]" value="{$label}" placeholder="{$labelLabel}" style="flex: 1 1 160px; min-width: 120px; font-size: 13px;">
         <select class="form-control pt-field-type" name="fields_type[]" style="flex: 0 0 150px; font-size: 13px;">{$options}</select>
@@ -376,17 +378,14 @@ require_once __DIR__ . '/views/header.php';
     function wireRow(row) {
         const remove = row.querySelector('.pt-field-remove');
         if (remove) remove.addEventListener('click', () => { row.remove(); refreshEmpty(); });
+    }
 
-        const up = row.querySelector('.pt-field-up');
-        if (up) up.addEventListener('click', () => {
-            const prev = row.previousElementSibling;
-            if (prev) list.insertBefore(row, prev);
-        });
-
-        const down = row.querySelector('.pt-field-down');
-        if (down) down.addEventListener('click', () => {
-            const next = row.nextElementSibling;
-            if (next) list.insertBefore(next, row);
+    if (window.ModoFieldOrder) {
+        window.ModoFieldOrder.attach(list, {
+            rowSelector: '.pt-field-row',
+            handleSelector: '.pt-field-drag',
+            upSelector: '.pt-field-up',
+            downSelector: '.pt-field-down'
         });
     }
 
@@ -408,9 +407,11 @@ require_once __DIR__ . '/views/header.php';
         slugInput.addEventListener('input', () => { manualSlug = slugInput.value.trim() !== ''; });
         nameInput.addEventListener('input', () => {
             if (manualSlug) return;
-            slugInput.value = nameInput.value.toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
+            slugInput.value = window.ModoSlugify
+                ? window.ModoSlugify(nameInput.value)
+                : nameInput.value.toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '');
         });
     }
 })();

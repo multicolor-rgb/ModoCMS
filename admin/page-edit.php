@@ -78,7 +78,7 @@ if ($id > 0) {
 // Load custom fields (page_meta) attached to this record.
 $customFields = [];
 if ($id > 0) {
-    $metaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+    $metaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY sort_order ASC, id ASC");
     $metaStmt->execute([':pid' => $id]);
     $customFields = $metaStmt->fetchAll();
 } elseif ((int) ($item['page_type_id'] ?? 0) > 0) {
@@ -100,7 +100,7 @@ try {
     ");
     $srcStmt->execute([':cur' => $id]);
     $srcRows = $srcStmt->fetchAll();
-    $srcMetaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+    $srcMetaStmt = $db->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY sort_order ASC, id ASC");
     foreach ($srcRows as $srcRow) {
         $srcMetaStmt->execute([':pid' => $srcRow['id']]);
         $fields = [];
@@ -187,6 +187,9 @@ function renderCustomFieldRow(array $cf = []): string
     $lChooseLibrary = htmlspecialchars(__('Choose from library'), ENT_QUOTES, 'UTF-8');
     $lEnabled  = htmlspecialchars(__('Enabled'), ENT_QUOTES, 'UTF-8');
     $lRemove   = htmlspecialchars(__('Remove'), ENT_QUOTES, 'UTF-8');
+    $lMoveUp   = htmlspecialchars(__('Move up'), ENT_QUOTES, 'UTF-8');
+    $lMoveDown = htmlspecialchars(__('Move down'), ENT_QUOTES, 'UTF-8');
+    $lDrag     = htmlspecialchars(__('Drag to reorder'), ENT_QUOTES, 'UTF-8');
     $lValue    = htmlspecialchars(__('Field Value'), ENT_QUOTES, 'UTF-8');
     $lAddImages    = htmlspecialchars(__('Add images'), ENT_QUOTES, 'UTF-8');
     $lUploadImages = htmlspecialchars(__('Upload images'), ENT_QUOTES, 'UTF-8');
@@ -221,9 +224,12 @@ function renderCustomFieldRow(array $cf = []): string
 
     return <<<HTML
 <div class="custom-field-row" data-type="{$type}" style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-    <div class="cf-settings" style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <div class="cf-settings" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <span class="field-order-handle cf-field-drag" draggable="true" title="{$lDrag}" aria-hidden="true">&#8942;&#8942;</span>
         <input class="form-control cf-key" type="text" name="custom_field_key[]" value="{$key}" placeholder="key" style="flex: 1 1 160px; min-width: 120px; font-size: 13px;">
         <select class="form-control cf-type" name="custom_field_type[]" style="flex: 0 0 140px; font-size: 13px;">{$opts}</select>
+        <button type="button" class="btn btn-secondary cf-field-up" title="{$lMoveUp}" style="font-size: 13px; padding: 4px 9px; line-height: 1;">&uarr;</button>
+        <button type="button" class="btn btn-secondary cf-field-down" title="{$lMoveDown}" style="font-size: 13px; padding: 4px 9px; line-height: 1;">&darr;</button>
         <button type="button" class="btn btn-danger-ghost remove-custom-field" title="{$lRemove}" style="flex: 0 0 auto; font-size: 16px; padding: 4px 12px; line-height: 1;">&times;</button>
     </div>
     <div class="cf-value-part" style="display: flex; flex-direction: column; gap: 6px;">
@@ -437,7 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($tagsInput !== '') {
             $tagList = array_unique(array_filter(array_map('trim', explode(',', $tagsInput))));
             foreach ($tagList as $rawTag) {
-                $tagSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $rawTag), '-'));
+                $tagSlug = \Core\Slug::slugify($rawTag);
                 if ($tagSlug === '') continue;
 
                 $tagCheck = $db->prepare("SELECT id FROM tags WHERE slug = :s LIMIT 1");
@@ -487,8 +493,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postedLabels = $_POST['custom_field_label'] ?? [];
         $allowedTypes = ['text', 'textarea', 'richtext', 'tinymce', 'gallery', 'image', 'checkbox', 'number', 'html', 'php', 'js', 'css', 'json', 'code'];
         $keptKeys = [];
-        $metaUpsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label) VALUES (:pid, :k, :v, :t, :l)");
+        $metaUpsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label, sort_order) VALUES (:pid, :k, :v, :t, :l, :sort_order)");
 
+        $order = 0;
         foreach (array_values($postedKeys) as $i => $rawKey) {
             $metaKey = strtolower(trim((string) preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) $rawKey), '_'));
             if ($metaKey === '' || in_array($metaKey, $keptKeys, true)) {
@@ -524,6 +531,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':v'   => $metaValue,
                 ':t'   => $metaType,
                 ':l'   => $metaLabel,
+                ':sort_order' => $order++,
             ]);
         }
 
@@ -1797,10 +1805,12 @@ function copyLiveUrl(btn) {
 if (titleInput) {
     titleInput.addEventListener('input', () => {
         if (<?= $id === 0 ? 'true' : 'false' ?> && slugInput && slugInput.dataset.manual !== '1') {
-            const auto = titleInput.value.toLowerCase()
-                .replace(/[^\w\s-]/g, '')
-                .replace(/[\s_-]+/g, '-')
-                .replace(/^-+|-+$/g, '');
+            const auto = window.ModoSlugify
+                ? window.ModoSlugify(titleInput.value)
+                : titleInput.value.toLowerCase()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/[\s_-]+/g, '-')
+                    .replace(/^-+|-+$/g, '');
             slugInput.value = auto;
         }
         updateHierarchicalSlugPreview();
@@ -2269,6 +2279,15 @@ mediaItems.forEach(item => {
     const cfTemplate = document.getElementById('custom-field-template');
     const cfAddBtn = document.getElementById('add-custom-field');
     if (!cfList || !cfTemplate || !cfAddBtn) return;
+
+    if (window.ModoFieldOrder) {
+        window.ModoFieldOrder.attach(cfList, {
+            rowSelector: '.custom-field-row',
+            handleSelector: '.cf-field-drag',
+            upSelector: '.cf-field-up',
+            downSelector: '.cf-field-down'
+        });
+    }
 
     const codeTypes = {
         html: 'htmlmixed',

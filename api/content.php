@@ -220,12 +220,12 @@ function apiSaveMeta(int $pageId, array $rows): void
 
     $db = Database::getConnection();
     $stmt = $db->prepare("
-        INSERT INTO page_meta (page_id, meta_key, meta_value, meta_type)
-        VALUES (:page_id, :key, :value, :type)
-        ON CONFLICT(page_id, meta_key) DO UPDATE SET meta_value = :value2, meta_type = :type2
+        INSERT INTO page_meta (page_id, meta_key, meta_value, meta_type, sort_order)
+        VALUES (:page_id, :key, :value, :type, :sort_order)
+        ON CONFLICT(page_id, meta_key) DO UPDATE SET meta_value = :value2, meta_type = :type2, sort_order = :sort_order2
     ");
 
-    foreach ($rows as $row) {
+    foreach (array_values($rows) as $order => $row) {
         $stmt->execute([
             ':page_id' => $pageId,
             ':key'     => $row['key'],
@@ -233,6 +233,8 @@ function apiSaveMeta(int $pageId, array $rows): void
             ':type'    => $row['type'],
             ':value2'  => (string)$row['value'],
             ':type2'   => $row['type'],
+            ':sort_order' => $order,
+            ':sort_order2' => $order,
         ]);
     }
 }
@@ -248,7 +250,7 @@ function apiFetchPage(int $id): ?array
 
 function apiFetchMeta(int $pageId): array
 {
-    $stmt = Database::getConnection()->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :id ORDER BY meta_key ASC");
+    $stmt = Database::getConnection()->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :id ORDER BY sort_order ASC, id ASC");
     $stmt->execute([':id' => $pageId]);
 
     $meta = [];
@@ -410,7 +412,7 @@ try {
 
         $slug = trim((string)($input['slug'] ?? ''));
         if ($slug === '') {
-            $slug = strtolower(trim((string)preg_replace('/[^A-Za-z0-9-]+/', '-', $title), '-'));
+            $slug = \Core\PageSlug::slugify($title);
         }
         $slug = PageSlug::unique($slug !== '' ? $slug : 'entry', $lang);
 

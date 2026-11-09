@@ -84,6 +84,17 @@ Kolejność jest używana przez pętlę wpisów, archiwa tagów i kategorii,
 opcji przywraca sortowanie według daty (wpisy) lub ID (strony) i nie usuwa
 zapisanej kolejności.
 
+### Kolejność pól i slugi
+
+W **Treść → Typy stron** pola domyślne można przesuwać uchwytem `⋮⋮` lub
+strzałkami. W edytorze dokumentu zakładka **Ustawienia** pól niestandardowych
+oferuje ten sam mechanizm; kolejność jest zapisywana w `page_meta.sort_order`
+i używana także przez `get_all_meta()` w motywie.
+
+Slug tworzony z tytułu zastępuje polskie znaki i typowe znaki łacińskie
+odpowiednikami ASCII, np. `Zażółć gęślą jaźń` → `zazolc-gesla-jazn`. Istniejące
+slugi nie są automatycznie zmieniane, żeby nie psuć zapisanych adresów.
+
 ### Kategorie
 
 Kategorie wpisów obsługują wiele poziomów zagnieżdżenia. W **Treść → Kategorie**

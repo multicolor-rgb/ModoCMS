@@ -70,5 +70,6 @@ expect_status "/api/content.php" 401
 expect_status "/admin/upload.php" 401
 
 php "$ROOT/tests/category-tree.php"
+php "$ROOT/tests/slug.php"
 
 echo "Smoke test passed."

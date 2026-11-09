@@ -113,6 +113,7 @@ final class Database {
                 meta_value TEXT,
                 meta_type TEXT DEFAULT 'text',
                 meta_label TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(page_id, meta_key)
             );
             CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
@@ -402,11 +403,11 @@ final class Database {
 
         // Demo Custom Fields dla strony domowej (przykład wykorzystania page_meta)
         $db->exec("
-            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type)
-            VALUES (1, 'banner_subtitle', 'Fast, lightweight and independent CMS', 'text');
+            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type, sort_order)
+            VALUES (1, 'banner_subtitle', 'Fast, lightweight and independent CMS', 'text', 0);
             
-            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type)
-            VALUES (3, 'banner_subtitle', 'Szybki, lekki i niezależny CMS', 'text');
+            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type, sort_order)
+            VALUES (3, 'banner_subtitle', 'Szybki, lekki i niezależny CMS', 'text', 0);
         ");
 
         // Default Main Menu
@@ -462,6 +463,7 @@ final class Database {
                     meta_value TEXT,
                     meta_type TEXT DEFAULT 'text',
                     meta_label TEXT,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
                     UNIQUE(page_id, meta_key)
                 );
                 CREATE INDEX IF NOT EXISTS idx_page_meta_page ON page_meta(page_id);
@@ -584,6 +586,7 @@ final class Database {
         self::ensureColumn($db, 'pages', 'page_type_id', 'INTEGER');
         self::ensureColumn($db, 'pages', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'page_meta', 'meta_label', 'TEXT');
+        self::ensureColumn($db, 'page_meta', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'page_revisions', 'page_type_id', 'INTEGER');
         self::ensureColumn($db, 'categories', 'parent_id', 'INTEGER NOT NULL DEFAULT 0');
 

@@ -229,6 +229,10 @@ if (!class_exists('ModoCarousel')) {
 
         private static function slugify(string $text): string
         {
+            if (class_exists(\Core\Slug::class)) {
+                return \Core\Slug::slugify($text, 'carousel');
+            }
+
             $text = trim($text);
             if ($text === '') {
                 return 'carousel';

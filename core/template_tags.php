@@ -498,7 +498,7 @@ if (!function_exists('modo_page_meta_all')) {
 
         $cache[$pageId] = [];
         try {
-            $stmt = Database::getConnection()->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid");
+            $stmt = Database::getConnection()->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY sort_order ASC, id ASC");
             $stmt->execute([':pid' => $pageId]);
             foreach ($stmt->fetchAll() ?: [] as $row) {
                 $cache[$pageId][(string)$row['meta_key']] = [
@@ -574,7 +574,7 @@ if (!function_exists('get_all_meta')) {
         }
         try {
             $db = Database::getConnection();
-            $stmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY meta_key ASC");
+            $stmt = $db->prepare("SELECT meta_key, meta_value, meta_type FROM page_meta WHERE page_id = :pid ORDER BY sort_order ASC, id ASC");
             $stmt->execute([':pid' => $pageId]);
             $out = [];
             foreach ($stmt->fetchAll() as $row) {

@@ -239,8 +239,9 @@ final class Revisions
         $db->prepare("DELETE FROM page_meta WHERE page_id = :pid")->execute([':pid' => $pageId]);
         $metaFields = json_decode((string) $rev['meta_json'], true);
         if (is_array($metaFields)) {
-            $metaInsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label) VALUES (:pid, :k, :v, :t, :l)");
+            $metaInsert = $db->prepare("INSERT OR REPLACE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label, sort_order) VALUES (:pid, :k, :v, :t, :l, :sort_order)");
             $seen = [];
+            $order = 0;
             foreach ($metaFields as $m) {
                 $metaKey = strtolower(trim((string) preg_replace('/[^A-Za-z0-9_\-]+/', '_', (string) ($m['key'] ?? '')), '_'));
                 if ($metaKey === '' || in_array($metaKey, $seen, true)) {
@@ -253,6 +254,7 @@ final class Revisions
                     ':v'   => (string) ($m['value'] ?? ''),
                     ':t'   => (string) ($m['type'] ?? 'text'),
                     ':l'   => (string) ($m['label'] ?? ($metaKey)),
+                    ':sort_order' => $order++,
                 ]);
             }
         }
@@ -262,7 +264,7 @@ final class Revisions
         if (($rev['type'] ?? '') === 'post' && !empty($rev['tags'])) {
             $tagList = array_unique(array_filter(array_map('trim', explode(',', (string) $rev['tags']))));
             foreach ($tagList as $rawTag) {
-                $tagSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $rawTag), '-'));
+                $tagSlug = Slug::slugify($rawTag);
                 if ($tagSlug === '') {
                     continue;
                 }
@@ -341,7 +343,7 @@ final class Revisions
     /** Serializes the document's custom fields into a JSON snapshot. */
     private static function collectMeta(int $pageId): string
     {
-        $stmt = self::db()->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY id ASC");
+        $stmt = self::db()->prepare("SELECT meta_key, meta_value, meta_type, meta_label FROM page_meta WHERE page_id = :pid ORDER BY sort_order ASC, id ASC");
         $stmt->execute([':pid' => $pageId]);
 
         $fields = [];

@@ -84,3 +84,30 @@ document.addEventListener('DOMContentLoaded', () => {
     sync();
     window.addEventListener('resize', sync);
 });
+
+
+/**
+ * Shared client-side slugifier for title/name inputs. Mirrors Core\Slug:
+ * Polish diacritics and other common Latin characters are transliterated
+ * before the ASCII slug is built.
+ */
+window.ModoSlugify = function (value, fallback) {
+    var map = {
+        'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+        'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a', 'ã': 'a', 'å': 'a', 'ç': 'c', 'č': 'c',
+        'ď': 'd', 'đ': 'd', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e', 'ě': 'e',
+        'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i', 'ı': 'i', 'ñ': 'n', 'ň': 'n',
+        'ö': 'o', 'ô': 'o', 'õ': 'o', 'ø': 'o', 'ő': 'o', 'ř': 'r', 'š': 's', 'ť': 't',
+        'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ů': 'u', 'ű': 'u', 'ý': 'y', 'ÿ': 'y', 'ž': 'z',
+        'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'þ': 'th', 'ð': 'd', '&': ' and ', '@': ' at '
+    };
+    var text = String(value || '').toLowerCase();
+    text = text.replace(/&/g, ' and ').replace(/@/g, ' at ');
+    text = text.replace(/[^\u0000-\u007f]/g, function (char) {
+        if (map[char]) return map[char];
+        var normalized = char.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return normalized;
+    });
+    text = text.replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+    return text || fallback || '';
+};

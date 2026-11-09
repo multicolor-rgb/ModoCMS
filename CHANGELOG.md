@@ -4,6 +4,14 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [Unreleased]
+
+### Dodane
+
+- **Kolejność pól w typach stron** — przeciąganie i strzałki ↑/↓ w edytorze typu strony.
+- **Kolejność pól niestandardowych** — ustawianie kolejności w zakładce Ustawienia pól; nowa kolumna `page_meta.sort_order`, zachowanie kolejności w edytorze i motywie.
+- **Transliteracja slugów** — polskie znaki (`ą`, `ć`, `ę`, `ł`, `ń`, `ó`, `ś`, `ź`, `ż`) oraz popularne znaki łacińskie są zamieniane na ASCII (`a`, `c`, `e`, `l`, `n`, `o`, `s`, `z`). Dotyczy stron, typów stron, kategorii, menu, tagów, snippetów, API i pluginów.
+
 ## [3.6.1] — 2026-11-09
 
 ### Poprawione

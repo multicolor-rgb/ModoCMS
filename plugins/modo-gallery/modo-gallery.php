@@ -236,6 +236,10 @@ if (!class_exists('ModoGallery')) {
 
         private static function slugify(string $text): string
         {
+            if (class_exists(\Core\Slug::class)) {
+                return \Core\Slug::slugify($text, 'gallery');
+            }
+
             $text = trim($text);
             if ($text === '') {
                 return 'gallery';

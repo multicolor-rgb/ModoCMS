@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     }
 
     $snippetId = (int) ($_POST['id'] ?? 0);
-    $name = strtolower(trim((string) preg_replace('/[^A-Za-z0-9_\-]+/', '-', (string) ($_POST['name'] ?? '')), '-'));
+    $name = \Core\Slug::slugify((string) ($_POST['name'] ?? ''));
     $label = trim((string) ($_POST['label'] ?? ''));
     $content = (string) ($_POST['content'] ?? '');
     $enabled = !empty($_POST['enabled']) ? 1 : 0;

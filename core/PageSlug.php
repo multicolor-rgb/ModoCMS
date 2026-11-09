@@ -14,10 +14,7 @@ final class PageSlug
      */
     public static function slugify(string $value): string
     {
-        $value = strtolower(trim($value));
-        $value = (string) preg_replace('/[^a-z0-9]+/', '-', $value);
-
-        return trim($value, '-');
+        return Slug::slugify($value);
     }
 
     /**

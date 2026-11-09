@@ -27,7 +27,7 @@ $form = ['id' => 0, 'name' => '', 'slug' => '', 'description' => '', 'parent_id'
  */
 function categorySlugify(string $value): string
 {
-    return strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $value), '-'));
+    return \Core\Slug::slugify($value);
 }
 
 // Handle create / update

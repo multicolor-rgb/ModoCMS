@@ -42,10 +42,7 @@ class PageTypes
 
     public static function slugify(string $value): string
     {
-        $value = strtolower(trim($value));
-        $value = (string) preg_replace('/[^a-z0-9]+/', '-', $value);
-
-        return trim($value, '-');
+        return Slug::slugify($value);
     }
 
     public static function normalizeKey(string $key): string
@@ -366,21 +363,21 @@ class PageTypes
         }
 
         $insert = $db->prepare("
-            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label)
-            VALUES (:pid, :key, :value, :type, :label)
+            INSERT OR IGNORE INTO page_meta (page_id, meta_key, meta_value, meta_type, meta_label, sort_order)
+            VALUES (:pid, :key, :value, :type, :label, :sort_order)
         ");
         $update = $overwrite
             ? $db->prepare("
-                UPDATE page_meta SET meta_type = :type, meta_label = :label
+                UPDATE page_meta SET meta_type = :type, meta_label = :label, sort_order = :sort_order
                 WHERE page_id = :pid AND meta_key = :key
             ")
             : $db->prepare("
-                UPDATE page_meta SET meta_type = :type, meta_label = :label
+                UPDATE page_meta SET meta_type = :type, meta_label = :label, sort_order = :sort_order
                 WHERE page_id = :pid AND meta_key = :key AND (meta_label IS NULL OR meta_label = '')
             ");
 
         $inserted = 0;
-        foreach ($fields as $field) {
+        foreach ($fields as $order => $field) {
             $key = $field['field_key'];
             $label = $field['label'] !== '' ? $field['label'] : $key;
 
@@ -391,6 +388,7 @@ class PageTypes
                     ':value' => $field['default_value'],
                     ':type'  => $field['field_type'],
                     ':label' => $label,
+                    ':sort_order' => $order,
                 ]);
                 $inserted++;
                 continue;
@@ -402,6 +400,7 @@ class PageTypes
                 ':label' => $label,
                 ':pid'   => $pageId,
                 ':key'   => $key,
+                ':sort_order' => $order,
             ]);
         }
 

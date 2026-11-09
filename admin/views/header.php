@@ -67,6 +67,7 @@ unset($_SESSION['admin_theme_reset']);
     </script>
 
     <link rel="stylesheet" href="assets/css/admin.css?v=<?= (int) @filemtime(__DIR__ . '/../assets/css/admin.css') ?>">
+    <script src="assets/js/field-order.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/field-order.js') ?>"></script>
     <?php if ($currentPage === 'media.php'): ?>
     <link rel="stylesheet" href="assets/vendor/cropperjs/cropper.min.css">
     <?php endif; ?>

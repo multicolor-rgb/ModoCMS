@@ -1868,3 +1868,25 @@ tr.is-order-dragging {
         min-height: 260px;
     }
 }
+
+/* Reorderable field rows (page types + custom field settings) */
+.field-order-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 4px;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    cursor: grab;
+    user-select: none;
+    flex: 0 0 auto;
+}
+
+.field-order-handle:active {
+    cursor: grabbing;
+}
+
+.is-field-dragging {
+    opacity: .5;
+}

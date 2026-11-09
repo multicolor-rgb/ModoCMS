@@ -85,6 +85,17 @@ The order is used by the post loop, tag and category archives,
 option restores date order for posts and id order for pages without deleting the
 saved positions.
 
+### Field order and slugs
+
+In **Content → Page Types** the default fields can be moved with the `⋮⋮` handle
+or the ↑/↓ arrows. The custom-field **Settings** tab in the document editor offers
+the same controls; the order is stored in `page_meta.sort_order` and is also used
+by `get_all_meta()` in themes.
+
+Slugs generated from titles transliterate Polish and other common Latin
+diacritics to ASCII, e.g. `Zażółć gęślą jaźń` → `zazolc-gesla-jazn`. Existing
+slugs are not changed automatically, so saved URLs keep working.
+
 ### Categories
 
 Blog categories support multiple nesting levels. In **Content → Categories**

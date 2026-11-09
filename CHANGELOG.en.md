@@ -4,6 +4,14 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Page type field ordering** — drag and drop plus ↑/↓ arrows in the page type editor.
+- **Custom field ordering** — set the order in the field Settings tab; new `page_meta.sort_order`, preserved in the editor and theme output.
+- **Slug transliteration** — Polish characters (`ą`, `ć`, `ę`, `ł`, `ń`, `ó`, `ś`, `ź`, `ż`) and common Latin diacritics are converted to ASCII (`a`, `c`, `e`, `l`, `n`, `o`, `s`, `z`). Applies to pages, page types, categories, menus, tags, snippets, the API and plugins.
+
 ## [3.6.1] — 2026-11-09
 
 ### Fixed

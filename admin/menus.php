@@ -18,7 +18,7 @@ $selectedMenuId = isset($_GET['menu']) ? (int)$_GET['menu'] : ($allMenus[0]['id'
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_menu') {
     if (!Security::verifyCsrfToken($_POST['csrf_token'] ?? '')) die('Invalid CSRF');
     $name = trim($_POST['menu_name'] ?? '');
-    $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $_POST['menu_slug'] ?: $name), '-'));
+    $slug = \Core\Slug::slugify($_POST['menu_slug'] ?: $name);
     if ($name && $slug) {
         try {
             $stmt = $db->prepare("INSERT INTO menus (name, slug) VALUES (:n, :s)");
