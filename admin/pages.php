@@ -15,6 +15,12 @@ $currentType = $_GET['type'] ?? 'all';
 $currentLang = $_GET['lang'] ?? 'all';
 $currentPageType = isset($_GET['page_type']) ? (int) $_GET['page_type'] : 0;
 $showTrash = (($_GET['trash'] ?? '') === '1');
+if ($showTrash) {
+    // The trash view is a flat list of every deleted document. Type and
+    // page-type filters belong to the regular content views only.
+    $currentType = 'all';
+    $currentPageType = 0;
+}
 $pageTypes = PageTypes::all();
 
 // Fetch all pages to calculate full hierarchical URL paths
@@ -256,7 +262,7 @@ if (in_array($pageAction, ['delete', 'restore', 'force_delete'], true)
         if (class_exists('Core\Sitemap')) {
             try { Sitemap::generate(); } catch (\Throwable $e) {}
         }
-        header('Location: pages.php?trash=1&type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . '&restored=1');
+        header('Location: pages.php?trash=1&lang=' . urlencode($returnLang) . '&restored=1');
         exit;
     }
 
@@ -268,7 +274,7 @@ if (in_array($pageAction, ['delete', 'restore', 'force_delete'], true)
                 try { Sitemap::generate(); } catch (\Throwable $e) {}
             }
         }
-        header('Location: pages.php?trash=1&type=' . urlencode($returnType) . '&lang=' . urlencode($returnLang) . '&deleted=1');
+        header('Location: pages.php?trash=1&lang=' . urlencode($returnLang) . '&deleted=1');
         exit;
     }
 }
@@ -388,7 +394,6 @@ if (!Auth::can('edit_others_pages')) {
     $conditions[] = "p.author_id = :aid";
     $params[':aid'] = Auth::id();
 }
-
 if (!empty($conditions)) {
     $sql .= " WHERE " . implode(" AND ", $conditions);
 }
@@ -423,10 +428,6 @@ $allUsers = [];
 if (Auth::can('edit_others_pages')) {
     $allUsers = $db->query("SELECT id, username FROM users ORDER BY username")->fetchAll();
 }
-
-
-
-$trashQuery = $showTrash ? '&trash=1' : '';
 
 require_once __DIR__ . '/views/header.php';
 ?>
@@ -477,22 +478,22 @@ require_once __DIR__ . '/views/header.php';
 <!-- Filters Toolbar -->
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
     <div style="display: flex; gap: 8px; align-items: center;">
-        <a href="pages.php?type=all&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>"
-           class="btn <?= $currentType === 'all' ? 'btn-primary' : 'btn-secondary' ?>" 
+        <a href="pages.php?type=all&lang=<?= urlencode($currentLang) ?>"
+           class="btn <?= (!$showTrash && $currentType === 'all') ? 'btn-primary' : 'btn-secondary' ?>"
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('All') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countAll ?>)</span>
         </a>
-        <a href="pages.php?type=post&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>"
-           class="btn <?= $currentType === 'post' ? 'btn-primary' : 'btn-secondary' ?>" 
+        <a href="pages.php?type=post&lang=<?= urlencode($currentLang) ?>"
+           class="btn <?= (!$showTrash && $currentType === 'post') ? 'btn-primary' : 'btn-secondary' ?>"
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('Posts') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countPosts ?>)</span>
         </a>
-        <a href="pages.php?type=page&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>"
-           class="btn <?= $currentType === 'page' ? 'btn-primary' : 'btn-secondary' ?>" 
+        <a href="pages.php?type=page&lang=<?= urlencode($currentLang) ?>"
+           class="btn <?= (!$showTrash && $currentType === 'page') ? 'btn-primary' : 'btn-secondary' ?>"
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('Pages') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countPages ?>)</span>
         </a>
-        <a href="pages.php?trash=1&type=<?= urlencode($currentType) ?>&lang=<?= urlencode($currentLang) ?>"
+        <a href="pages.php?trash=1"
            class="btn <?= $showTrash ? 'btn-primary' : 'btn-secondary' ?>"
            style="padding: 6px 14px; font-size: 12px;">
             <?= _e('Trash') ?> <span style="opacity: 0.75; font-size: 11px;">(<?= $countTrash ?>)</span>
@@ -501,10 +502,10 @@ require_once __DIR__ . '/views/header.php';
 
     <!-- Quick Language Filter -->
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <?php if (!empty($pageTypes)): ?>
+        <?php if (!empty($pageTypes) && !$showTrash): ?>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Page type:') ?></span>
-                <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="const value = this.value; const opt = this.options[this.selectedIndex]; const base = value === '0' ? <?= json_encode((string) $currentType) ?> : (opt.dataset.base || 'all'); location.href = 'pages.php?type=' + encodeURIComponent(base) + '&lang=<?= urlencode($currentLang) ?><?= $trashQuery ?>&page_type=' + encodeURIComponent(value);">
+                <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="const value = this.value; const opt = this.options[this.selectedIndex]; const base = value === '0' ? <?= json_encode((string) $currentType) ?> : (opt.dataset.base || 'all'); location.href = 'pages.php?type=' + encodeURIComponent(base) + '&lang=<?= urlencode($currentLang) ?>&page_type=' + encodeURIComponent(value);">
                     <option value="0"><?= _e('All page types') ?></option>
                     <?php foreach ($pageTypes as $preset): ?>
                         <option value="<?= (int) $preset['id'] ?>" data-base="<?= htmlspecialchars((string) $preset['base_type'], ENT_QUOTES, 'UTF-8') ?>" <?= $currentPageType === (int) $preset['id'] ? 'selected' : '' ?>>
@@ -516,7 +517,7 @@ require_once __DIR__ . '/views/header.php';
         <?php endif; ?>
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 12px; color: var(--text-muted);"><?= _e('Language:') ?></span>
-            <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="location.href='pages.php?type=<?= urlencode($currentType) ?>&lang=' + this.value<?= $currentPageType > 0 ? " + '&page_type=" . $currentPageType . "'" : '' ?><?= $showTrash ? " + '&trash=1'" : '' ?>">
+            <select class="form-control" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="location.href='pages.php?<?= $showTrash ? 'trash=1' : 'type=' . urlencode($currentType) . ($currentPageType > 0 ? '&page_type=' . $currentPageType : '') ?>&lang=' + this.value">
                 <option value="all" <?= $currentLang === 'all' ? 'selected' : '' ?>><?= _e('All Languages') ?></option>
                 <?php foreach (\Core\I18n::getAvailableLanguages() as $code => $name): ?>
                     <option value="<?= $code ?>" <?= $currentLang === $code ? 'selected' : '' ?>><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?> (<?= strtoupper($code) ?>)</option>

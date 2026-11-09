@@ -428,13 +428,64 @@ if (!class_exists('ModoGallery')) {
         {
             return '
             .mg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+            .mg-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:8px 0 10px;}
+            .mg-view-toggle{display:inline-flex;overflow:hidden;border:1px solid var(--border-subtle);border-radius:8px;}
+            .mg-view-btn{padding:4px 12px;border:none;background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;}
+            .mg-view-btn.is-active{background:var(--primary,#3b82f6);color:#fff;font-weight:600;}
+            .mg-bulk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+            .mg-bulk-btn{padding:4px 9px;font-size:11px;line-height:1.2;}
+            .mg-bulk-btn:disabled{opacity:.45;cursor:not-allowed;}
+            .mg-selectall{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;}
+            .mg-selected-count{min-width:40px;color:var(--text-muted);font-size:11px;white-space:nowrap;}
             .mg-items{display:flex;flex-direction:column;gap:10px;margin:8px 0 4px;}
-            .mg-item{display:grid;grid-template-columns:28px 84px minmax(0,1fr) 32px;gap:10px;align-items:center;padding:10px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface,#fff);}
-            .mg-item img{width:84px;height:60px;object-fit:cover;border-radius:6px;background:rgba(0,0,0,.05);}
-            .mg-item .mg-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+            .mg-item{display:grid;grid-template-columns:20px 18px 84px minmax(0,1fr) auto;grid-template-areas:"select drag thumb fields actions";gap:10px;align-items:center;padding:10px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface,#fff);position:relative;}
+            .mg-item.is-dragging{opacity:.55;}
+            .mg-item.is-selected{border-color:var(--primary,#3b82f6);box-shadow:0 0 0 1px var(--primary,#3b82f6) inset;}
+            .mg-select{grid-area:select;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+            .mg-select input{margin:0;cursor:pointer;}
+            .mg-item img{grid-area:thumb;width:84px;height:60px;object-fit:cover;border-radius:6px;background:rgba(0,0,0,.05);display:block;}
+            .mg-item .mg-fields{grid-area:fields;display:grid;grid-template-columns:1fr 1fr;gap:6px;min-width:0;}
             .mg-item .mg-fields .mg-full{grid-column:1 / -1;}
-            .mg-drag{cursor:grab;color:var(--text-muted);text-align:center;font-size:18px;user-select:none;}
-            .mg-btn-x{border:none;background:transparent;color:#dc2626;font-size:20px;line-height:1;cursor:pointer;padding:0 6px;}
+            .mg-drag{grid-area:drag;cursor:grab;color:var(--text-muted);text-align:center;font-size:15px;line-height:1;user-select:none;}
+            .mg-name{display:none;}
+            .mg-actions{grid-area:actions;display:flex;gap:3px;align-items:center;}
+            .mg-position-wrap{display:inline-flex;align-items:center;gap:3px;color:var(--text-muted);font-size:11px;white-space:nowrap;}
+            .mg-position{width:56px;padding:2px 4px;border:1px solid var(--border-subtle);border-radius:5px;background:transparent;color:var(--text-main);font-size:11px;text-align:center;}
+            .mg-btn-up,.mg-btn-down,.mg-btn-edit{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:1px solid var(--border-subtle);border-radius:5px;background:transparent;color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;}
+            .mg-btn-up:hover,.mg-btn-down:hover,.mg-btn-edit:hover{color:var(--text-main);border-color:var(--primary,#3b82f6);}
+            .mg-btn-x{border:none;background:transparent;color:#dc2626;font-size:20px;line-height:1;cursor:pointer;padding:0 4px;}
+            .mg-items.is-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:10px;}
+            .mg-items.is-grid .mg-item{display:flex;flex-direction:column;gap:5px;padding:6px;min-width:0;}
+            .mg-items.is-grid .mg-item img{width:100%;height:auto;aspect-ratio:4 / 3;}
+            .mg-items.is-grid .mg-fields{display:none;}
+            .mg-items.is-grid .mg-name{display:block;overflow:hidden;width:100%;padding:0 2px;color:var(--text-muted);font-size:10px;white-space:nowrap;text-overflow:ellipsis;}
+            .mg-items.is-grid .mg-select{position:absolute;top:8px;left:8px;z-index:2;padding:2px;background:rgba(15,23,42,.65);border-radius:4px;}
+            .mg-items.is-grid .mg-drag{position:absolute;top:8px;right:8px;z-index:2;padding:2px 4px;background:rgba(15,23,42,.65);border-radius:4px;pointer-events:none;}
+            .mg-items.is-grid .mg-actions{width:100%;justify-content:space-between;margin-top:auto;}
+            .mg-items.is-grid .mg-btn-up,.mg-items.is-grid .mg-btn-down{display:none;}
+            .mg-items.is-grid .mg-position{width:48px;}
+            html.mg-modal-lock{overflow:hidden;}
+            .mg-emodal{position:fixed;inset:0;z-index:100050;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(11,15,25,.8);backdrop-filter:blur(8px);}
+            .mg-emodal.is-open{display:flex;}
+            .mg-emodal__box{width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-surface,#fff);border:1px solid var(--border-subtle);border-radius:14px;box-shadow:0 25px 50px -12px rgba(0,0,0,.6);}
+            .mg-emodal__head,.mg-emodal__foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;}
+            .mg-emodal__head{border-bottom:1px solid var(--border-subtle);font-size:15px;}
+            .mg-emodal__foot{border-top:1px solid var(--border-subtle);justify-content:flex-end;}
+            .mg-emodal__body{display:flex;flex-direction:column;gap:10px;padding:18px;overflow-y:auto;}
+            .mg-emodal-preview{width:100%;max-height:240px;object-fit:contain;border-radius:8px;background:rgba(0,0,0,.08);}
+            .mg-emodal-name{overflow:hidden;color:var(--text-muted);font-family:monospace;font-size:11px;white-space:nowrap;text-overflow:ellipsis;}
+            .mg-emodal__body label{display:flex;flex-direction:column;gap:4px;color:var(--text-muted);font-size:11px;font-weight:600;}
+            .mg-emodal__position-row{display:flex;align-items:flex-end;gap:6px;}
+            .mg-emodal__position-row label{flex:1;}
+            .mg-emodal__close{border:none;background:transparent;color:var(--text-muted);font-size:24px;line-height:1;cursor:pointer;padding:0 2px;}
+            @media(max-width:720px){
+                .mg-item{grid-template-columns:20px 18px 56px minmax(0,1fr);grid-template-areas:"select drag thumb fields" "actions actions actions actions";}
+                .mg-item img{width:56px;height:42px;}
+                .mg-item .mg-fields{grid-template-columns:1fr;}
+                .mg-item .mg-fields .mg-full{grid-column:auto;}
+                .mg-actions{justify-content:flex-end;}
+                .mg-items.is-grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));}
+            }
             .mg-picker{position:fixed;inset:0;background:rgba(11,15,25,.8);z-index:99999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
             .mg-picker.open{display:flex;}
             .mg-picker-inner{width:92%;max-width:900px;max-height:86vh;display:flex;flex-direction:column;background:var(--bg-card,#fff);border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;}
@@ -522,8 +573,10 @@ if (!class_exists('ModoGallery')) {
         {
             $img = (string)($it['image'] ?? '');
             return '<div class="mg-item">'
-                . '<div class="mg-drag" draggable="true" title="' . $esc(__('mg_drag')) . '">&#9776;</div>'
+                . '<label class="mg-select" title="' . $esc(__('Select image')) . '"><input type="checkbox" class="mg-checkbox"></label>'
+                . '<div class="mg-drag" draggable="true" title="' . $esc(__('mg_drag')) . '">&#8942;&#8942;</div>'
                 . '<img src="' . $esc($img) . '" alt="" loading="lazy" decoding="async">'
+                . '<span class="mg-name"></span>'
                 . '<div class="mg-fields">'
                 . '<input type="hidden" name="mg_item_image[]" value="' . $esc($img) . '">'
                 . '<button type="button" class="btn btn-secondary mg-choose" style="font-size:11px;padding:4px 8px;">' . $esc(__('mg_choose')) . '</button>'
@@ -531,7 +584,13 @@ if (!class_exists('ModoGallery')) {
                 . '<input class="form-control mg-full" type="text" name="mg_item_caption[]" placeholder="' . $esc(__('mg_caption')) . '" value="' . $esc((string)($it['caption'] ?? '')) . '" style="font-size:12px;">'
                 . '<input class="form-control mg-full" type="text" name="mg_item_link[]" placeholder="' . $esc(__('mg_link')) . '" value="' . $esc((string)($it['link'] ?? '')) . '" style="font-size:12px;">'
                 . '</div>'
+                . '<div class="mg-actions">'
+                . '<label class="mg-position-wrap" title="' . $esc(__('Position')) . '">#<input type="number" class="mg-position" min="1" step="1" value="1"></label>'
+                . '<button type="button" class="mg-btn-up" title="' . $esc(__('Move up')) . '">&uarr;</button>'
+                . '<button type="button" class="mg-btn-down" title="' . $esc(__('Move down')) . '">&darr;</button>'
+                . '<button type="button" class="mg-btn-edit" title="' . $esc(__('Edit image')) . '">&#9998;</button>'
                 . '<button type="button" class="mg-btn-x" title="' . $esc(__('mg_remove')) . '">&times;</button>'
+                . '</div>'
                 . '</div>';
         }
 
@@ -628,6 +687,22 @@ if (!class_exists('ModoGallery')) {
             echo '<h3 style="margin:0;font-size:15px;">' . $esc(__('mg_images')) . '</h3>';
             echo '<button type="button" class="btn btn-primary" id="mg-add" style="font-size:12px;padding:6px 12px;">+ ' . $esc(__('mg_add_images')) . '</button>';
             echo '</div>';
+            echo '<div class="mg-toolbar">';
+            echo '<div class="mg-view-toggle" role="group" aria-label="' . $esc(__('Gallery view')) . '">';
+            echo '<button type="button" class="mg-view-btn" data-view="grid" aria-pressed="false">' . $esc(__('Grid')) . '</button>';
+            echo '<button type="button" class="mg-view-btn" data-view="list" aria-pressed="false">' . $esc(__('List')) . '</button>';
+            echo '</div>';
+            echo '<div class="mg-bulk">';
+            echo '<label class="mg-selectall"><input type="checkbox" class="mg-select-all"> <span>' . $esc(__('Select all')) . '</span></label>';
+            echo '<span class="mg-selected-count" aria-live="polite"></span>';
+            echo '<button type="button" class="btn btn-secondary mg-bulk-btn" data-action="reverse">' . $esc(__('Reverse order')) . '</button>';
+            echo '<button type="button" class="btn btn-secondary mg-bulk-btn" data-action="sort-asc">' . $esc(__('Sort A-Z')) . '</button>';
+            echo '<button type="button" class="btn btn-secondary mg-bulk-btn" data-action="sort-desc">' . $esc(__('Sort Z-A')) . '</button>';
+            echo '<button type="button" class="btn btn-secondary mg-bulk-btn" data-action="move-start" disabled>' . $esc(__('Move to start')) . '</button>';
+            echo '<button type="button" class="btn btn-secondary mg-bulk-btn" data-action="move-end" disabled>' . $esc(__('Move to end')) . '</button>';
+            echo '<button type="button" class="btn btn-danger-ghost mg-bulk-btn" data-action="remove-selected" disabled data-confirm="' . $esc(__('Remove selected images?')) . '">' . $esc(__('Remove selected')) . '</button>';
+            echo '</div>';
+            echo '</div>';
             echo '<div class="mg-items" id="mg-items">';
             if (empty($items)) {
                 echo '<div class="mg-empty" id="mg-empty">' . $esc(__('mg_no_images')) . '</div>';
@@ -638,6 +713,23 @@ if (!class_exists('ModoGallery')) {
             }
             echo '</div>';
             echo '</div><!-- /card items -->';
+
+            echo '<div class="mg-emodal" id="mg-edit-modal" aria-hidden="true">';
+            echo '<div class="mg-emodal__box" role="dialog" aria-modal="true" aria-labelledby="mg-edit-title">';
+            echo '<div class="mg-emodal__head"><strong id="mg-edit-title">' . $esc(__('Edit image')) . '</strong><button type="button" class="mg-emodal__close" title="' . $esc(__('Close')) . '">&times;</button></div>';
+            echo '<div class="mg-emodal__body">';
+            echo '<img class="mg-emodal-preview" src="" alt="" loading="lazy" decoding="async">';
+            echo '<div class="mg-emodal-name"></div>';
+            echo '<label>' . $esc(__('mg_alt')) . '<input class="form-control mg-emodal-alt" type="text" style="font-size:13px;"></label>';
+            echo '<label>' . $esc(__('mg_caption')) . '<input class="form-control mg-emodal-caption" type="text" style="font-size:13px;"></label>';
+            echo '<label>' . $esc(__('mg_link')) . '<input class="form-control mg-emodal-link" type="text" style="font-size:13px;"></label>';
+            echo '<div class="mg-emodal__position-row"><label>' . $esc(__('Position')) . '<input class="form-control mg-emodal-position" type="number" min="1" step="1" value="1" style="font-size:13px;"></label>';
+            echo '<button type="button" class="btn btn-secondary mg-emodal-up" title="' . $esc(__('Move up')) . '" style="padding:4px 9px;">&uarr;</button>';
+            echo '<button type="button" class="btn btn-secondary mg-emodal-down" title="' . $esc(__('Move down')) . '" style="padding:4px 9px;">&darr;</button></div>';
+            echo '<button type="button" class="btn btn-secondary mg-emodal-choose" style="align-self:flex-start;font-size:12px;">' . $esc(__('mg_choose')) . '</button>';
+            echo '</div>';
+            echo '<div class="mg-emodal__foot"><button type="button" class="btn btn-secondary mg-emodal-cancel">' . $esc(__('Cancel')) . '</button><button type="button" class="btn btn-primary mg-emodal-save">' . $esc(__('Save')) . '</button></div>';
+            echo '</div></div>';
 
             echo '<div style="display:flex;gap:10px;margin-bottom:20px;">';
             echo '<button type="submit" class="btn btn-primary">' . $esc(__('mg_save')) . '</button>';
@@ -684,95 +776,574 @@ if (!class_exists('ModoGallery')) {
             $esc = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
             $tpl = self::itemRow(['image' => '', 'alt' => '', 'caption' => '', 'link' => ''], $esc);
 
-            return '<template id="mg-tpl">' . $tpl . '</template>
-            <script>
-            (function(){
-                var picker=document.getElementById("mg-picker");
-                var itemsBox=document.getElementById("mg-items");
-                var tplEl=document.getElementById("mg-tpl");
-                if(!picker||!itemsBox||!tplEl) return;
-                var mode="add", targetRow=null, dragEl=null;
-                var folderFilter=document.getElementById("mg-folder-filter");
+            $script = <<<'JS'
+(function(){
+    var picker = document.getElementById("mg-picker");
+    var itemsBox = document.getElementById("mg-items");
+    var tplEl = document.getElementById("mg-tpl");
+    var editModal = document.getElementById("mg-edit-modal");
+    if (!picker || !itemsBox || !tplEl) return;
 
-                function applyFolderFilter(){
-                    if(!folderFilter) return;
-                    var value=folderFilter.value;
-                    picker.querySelectorAll(".mg-pick-thumb").forEach(function(t){
-                        t.style.display=(value==="__all__"||(t.getAttribute("data-folder")||"")===value)?"":"none";
-                    });
+    var mode = "add", targetRow = null, dragEl = null, editRow = null;
+    var folderFilter = document.getElementById("mg-folder-filter");
+    var EMPTY_TEXT = %%EMPTY%%;
+    var REMOVE_CONFIRM = %%CONFIRM%%;
+    var collator = (typeof Intl !== "undefined" && Intl.Collator)
+        ? new Intl.Collator(undefined, {numeric: true, sensitivity: "base"})
+        : null;
+    var savedView = null;
+    var FOLDER_STORAGE_KEY = "modoGalleryPickerFolder";
+    try { savedView = window.localStorage.getItem("modoGalleryView"); } catch (e) {}
+    var currentView = (savedView === "grid" || savedView === "list") ? savedView : null;
+
+    function items() {
+        return [].slice.call(itemsBox.querySelectorAll(".mg-item"));
+    }
+
+    function selectedItems() {
+        return items().filter(function(node) {
+            var checkbox = node.querySelector(".mg-checkbox");
+            return checkbox && checkbox.checked;
+        });
+    }
+
+    function fileName(url) {
+        try {
+            var parsed = new URL(String(url), window.location.origin);
+            var name = parsed.pathname.split("/").filter(Boolean).pop() || "";
+            return decodeURIComponent(name);
+        } catch (e) {
+            var parts = String(url || "").split("/").filter(Boolean);
+            return parts.length ? parts[parts.length - 1] : "";
+        }
+    }
+
+    function itemUrl(node) {
+        var input = node.querySelector('input[name="mg_item_image[]"]');
+        return input ? input.value : "";
+    }
+
+    function itemField(node, name) {
+        var input = node.querySelector('input[name="mg_item_' + name + '[]"]');
+        return input ? input.value : "";
+    }
+
+    function setItemField(node, name, value) {
+        var input = node.querySelector('input[name="mg_item_' + name + '[]"]');
+        if (input) input.value = value;
+    }
+
+    function updateEmpty() {
+        var empty = document.getElementById("mg-empty");
+        if (items().length === 0) {
+            if (!empty) {
+                empty = document.createElement("div");
+                empty.className = "mg-empty";
+                empty.id = "mg-empty";
+                empty.textContent = EMPTY_TEXT;
+                itemsBox.appendChild(empty);
+            }
+        } else if (empty) {
+            empty.remove();
+        }
+    }
+
+    function updateSelection() {
+        var all = items();
+        var chosen = selectedItems();
+        var count = chosen.length;
+
+        var counter = document.querySelector(".mg-selected-count");
+        if (counter) counter.textContent = count ? count + " / " + all.length : "";
+
+        var selectAll = document.querySelector(".mg-select-all");
+        if (selectAll) {
+            selectAll.checked = all.length > 0 && count === all.length;
+            selectAll.indeterminate = count > 0 && count < all.length;
+            selectAll.disabled = all.length === 0;
+        }
+
+        all.forEach(function(node) {
+            var checkbox = node.querySelector(".mg-checkbox");
+            node.classList.toggle("is-selected", !!(checkbox && checkbox.checked));
+        });
+
+        [["move-start", count === 0], ["move-end", count === 0], ["remove-selected", count === 0]].forEach(function(pair) {
+            var button = document.querySelector('.mg-bulk [data-action="' + pair[0] + '"]');
+            if (button) button.disabled = pair[1];
+        });
+    }
+
+    function updateNumbers() {
+        var all = items();
+        all.forEach(function(node, index) {
+            var position = node.querySelector(".mg-position");
+            if (position) {
+                position.max = String(all.length);
+                if (document.activeElement !== position) position.value = String(index + 1);
+            }
+            var name = node.querySelector(".mg-name");
+            if (name) name.textContent = fileName(itemUrl(node));
+        });
+        updateSelection();
+        updateEmpty();
+    }
+
+    function applyView(view) {
+        currentView = view === "grid" ? "grid" : "list";
+        itemsBox.classList.toggle("is-grid", currentView === "grid");
+
+        var toggle = document.querySelector(".mg-view-toggle");
+        if (toggle) {
+            [].slice.call(toggle.querySelectorAll(".mg-view-btn")).forEach(function(button) {
+                var active = button.getAttribute("data-view") === currentView;
+                button.classList.toggle("is-active", active);
+                button.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+        }
+
+        items().forEach(function(node) {
+            node.draggable = currentView === "grid";
+        });
+    }
+
+    function moveNode(node, targetIndex) {
+        var all = items();
+        var current = all.indexOf(node);
+        var max = all.length - 1;
+        var index = Math.max(0, Math.min(max, parseInt(targetIndex, 10)));
+
+        if (current === -1 || isNaN(index) || index === current) {
+            updateNumbers();
+            return;
+        }
+
+        if (index < current) {
+            itemsBox.insertBefore(node, all[index]);
+        } else {
+            itemsBox.insertBefore(node, all[index].nextSibling);
+        }
+        updateNumbers();
+    }
+
+    function removeNodes(nodes) {
+        nodes.forEach(function(node) { node.remove(); });
+        updateNumbers();
+    }
+
+    function addRow(url) {
+        var node = tplEl.content.firstElementChild.cloneNode(true);
+        var image = node.querySelector("img");
+        if (image) {
+            image.src = url;
+            image.draggable = false;
+        }
+        var hidden = node.querySelector('input[name="mg_item_image[]"]');
+        if (hidden) hidden.value = url;
+        var name = node.querySelector(".mg-name");
+        if (name) name.textContent = fileName(url);
+
+        node.draggable = currentView === "grid";
+        var empty = document.getElementById("mg-empty");
+        if (empty) empty.remove();
+        itemsBox.appendChild(node);
+        updateNumbers();
+        return node;
+    }
+
+    function folderExists(value) {
+        if (!folderFilter || !value) return false;
+        return [].slice.call(folderFilter.options).some(function(option) {
+            return option.value === value;
+        });
+    }
+
+    function readRememberedFolder() {
+        try {
+            return window.sessionStorage.getItem(FOLDER_STORAGE_KEY) || "";
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function writeRememberedFolder(value) {
+        try {
+            window.sessionStorage.setItem(FOLDER_STORAGE_KEY, value || "__all__");
+        } catch (e) {
+            /* sessionStorage may be unavailable */
+        }
+    }
+
+    function applyFolderFilter() {
+        if (!folderFilter) return;
+        var value = folderFilter.value;
+        picker.querySelectorAll(".mg-pick-thumb").forEach(function(thumb) {
+            thumb.style.display = (value === "__all__" || (thumb.getAttribute("data-folder") || "") === value) ? "" : "none";
+        });
+    }
+
+    if (folderFilter) {
+        folderFilter.addEventListener("change", function() { clearSel(); applyFolderFilter(); });
+    }
+
+    function clearSel() {
+        picker.querySelectorAll(".mg-pick-thumb.sel").forEach(function(thumb) { thumb.classList.remove("sel"); });
+    }
+
+    function open(openMode, row) {
+        mode = openMode;
+        targetRow = row || null;
+        clearSel();
+        if (folderFilter) {
+            folderFilter.value = "__all__";
+            var rememberedFolder = readRememberedFolder();
+            if (folderExists(rememberedFolder)) {
+                folderFilter.value = rememberedFolder;
+            }
+            applyFolderFilter();
+        }
+        picker.classList.add("open");
+    }
+
+    function close() {
+        if (folderFilter) {
+            writeRememberedFolder(folderFilter.value || "__all__");
+        }
+        picker.classList.remove("open");
+    }
+
+    var addBtn = document.getElementById("mg-add");
+    if (addBtn) addBtn.addEventListener("click", function() { open("add", null); });
+
+    var closeBtn = document.getElementById("mg-picker-close");
+    if (closeBtn) closeBtn.addEventListener("click", close);
+    picker.addEventListener("click", function(event) { if (event.target === picker) close(); });
+
+    picker.querySelectorAll(".mg-pick-thumb").forEach(function(thumb) {
+        thumb.addEventListener("click", function() {
+            if (mode === "replace") {
+                clearSel();
+                thumb.classList.add("sel");
+            } else {
+                thumb.classList.toggle("sel");
+            }
+        });
+    });
+
+    var insertBtn = document.getElementById("mg-picker-add");
+    if (insertBtn) {
+        insertBtn.addEventListener("click", function() {
+            var selected = [].slice.call(picker.querySelectorAll(".mg-pick-thumb.sel")).map(function(thumb) {
+                return thumb.getAttribute("data-url");
+            });
+
+            if (mode === "replace") {
+                if (selected.length && targetRow) {
+                    var image = targetRow.querySelector("img");
+                    if (image) image.src = selected[0];
+                    var hidden = targetRow.querySelector('input[name="mg_item_image[]"]');
+                    if (hidden) hidden.value = selected[0];
+                    var name = targetRow.querySelector(".mg-name");
+                    if (name) name.textContent = fileName(selected[0]);
+                    if (editRow === targetRow) updateModalPreview(selected[0]);
                 }
-                if(folderFilter){ folderFilter.addEventListener("change",function(){ clearSel(); applyFolderFilter(); }); }
+            } else {
+                selected.forEach(function(url) { addRow(url); });
+            }
+            close();
+        });
+    }
 
-                function clearSel(){ picker.querySelectorAll(".mg-pick-thumb.sel").forEach(function(t){t.classList.remove("sel");}); }
-                function open(m,t){
-                    mode=m; targetRow=t||null; clearSel();
-                    if(folderFilter){ folderFilter.value="__all__"; applyFolderFilter(); }
-                    picker.classList.add("open");
+    function updateModalPreview(url) {
+        if (!editModal) return;
+        var preview = editModal.querySelector(".mg-emodal-preview");
+        if (preview) preview.src = url;
+        var name = editModal.querySelector(".mg-emodal-name");
+        if (name) name.textContent = fileName(url);
+    }
+
+    function openEdit(node) {
+        if (!editModal || !node) return;
+        editRow = node;
+        updateModalPreview(itemUrl(node));
+
+        editModal.querySelector(".mg-emodal-alt").value = itemField(node, "alt");
+        editModal.querySelector(".mg-emodal-caption").value = itemField(node, "caption");
+        editModal.querySelector(".mg-emodal-link").value = itemField(node, "link");
+
+        var position = editModal.querySelector(".mg-emodal-position");
+        if (position) {
+            position.max = String(items().length);
+            position.value = String(items().indexOf(node) + 1);
+        }
+
+        editModal.classList.add("is-open");
+        editModal.setAttribute("aria-hidden", "false");
+        document.documentElement.classList.add("mg-modal-lock");
+        window.setTimeout(function() {
+            var alt = editModal.querySelector(".mg-emodal-alt");
+            if (alt) alt.focus();
+        }, 30);
+    }
+
+    function closeEdit() {
+        if (!editModal) return;
+        editModal.classList.remove("is-open");
+        editModal.setAttribute("aria-hidden", "true");
+        document.documentElement.classList.remove("mg-modal-lock");
+        editRow = null;
+    }
+
+    function saveEdit() {
+        if (!editRow || !editModal) return;
+        var row = editRow;
+
+        setItemField(row, "alt", editModal.querySelector(".mg-emodal-alt").value);
+        setItemField(row, "caption", editModal.querySelector(".mg-emodal-caption").value);
+        setItemField(row, "link", editModal.querySelector(".mg-emodal-link").value);
+
+        var image = row.querySelector("img");
+        if (image) image.alt = editModal.querySelector(".mg-emodal-alt").value;
+
+        var requested = parseInt(editModal.querySelector(".mg-emodal-position").value, 10);
+        var all = items();
+        var current = all.indexOf(row);
+        var target = Math.max(0, Math.min(all.length - 1, (isNaN(requested) ? current + 1 : requested) - 1));
+
+        closeEdit();
+        if (current !== target) {
+            moveNode(row, target);
+        } else {
+            updateNumbers();
+        }
+    }
+
+    if (editModal) {
+        editModal.addEventListener("click", function(event) {
+            if (event.target === editModal || event.target.closest(".mg-emodal__close, .mg-emodal-cancel")) {
+                closeEdit();
+                return;
+            }
+            if (event.target.closest(".mg-emodal-save")) {
+                saveEdit();
+                return;
+            }
+            if (event.target.closest(".mg-emodal-choose")) {
+                var row = editRow;
+                closeEdit();
+                if (row) open("replace", row);
+                return;
+            }
+            var direction = event.target.closest(".mg-emodal-up") ? -1 : (event.target.closest(".mg-emodal-down") ? 1 : 0);
+            if (direction) {
+                var position = editModal.querySelector(".mg-emodal-position");
+                var value = parseInt(position.value, 10) || 1;
+                position.value = String(Math.max(1, Math.min(items().length, value + direction)));
+            }
+        });
+
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "Escape" && editModal.classList.contains("is-open")) closeEdit();
+        });
+    }
+
+    var bulk = document.querySelector(".mg-bulk");
+    if (bulk) {
+        bulk.addEventListener("click", function(event) {
+            var button = event.target.closest("[data-action]");
+            if (!button) return;
+            var action = button.getAttribute("data-action");
+
+            if (action === "reverse") {
+                items().reverse().forEach(function(node) { itemsBox.appendChild(node); });
+                updateNumbers();
+                return;
+            }
+
+            if (action === "sort-asc" || action === "sort-desc") {
+                var direction = action === "sort-asc" ? 1 : -1;
+                items().sort(function(a, b) {
+                    var aName = fileName(itemUrl(a));
+                    var bName = fileName(itemUrl(b));
+                    var result = collator
+                        ? collator.compare(aName, bName)
+                        : aName.localeCompare(bName, undefined, {numeric: true});
+                    return result * direction;
+                }).forEach(function(node) { itemsBox.appendChild(node); });
+                updateNumbers();
+                return;
+            }
+
+            if (action === "move-start" || action === "move-end") {
+                var selected = selectedItems();
+                if (!selected.length) return;
+                var fragment = document.createDocumentFragment();
+                selected.forEach(function(node) { fragment.appendChild(node); });
+                if (action === "move-start") {
+                    itemsBox.insertBefore(fragment, itemsBox.firstChild);
+                } else {
+                    itemsBox.appendChild(fragment);
                 }
-                function close(){ picker.classList.remove("open"); }
+                updateNumbers();
+                return;
+            }
 
-                function addRow(url){
-                    var node=tplEl.content.firstElementChild.cloneNode(true);
-                    node.querySelector("img").src=url;
-                    node.querySelector("input[name=\"mg_item_image[]\"]").value=url;
-                    var e=document.getElementById("mg-empty"); if(e) e.remove();
-                    itemsBox.appendChild(node);
-                    return node;
-                }
+            if (action === "remove-selected") {
+                var chosen = selectedItems();
+                if (!chosen.length) return;
+                if (chosen.length > 1 && REMOVE_CONFIRM && !window.confirm(REMOVE_CONFIRM)) return;
+                removeNodes(chosen);
+            }
+        });
+    }
 
-                var addBtn=document.getElementById("mg-add");
-                if(addBtn){ addBtn.addEventListener("click",function(){ open("add",null); }); }
-                var closeBtn=document.getElementById("mg-picker-close");
-                if(closeBtn){ closeBtn.addEventListener("click",close); }
-                picker.addEventListener("click",function(e){ if(e.target===picker) close(); });
+    var selectAll = document.querySelector(".mg-select-all");
+    if (selectAll) {
+        selectAll.addEventListener("change", function() {
+            items().forEach(function(node) {
+                var checkbox = node.querySelector(".mg-checkbox");
+                if (checkbox) checkbox.checked = selectAll.checked;
+            });
+            updateSelection();
+        });
+    }
 
-                picker.querySelectorAll(".mg-pick-thumb").forEach(function(t){
-                    t.addEventListener("click",function(){
-                        if(mode==="replace"){ clearSel(); t.classList.add("sel"); }
-                        else { t.classList.toggle("sel"); }
-                    });
-                });
+    var viewToggle = document.querySelector(".mg-view-toggle");
+    if (viewToggle) {
+        viewToggle.addEventListener("click", function(event) {
+            var button = event.target.closest(".mg-view-btn");
+            if (!button) return;
+            applyView(button.getAttribute("data-view"));
+            try { window.localStorage.setItem("modoGalleryView", currentView); } catch (e) {}
+        });
+    }
 
-                var insertBtn=document.getElementById("mg-picker-add");
-                if(insertBtn){ insertBtn.addEventListener("click",function(){
-                    var sel=[].slice.call(picker.querySelectorAll(".mg-pick-thumb.sel")).map(function(t){return t.getAttribute("data-url");});
-                    if(mode==="replace"){
-                        if(sel.length && targetRow){
-                            targetRow.querySelector("img").src=sel[0];
-                            targetRow.querySelector("input[name=\"mg_item_image[]\"]").value=sel[0];
-                        }
-                    } else {
-                        sel.forEach(function(u){ addRow(u); });
-                    }
-                    close();
-                }); }
+    itemsBox.addEventListener("click", function(event) {
+        var node = event.target.closest(".mg-item");
+        if (!node) return;
 
-                itemsBox.addEventListener("click",function(e){
-                    var ch=e.target.closest(".mg-choose");
-                    if(ch){ open("replace", ch.closest(".mg-item")); return; }
-                    var x=e.target.closest(".mg-btn-x");
-                    if(x){ var it=x.closest(".mg-item"); if(it) it.remove(); }
-                });
+        if (event.target.closest(".mg-choose")) {
+            closeEdit();
+            open("replace", node);
+            return;
+        }
+        if (event.target.closest(".mg-btn-x")) {
+            removeNodes([node]);
+            return;
+        }
+        if (event.target.closest(".mg-btn-edit")) {
+            openEdit(node);
+            return;
+        }
+        if (event.target.closest(".mg-btn-up")) {
+            moveNode(node, items().indexOf(node) - 1);
+            return;
+        }
+        if (event.target.closest(".mg-btn-down")) {
+            moveNode(node, items().indexOf(node) + 1);
+        }
+    });
 
-                itemsBox.addEventListener("dragstart",function(e){
-                    var h=e.target.closest(".mg-drag");
-                    if(!h) return;
-                    dragEl=h.closest(".mg-item");
-                    e.dataTransfer.effectAllowed="move";
-                    setTimeout(function(){ if(dragEl) dragEl.classList.add("mg-ghost"); },0);
-                });
-                itemsBox.addEventListener("dragend",function(){ if(dragEl){ dragEl.classList.remove("mg-ghost"); dragEl=null; } });
-                itemsBox.addEventListener("dragover",function(e){
-                    e.preventDefault();
-                    if(!dragEl) return;
-                    var it=e.target.closest(".mg-item");
-                    if(!it||it===dragEl) return;
-                    var rect=it.getBoundingClientRect();
-                    var after=(e.clientY-rect.top)/rect.height>0.5;
-                    itemsBox.insertBefore(dragEl, after? it.nextSibling : it);
-                });
-            })();
-            </script>';
+    itemsBox.addEventListener("change", function(event) {
+        if (event.target.classList.contains("mg-checkbox")) {
+            updateSelection();
+            return;
+        }
+        if (event.target.classList.contains("mg-position")) {
+            var node = event.target.closest(".mg-item");
+            if (node) moveNode(node, parseInt(event.target.value, 10) - 1);
+        }
+    });
+
+    itemsBox.addEventListener("keydown", function(event) {
+        if (event.key === "Enter" && event.target.classList.contains("mg-position")) {
+            event.preventDefault();
+            var node = event.target.closest(".mg-item");
+            if (node) moveNode(node, parseInt(event.target.value, 10) - 1);
+            event.target.blur();
+        }
+    });
+
+    itemsBox.addEventListener("dragstart", function(event) {
+        var node = event.target.closest(".mg-item");
+        var isGrid = currentView === "grid";
+        var handle = event.target.closest(".mg-drag");
+
+        if (!node || (!isGrid && !handle) || event.target.closest("input, button, label, a")) {
+            event.preventDefault();
+            return;
+        }
+
+        dragEl = node;
+        node.classList.add("is-dragging");
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            try { event.dataTransfer.setData("text/plain", itemUrl(node)); } catch (e) {}
+        }
+    });
+
+    itemsBox.addEventListener("dragover", function(event) {
+        if (!dragEl) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+
+        var margin = 80;
+        if (event.clientY < margin) {
+            window.scrollBy(0, -14);
+        } else if (event.clientY > window.innerHeight - margin) {
+            window.scrollBy(0, 14);
+        }
+
+        var target = event.target.closest(".mg-item");
+        if (!target || target === dragEl) return;
+
+        var rect = target.getBoundingClientRect();
+        var after;
+        if (currentView === "grid") {
+            var withinRow = event.clientY >= rect.top && event.clientY <= rect.bottom;
+            after = withinRow
+                ? event.clientX > rect.left + rect.width / 2
+                : event.clientY > rect.top + rect.height / 2;
+        } else {
+            after = (event.clientY - rect.top) > rect.height / 2;
+        }
+
+        var reference = after ? target.nextSibling : target;
+        if (reference !== dragEl) {
+            itemsBox.insertBefore(dragEl, reference);
+        }
+    });
+
+    itemsBox.addEventListener("drop", function(event) {
+        if (dragEl) event.preventDefault();
+    });
+
+    itemsBox.addEventListener("dragend", function() {
+        if (!dragEl) return;
+        dragEl.classList.remove("is-dragging");
+        dragEl = null;
+        updateNumbers();
+    });
+
+    items().forEach(function(node) {
+        var image = node.querySelector("img");
+        if (image) image.draggable = false;
+    });
+    if (currentView === null) {
+        currentView = items().length > 8 ? "grid" : "list";
+    }
+    applyView(currentView);
+    updateNumbers();
+})();
+JS;
+
+            $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+            $script = strtr($script, [
+                '%%EMPTY%%'   => json_encode(__('mg_no_images'), $jsonFlags),
+                '%%CONFIRM%%' => json_encode(__('Remove selected images?'), $jsonFlags),
+            ]);
+
+            return '<template id="mg-tpl">' . $tpl . '</template>' . "\n<script>\n" . $script . "\n</script>";
         }
 
         // ---------------------------------------------------------------------

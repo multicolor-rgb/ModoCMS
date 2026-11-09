@@ -1617,5 +1617,17 @@
   "The site is served over HTTPS.": "The site is served over HTTPS.",
   "to the trash? You can restore it later.": "to the trash? You can restore it later.",
   "Trash": "Trash",
-  "Writable data and uploads": "Writable data and uploads"
+  "Writable data and uploads": "Writable data and uploads",
+  "Gallery view": "Gallery view",
+  "Grid": "Grid",
+  "Select image": "Select image",
+  "Reverse order": "Reverse order",
+  "Sort A-Z": "Sort A-Z",
+  "Sort Z-A": "Sort Z-A",
+  "Move to start": "Move to start",
+  "Move to end": "Move to end",
+  "Remove selected": "Remove selected",
+  "Remove selected images?": "Remove selected images?",
+  "Edit image": "Edit image",
+  "Position": "Position"
 }

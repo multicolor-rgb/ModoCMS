@@ -4,6 +4,17 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Easier gallery ordering in custom fields and the Modo Gallery plugin** — grid/list views, tile dragging, a position field, arrow controls, A–Z/Z–A sorting by file name, reverse order, multi-select and bulk move/remove. Reordering no longer re-renders the entire thumbnail list.
+- **Media picker folder memory** — after choosing a folder and closing the dialog, reopening the picker in custom fields and the Modo Gallery plugin restores that folder (until the browser tab is closed).
+
+### Fixed
+
+- **Trash filter in the content list** — clicking Posts, Pages or All now always leaves the Trash view, and Trash itself lists every deleted document without the type or page-type filter.
+
 ## [3.3.1] — 2026-11-07
 
 ### Fixed

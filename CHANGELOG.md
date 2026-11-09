@@ -4,6 +4,17 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [Unreleased]
+
+### Dodane
+
+- **Wygodniejsze porządkowanie galerii w polach niestandardowych i pluginie Modo Gallery** — widok siatki/listy, przeciąganie kafelków, pole pozycji, strzałki, sortowanie A–Z/Z–A po nazwie pliku, odwracanie kolejności oraz zaznaczanie i zbiorcze przenoszenie lub usuwanie zdjęć. Zmiana kolejności nie odświeża już całej listy miniaturek.
+- **Pamięć folderu w media pickerze** — po wybraniu folderu i zamknięciu okna ponowne otwarcie pickera w polach niestandardowych oraz w pluginie Modo Gallery przywraca ten folder (do zamknięcia karty).
+
+### Poprawione
+
+- **Filtr Kosza w liście treści** — kliknięcie Wpisy, Strony lub Wszystkie zawsze opuszcza Kosz, a sam Kosz pokazuje wszystkie usunięte dokumenty bez filtra typu i typu strony.
+
 ## [3.3.1] — 2026-11-07
 
 ### Poprawione

@@ -1607,5 +1607,17 @@
   "The site is served over HTTPS.": "Die Website wird über HTTPS bereitgestellt.",
   "to the trash? You can restore it later.": "in den Papierkorb? Sie können es später wiederherstellen.",
   "Trash": "Papierkorb",
-  "Writable data and uploads": "Beschreibbare data und uploads"
+  "Writable data and uploads": "Beschreibbare data und uploads",
+  "Gallery view": "Galerieansicht",
+  "Grid": "Raster",
+  "Select image": "Bild auswählen",
+  "Reverse order": "Reihenfolge umkehren",
+  "Sort A-Z": "Sortieren A-Z",
+  "Sort Z-A": "Sortieren Z-A",
+  "Move to start": "An den Anfang verschieben",
+  "Move to end": "Ans Ende verschieben",
+  "Remove selected": "Ausgewählte entfernen",
+  "Remove selected images?": "Ausgewählte Bilder entfernen?",
+  "Edit image": "Bild bearbeiten",
+  "Position": "Position"
 }

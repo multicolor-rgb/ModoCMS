@@ -197,6 +197,17 @@ function renderCustomFieldRow(array $cf = []): string
     $lCaptions     = htmlspecialchars(__('Show captions'), ENT_QUOTES, 'UTF-8');
     $lNoImages     = htmlspecialchars(__('No images selected yet.'), ENT_QUOTES, 'UTF-8');
     $lAuto         = htmlspecialchars(__('Auto'), ENT_QUOTES, 'UTF-8');
+    $lGalleryView  = htmlspecialchars(__('Gallery view'), ENT_QUOTES, 'UTF-8');
+    $lGrid         = htmlspecialchars(__('Grid'), ENT_QUOTES, 'UTF-8');
+    $lList         = htmlspecialchars(__('List'), ENT_QUOTES, 'UTF-8');
+    $lSelectAll    = htmlspecialchars(__('Select all'), ENT_QUOTES, 'UTF-8');
+    $lReverseOrder = htmlspecialchars(__('Reverse order'), ENT_QUOTES, 'UTF-8');
+    $lSortAsc      = htmlspecialchars(__('Sort A-Z'), ENT_QUOTES, 'UTF-8');
+    $lSortDesc     = htmlspecialchars(__('Sort Z-A'), ENT_QUOTES, 'UTF-8');
+    $lMoveToStart  = htmlspecialchars(__('Move to start'), ENT_QUOTES, 'UTF-8');
+    $lMoveToEnd    = htmlspecialchars(__('Move to end'), ENT_QUOTES, 'UTF-8');
+    $lRemoveSelected = htmlspecialchars(__('Remove selected'), ENT_QUOTES, 'UTF-8');
+    $lRemoveSelectedConfirm = htmlspecialchars(__('Remove selected images?'), ENT_QUOTES, 'UTF-8');
 
     $galleryColumnOpts = '';
     foreach (range(1, 6) as $column) {
@@ -259,6 +270,22 @@ function renderCustomFieldRow(array $cf = []): string
                 <button type="button" class="btn btn-secondary cf-gallery-add" style="font-size: 12px; padding: 4px 10px;">+ {$lAddImages}</button>
                 <button type="button" class="btn btn-secondary cf-gallery-upload" style="font-size: 12px; padding: 4px 10px;">{$lUploadImages}</button>
                 <input type="file" class="cf-gallery-file" accept="image/*" multiple style="display: none;">
+            </div>
+            <div class="cf-gallery-toolbar">
+                <div class="cf-gallery-view-toggle" role="group" aria-label="{$lGalleryView}">
+                    <button type="button" class="cf-gallery-view-btn" data-view="grid" aria-pressed="false">{$lGrid}</button>
+                    <button type="button" class="cf-gallery-view-btn" data-view="list" aria-pressed="false">{$lList}</button>
+                </div>
+                <div class="cf-gallery-bulk">
+                    <label class="cf-gallery-selectall"><input type="checkbox" class="cf-gallery-select-all"> <span>{$lSelectAll}</span></label>
+                    <span class="cf-gallery-selected-count" aria-live="polite"></span>
+                    <button type="button" class="btn btn-secondary cf-gallery-bulk-btn" data-action="reverse">{$lReverseOrder}</button>
+                    <button type="button" class="btn btn-secondary cf-gallery-bulk-btn" data-action="sort-asc">{$lSortAsc}</button>
+                    <button type="button" class="btn btn-secondary cf-gallery-bulk-btn" data-action="sort-desc">{$lSortDesc}</button>
+                    <button type="button" class="btn btn-secondary cf-gallery-bulk-btn" data-action="move-start" disabled>{$lMoveToStart}</button>
+                    <button type="button" class="btn btn-secondary cf-gallery-bulk-btn" data-action="move-end" disabled>{$lMoveToEnd}</button>
+                    <button type="button" class="btn btn-danger-ghost cf-gallery-bulk-btn" data-action="remove-selected" disabled data-confirm="{$lRemoveSelectedConfirm}">{$lRemoveSelected}</button>
+                </div>
             </div>
             <div class="cf-gallery-items" style="display: flex; flex-direction: column; gap: 8px;"></div>
             <p class="cf-gallery-empty" style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0;">{$lNoImages}</p>
@@ -761,20 +788,94 @@ require_once __DIR__ . '/views/header.php';
 #custom-fields-list .custom-field-row[data-type="tinymce"] .tox-edit-area iframe {
     min-height: 300px !important;
 }
+.cf-gallery-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.cf-gallery-view-toggle {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm, 8px);
+}
+.cf-gallery-view-btn {
+    padding: 4px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+}
+.cf-gallery-view-btn.is-active {
+    background: var(--primary, #3b82f6);
+    color: #fff;
+    font-weight: 600;
+}
+.cf-gallery-bulk {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.cf-gallery-bulk-btn {
+    padding: 4px 9px;
+    font-size: 11px;
+    line-height: 1.2;
+}
+.cf-gallery-bulk-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+.cf-gallery-selectall {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.cf-gallery-selected-count {
+    min-width: 40px;
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
 .cf-gallery-item {
     display: grid;
-    grid-template-columns: 22px 72px minmax(0, 1fr) 28px;
+    grid-template-columns: 20px 18px 72px minmax(0, 1fr) auto;
+    grid-template-areas: "select drag thumb fields actions";
     gap: 8px;
     align-items: center;
     padding: 8px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm, 8px);
     background: var(--bg-surface, #1e293b);
+    position: relative;
 }
 .cf-gallery-item.is-dragging {
     opacity: .55;
 }
+.cf-gallery-item.is-selected {
+    border-color: var(--primary, #3b82f6);
+    box-shadow: 0 0 0 1px var(--primary, #3b82f6) inset;
+}
+.cf-gallery-select {
+    grid-area: select;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.cf-gallery-select input {
+    margin: 0;
+    cursor: pointer;
+}
 .cf-gallery-thumb {
+    grid-area: thumb;
     width: 72px;
     height: 54px;
     object-fit: cover;
@@ -783,6 +884,7 @@ require_once __DIR__ . '/views/header.php';
     display: block;
 }
 .cf-gallery-fields {
+    grid-area: fields;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 6px;
@@ -792,12 +894,66 @@ require_once __DIR__ . '/views/header.php';
     grid-column: 1 / -1;
 }
 .cf-gallery-drag {
+    grid-area: drag;
     cursor: grab;
     color: var(--text-muted);
     text-align: center;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1;
     user-select: none;
+}
+.cf-gallery-drag:active {
+    cursor: grabbing;
+}
+.cf-gallery-name {
+    display: none;
+}
+.cf-gallery-actions {
+    grid-area: actions;
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+.cf-gallery-position-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+.cf-gallery-position {
+    width: 56px;
+    padding: 2px 4px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 11px;
+    text-align: center;
+}
+.cf-gallery-up,
+.cf-gallery-down,
+.cf-gallery-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--border-subtle);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+.cf-gallery-up:hover,
+.cf-gallery-down:hover,
+.cf-gallery-edit:hover {
+    color: var(--text-main);
+    border-color: var(--primary, #3b82f6);
 }
 .cf-gallery-remove {
     border: none;
@@ -808,9 +964,165 @@ require_once __DIR__ . '/views/header.php';
     cursor: pointer;
     padding: 0 4px;
 }
+.cf-gallery-items.is-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+    gap: 10px;
+}
+.cf-gallery-items.is-grid .cf-gallery-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px;
+    min-width: 0;
+}
+.cf-gallery-items.is-grid .cf-gallery-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+}
+.cf-gallery-items.is-grid .cf-gallery-fields {
+    display: none;
+}
+.cf-gallery-items.is-grid .cf-gallery-name {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    padding: 0 2px;
+    color: var(--text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.cf-gallery-items.is-grid .cf-gallery-select {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    padding: 2px;
+    background: rgba(15, 23, 42, .65);
+    border-radius: 4px;
+}
+.cf-gallery-items.is-grid .cf-gallery-drag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    padding: 2px 4px;
+    background: rgba(15, 23, 42, .65);
+    border-radius: 4px;
+    pointer-events: none;
+}
+.cf-gallery-items.is-grid .cf-gallery-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: auto;
+}
+.cf-gallery-items.is-grid .cf-gallery-up,
+.cf-gallery-items.is-grid .cf-gallery-down {
+    display: none;
+}
+.cf-gallery-items.is-grid .cf-gallery-position {
+    width: 48px;
+}
+html.cf-gallery-modal-open {
+    overflow: hidden;
+}
+.cf-gallery-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(11, 15, 25, .8);
+    backdrop-filter: blur(8px);
+}
+.cf-gallery-modal.is-open {
+    display: flex;
+}
+.cf-gallery-modal__box {
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md, 14px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, .6);
+}
+.cf-gallery-modal__head,
+.cf-gallery-modal__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+}
+.cf-gallery-modal__head {
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 15px;
+}
+.cf-gallery-modal__foot {
+    border-top: 1px solid var(--border-subtle);
+    justify-content: flex-end;
+}
+.cf-gallery-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    overflow-y: auto;
+}
+.cf-gallery-modal-preview {
+    width: 100%;
+    max-height: 240px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .08);
+}
+.cf-gallery-modal-name {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-family: monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.cf-gallery-modal__body label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+.cf-gallery-modal__position-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+.cf-gallery-modal__position-row label {
+    flex: 1;
+}
+.cf-gallery-modal-close {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+}
 @media (max-width: 720px) {
     .cf-gallery-item {
-        grid-template-columns: 22px 56px minmax(0, 1fr) 28px;
+        grid-template-columns: 20px 18px 56px minmax(0, 1fr);
+        grid-template-areas:
+            "select drag thumb fields"
+            "actions actions actions actions";
     }
     .cf-gallery-thumb {
         width: 56px;
@@ -821,6 +1133,12 @@ require_once __DIR__ . '/views/header.php';
     }
     .cf-gallery-fields .cf-gallery-link {
         grid-column: auto;
+    }
+    .cf-gallery-actions {
+        justify-content: flex-end;
+    }
+    .cf-gallery-items.is-grid {
+        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
     }
 }
 #custom-fields-card .cf-tab {
@@ -994,16 +1312,57 @@ require_once __DIR__ . '/views/header.php';
 
                 <template id="cf-gallery-item-template">
                     <div class="cf-gallery-item">
+                        <label class="cf-gallery-select" title="<?= _e('Select image') ?>"><input type="checkbox" class="cf-gallery-checkbox"></label>
                         <span class="cf-gallery-drag" draggable="true" title="<?= _e('Drag to reorder') ?>">&#8942;&#8942;</span>
-                        <img class="cf-gallery-thumb" src="" alt="">
+                        <img class="cf-gallery-thumb" src="" alt="" loading="lazy" decoding="async">
                         <div class="cf-gallery-fields">
                             <input class="form-control cf-gallery-alt" type="text" placeholder="<?= _e('Alt text') ?>" style="font-size: 12px;">
                             <input class="form-control cf-gallery-caption" type="text" placeholder="<?= _e('Caption') ?>" style="font-size: 12px;">
                             <input class="form-control cf-gallery-link" type="text" placeholder="<?= _e('Link (optional)') ?>" style="font-size: 12px;">
                         </div>
-                        <button type="button" class="cf-gallery-remove" title="<?= _e('Remove') ?>">&times;</button>
+                        <span class="cf-gallery-name"></span>
+                        <div class="cf-gallery-actions">
+                            <label class="cf-gallery-position-wrap" title="<?= _e('Position') ?>">#<input class="cf-gallery-position" type="number" min="1" step="1" value="1"></label>
+                            <button type="button" class="cf-gallery-up" title="<?= _e('Move up') ?>">&uarr;</button>
+                            <button type="button" class="cf-gallery-down" title="<?= _e('Move down') ?>">&darr;</button>
+                            <button type="button" class="cf-gallery-edit" title="<?= _e('Edit image') ?>">&#9998;</button>
+                            <button type="button" class="cf-gallery-remove" title="<?= _e('Remove') ?>">&times;</button>
+                        </div>
                     </div>
                 </template>
+
+                <div class="cf-gallery-modal" id="cf-gallery-edit-modal" aria-hidden="true">
+                    <div class="cf-gallery-modal__box" role="dialog" aria-modal="true" aria-labelledby="cf-gallery-edit-title">
+                        <div class="cf-gallery-modal__head">
+                            <strong id="cf-gallery-edit-title"><?= _e('Edit image') ?></strong>
+                            <button type="button" class="cf-gallery-modal-close" title="<?= _e('Close') ?>">&times;</button>
+                        </div>
+                        <div class="cf-gallery-modal__body">
+                            <img class="cf-gallery-modal-preview" src="" alt="" loading="lazy" decoding="async">
+                            <div class="cf-gallery-modal-name"></div>
+                            <label><?= _e('Alt text') ?>
+                                <input class="form-control cf-gallery-modal-alt" type="text" style="font-size: 13px;">
+                            </label>
+                            <label><?= _e('Caption') ?>
+                                <input class="form-control cf-gallery-modal-caption" type="text" style="font-size: 13px;">
+                            </label>
+                            <label><?= _e('Link (optional)') ?>
+                                <input class="form-control cf-gallery-modal-link" type="text" style="font-size: 13px;">
+                            </label>
+                            <div class="cf-gallery-modal__position-row">
+                                <label><?= _e('Position') ?>
+                                    <input class="form-control cf-gallery-modal-position" type="number" min="1" step="1" value="1" style="font-size: 13px;">
+                                </label>
+                                <button type="button" class="btn btn-secondary cf-gallery-modal-up" title="<?= _e('Move up') ?>" style="padding: 4px 9px;">&uarr;</button>
+                                <button type="button" class="btn btn-secondary cf-gallery-modal-down" title="<?= _e('Move down') ?>" style="padding: 4px 9px;">&darr;</button>
+                            </div>
+                        </div>
+                        <div class="cf-gallery-modal__foot">
+                            <button type="button" class="btn btn-secondary cf-gallery-modal-cancel"><?= _e('Cancel') ?></button>
+                            <button type="button" class="btn btn-primary cf-gallery-modal-save"><?= _e('Save') ?></button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
 
@@ -1588,10 +1947,12 @@ const mediaSelectAll = document.getElementById('media-select-all');
 const mediaSelectAllWrap = document.getElementById('media-select-all-wrap');
 
 const MEDIA_PAGE_SIZE = 24;
+const MEDIA_FOLDER_STORAGE_KEY = 'modoMediaPickerFolder';
 let mediaPageSize = MEDIA_PAGE_SIZE;
 
 let mediaPickerMultiple = false;
 let mediaPickerCallback = null;
+let mediaPickerRememberFolder = false;
 const mediaPickerSelected = new Set();
 
 const setMediaItemSelected = (item, selected) => {
@@ -1629,6 +1990,24 @@ const resetMediaSelection = () => {
 };
 
 const mediaFolderFilter = document.getElementById('media-folder-filter');
+const mediaFolderExists = (value) => {
+    if (!mediaFolderFilter || !value) return false;
+    return Array.from(mediaFolderFilter.options).some((option) => option.value === value);
+};
+const readRememberedMediaFolder = () => {
+    try {
+        return window.sessionStorage.getItem(MEDIA_FOLDER_STORAGE_KEY) || '';
+    } catch (e) {
+        return '';
+    }
+};
+const writeRememberedMediaFolder = (value) => {
+    try {
+        window.sessionStorage.setItem(MEDIA_FOLDER_STORAGE_KEY, value || '__all__');
+    } catch (e) {
+        /* sessionStorage may be unavailable */
+    }
+};
 const applyMediaFolderFilter = () => {
     const value = mediaFolderFilter ? mediaFolderFilter.value : '__all__';
     let matching = 0;
@@ -1688,16 +2067,27 @@ if (mediaFolderFilter) {
     });
 }
 
-const openModal = () => {
+const openModal = (options = {}) => {
+    mediaPickerRememberFolder = !!options.rememberFolder;
     if (modal) modal.style.display = 'flex';
     mediaPageSize = MEDIA_PAGE_SIZE;
     if (mediaFolderFilter) {
         mediaFolderFilter.value = '__all__';
+        if (mediaPickerRememberFolder) {
+            const rememberedFolder = readRememberedMediaFolder();
+            if (mediaFolderExists(rememberedFolder)) {
+                mediaFolderFilter.value = rememberedFolder;
+            }
+        }
     }
     applyMediaFolderFilter();
     updateMediaSelectAll();
 };
 const hideModal = () => {
+    if (mediaPickerRememberFolder && mediaFolderFilter) {
+        writeRememberedMediaFolder(mediaFolderFilter.value || '__all__');
+    }
+    mediaPickerRememberFolder = false;
     if (modal) modal.style.display = 'none';
     tinymceFilePickerCallback = null;
     currentMediaTarget = 'featured';
@@ -1718,7 +2108,7 @@ window.ModoMediaPicker = {
         resetMediaSelection();
         if (insertMediaBtn) insertMediaBtn.style.display = mediaPickerMultiple ? 'inline-flex' : 'none';
         currentMediaTarget = 'callback';
-        openModal();
+        openModal({ rememberFolder: true });
     }
 };
 
@@ -2017,6 +2407,301 @@ mediaItems.forEach(item => {
         }
     }
 
+    const galleryModal = document.getElementById('cf-gallery-edit-modal');
+    const galleryCollator = (typeof Intl !== 'undefined' && Intl.Collator)
+        ? new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+        : null;
+    let galleryModalState = null;
+
+    function galleryInitialView(row) {
+        try {
+            const saved = window.localStorage.getItem('modoGalleryView');
+            if (saved === 'grid' || saved === 'list') return saved;
+        } catch (e) {
+            /* localStorage may be unavailable */
+        }
+        return galleryState(row).items.length > 8 ? 'grid' : 'list';
+    }
+
+    function galleryNodes(row) {
+        const itemsBox = q(row, '.cf-gallery-items');
+        return itemsBox ? Array.from(itemsBox.querySelectorAll('.cf-gallery-item')) : [];
+    }
+
+    function gallerySelectedNodes(row) {
+        return galleryNodes(row).filter((node) => {
+            const checkbox = q(node, '.cf-gallery-checkbox');
+            return checkbox && checkbox.checked;
+        });
+    }
+
+    /**
+     * Returns a user-facing file name for an image URL. Used by the
+     * alphabetical sort and by the grid tile label.
+     */
+    function galleryFileName(url) {
+        try {
+            const parsed = new URL(String(url), window.location.origin);
+            const name = parsed.pathname.split('/').filter(Boolean).pop() || '';
+            return decodeURIComponent(name);
+        } catch (e) {
+            const parts = String(url || '').split('/').filter(Boolean);
+            return parts.length ? parts[parts.length - 1] : '';
+        }
+    }
+
+    function updateGalleryEmpty(row) {
+        const empty = q(row, '.cf-gallery-empty');
+        if (!empty) return;
+        const isEmpty = galleryState(row).items.length === 0;
+        empty.style.display = isEmpty ? 'block' : 'none';
+        if (isEmpty) {
+            const selectAll = q(row, '.cf-gallery-select-all');
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+                selectAll.disabled = true;
+            }
+        }
+    }
+
+    function updateGallerySelection(row) {
+        const nodes = galleryNodes(row);
+        const selected = gallerySelectedNodes(row);
+        const count = selected.length;
+
+        const counter = q(row, '.cf-gallery-selected-count');
+        if (counter) counter.textContent = count ? count + ' / ' + nodes.length : '';
+
+        const selectAll = q(row, '.cf-gallery-select-all');
+        if (selectAll) {
+            selectAll.checked = nodes.length > 0 && count === nodes.length;
+            selectAll.indeterminate = count > 0 && count < nodes.length;
+            selectAll.disabled = nodes.length === 0;
+        }
+
+        nodes.forEach((node) => {
+            const checkbox = q(node, '.cf-gallery-checkbox');
+            node.classList.toggle('is-selected', !!(checkbox && checkbox.checked));
+        });
+
+        [['move-start', count === 0], ['move-end', count === 0], ['remove-selected', count === 0]].forEach(([action, disabled]) => {
+            const button = q(row, '.cf-gallery-bulk [data-action="' + action + '"]');
+            if (button) button.disabled = disabled;
+        });
+    }
+
+    function updateGalleryNumbers(row) {
+        const nodes = galleryNodes(row);
+        nodes.forEach((node, index) => {
+            const position = q(node, '.cf-gallery-position');
+            if (!position) return;
+            position.max = String(nodes.length);
+            if (document.activeElement !== position) {
+                position.value = String(index + 1);
+            }
+        });
+        updateGallerySelection(row);
+    }
+
+    /**
+     * Serializes the current DOM order back to the hidden JSON value. This is
+     * the single source of truth for gallery order and avoids re-rendering
+     * thumbnails after every drag.
+     */
+    function syncGalleryOrder(row) {
+        const state = galleryState(row);
+        state.items = galleryNodes(row).map((node) => node.__cfItem).filter(Boolean);
+        writeGallery(row);
+        updateGalleryNumbers(row);
+        updateGalleryEmpty(row);
+    }
+
+    function moveGalleryNode(row, node, targetIndex) {
+        const itemsBox = q(row, '.cf-gallery-items');
+        if (!itemsBox || !node) return;
+
+        const nodes = galleryNodes(row);
+        const currentIndex = nodes.indexOf(node);
+        const max = nodes.length - 1;
+        const index = Math.max(0, Math.min(max, parseInt(targetIndex, 10)));
+
+        if (currentIndex === -1 || isNaN(index) || index === currentIndex) {
+            updateGalleryNumbers(row);
+            return;
+        }
+
+        if (index < currentIndex) {
+            itemsBox.insertBefore(node, nodes[index]);
+        } else {
+            itemsBox.insertBefore(node, nodes[index].nextSibling);
+        }
+        syncGalleryOrder(row);
+    }
+
+    function removeGalleryNodes(row, nodes) {
+        if (!nodes.length) return;
+        const state = galleryState(row);
+        const removed = new Set(nodes.map((node) => node.__cfItem));
+        nodes.forEach((node) => node.remove());
+        state.items = state.items.filter((item) => !removed.has(item));
+        writeGallery(row);
+        updateGalleryNumbers(row);
+        updateGalleryEmpty(row);
+    }
+
+    function createGalleryNode(row, item) {
+        const node = galleryItemTemplate.content.firstElementChild.cloneNode(true);
+        node.__cfItem = item;
+
+        const image = q(node, 'img');
+        if (image) {
+            image.src = cfGalleryThumbUrl(item.image);
+            image.alt = item.alt;
+            image.loading = 'lazy';
+            image.decoding = 'async';
+            image.draggable = false;
+        }
+
+        const alt = q(node, '.cf-gallery-alt');
+        if (alt) alt.value = item.alt;
+        const caption = q(node, '.cf-gallery-caption');
+        if (caption) caption.value = item.caption;
+        const link = q(node, '.cf-gallery-link');
+        if (link) link.value = item.link;
+        const name = q(node, '.cf-gallery-name');
+        if (name) name.textContent = galleryFileName(item.image);
+
+        node.draggable = row.__cfGalleryView === 'grid';
+        return node;
+    }
+
+    function appendGalleryItems(row, items) {
+        const itemsBox = q(row, '.cf-gallery-items');
+        if (!itemsBox || !items.length) return;
+        items.forEach((item) => itemsBox.appendChild(createGalleryNode(row, item)));
+        writeGallery(row);
+        updateGalleryNumbers(row);
+        updateGalleryEmpty(row);
+    }
+
+    function applyGalleryView(row, view) {
+        const itemsBox = q(row, '.cf-gallery-items');
+        if (!itemsBox) return;
+
+        const next = view === 'grid' ? 'grid' : 'list';
+        row.__cfGalleryView = next;
+        itemsBox.classList.toggle('is-grid', next === 'grid');
+
+        const toggle = q(row, '.cf-gallery-view-toggle');
+        if (toggle) {
+            toggle.querySelectorAll('.cf-gallery-view-btn').forEach((button) => {
+                const active = button.getAttribute('data-view') === next;
+                button.classList.toggle('is-active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+        }
+
+        itemsBox.querySelectorAll('.cf-gallery-item').forEach((node) => {
+            node.draggable = next === 'grid';
+        });
+    }
+
+    function openGalleryEditModal(row, node) {
+        if (!galleryModal || !node || !node.__cfItem) return;
+        const item = node.__cfItem;
+        galleryModalState = { row, node, item };
+
+        const preview = q(galleryModal, '.cf-gallery-modal-preview');
+        if (preview) {
+            preview.src = cfGalleryThumbUrl(item.image, 480);
+            preview.alt = item.alt;
+        }
+        const name = q(galleryModal, '.cf-gallery-modal-name');
+        if (name) name.textContent = galleryFileName(item.image);
+        q(galleryModal, '.cf-gallery-modal-alt').value = item.alt;
+        q(galleryModal, '.cf-gallery-modal-caption').value = item.caption;
+        q(galleryModal, '.cf-gallery-modal-link').value = item.link;
+
+        const nodes = galleryNodes(row);
+        const position = q(galleryModal, '.cf-gallery-modal-position');
+        if (position) {
+            position.max = String(nodes.length);
+            position.value = String(nodes.indexOf(node) + 1);
+        }
+
+        galleryModal.classList.add('is-open');
+        galleryModal.setAttribute('aria-hidden', 'false');
+        document.documentElement.classList.add('cf-gallery-modal-open');
+        const alt = q(galleryModal, '.cf-gallery-modal-alt');
+        if (alt) window.setTimeout(() => alt.focus(), 30);
+    }
+
+    function closeGalleryEditModal() {
+        if (!galleryModal) return;
+        galleryModal.classList.remove('is-open');
+        galleryModal.setAttribute('aria-hidden', 'true');
+        document.documentElement.classList.remove('cf-gallery-modal-open');
+        galleryModalState = null;
+    }
+
+    function saveGalleryEditModal() {
+        if (!galleryModalState) return;
+        const currentState = galleryModalState;
+        const { row, node, item } = currentState;
+
+        item.alt = q(galleryModal, '.cf-gallery-modal-alt').value;
+        item.caption = q(galleryModal, '.cf-gallery-modal-caption').value;
+        item.link = q(galleryModal, '.cf-gallery-modal-link').value;
+
+        const alt = q(node, '.cf-gallery-alt');
+        if (alt) alt.value = item.alt;
+        const caption = q(node, '.cf-gallery-caption');
+        if (caption) caption.value = item.caption;
+        const link = q(node, '.cf-gallery-link');
+        if (link) link.value = item.link;
+        const image = q(node, 'img');
+        if (image) image.alt = item.alt;
+
+        writeGallery(row);
+
+        const nodes = galleryNodes(row);
+        const currentIndex = nodes.indexOf(node);
+        const requested = parseInt(q(galleryModal, '.cf-gallery-modal-position').value, 10);
+        const targetIndex = Math.max(0, Math.min(nodes.length - 1, (isNaN(requested) ? currentIndex + 1 : requested) - 1));
+
+        closeGalleryEditModal();
+        if (currentIndex !== targetIndex) {
+            moveGalleryNode(row, node, targetIndex);
+        }
+    }
+
+    if (galleryModal) {
+        galleryModal.addEventListener('click', (event) => {
+            if (event.target === galleryModal || event.target.closest('.cf-gallery-modal-close, .cf-gallery-modal-cancel')) {
+                closeGalleryEditModal();
+                return;
+            }
+            if (event.target.closest('.cf-gallery-modal-save')) {
+                saveGalleryEditModal();
+                return;
+            }
+            const direction = event.target.closest('.cf-gallery-modal-up') ? -1 : (event.target.closest('.cf-gallery-modal-down') ? 1 : 0);
+            if (direction && galleryModalState) {
+                const position = q(galleryModal, '.cf-gallery-modal-position');
+                const max = galleryNodes(galleryModalState.row).length;
+                const value = parseInt(position.value, 10) || 1;
+                position.value = String(Math.max(1, Math.min(max, value + direction)));
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && galleryModal.classList.contains('is-open')) {
+                closeGalleryEditModal();
+            }
+        });
+    }
+
     function renderGallery(row) {
         const state = galleryState(row);
         applyGalleryOptions(row, state);
@@ -2026,67 +2711,40 @@ mediaItems.forEach(item => {
         itemsBox.innerHTML = '';
 
         if (galleryItemTemplate && galleryItemTemplate.content && galleryItemTemplate.content.firstElementChild) {
-            state.items.forEach((item, index) => {
-                const node = galleryItemTemplate.content.firstElementChild.cloneNode(true);
-                node.setAttribute('data-index', String(index));
-
-                const img = q(node, 'img');
-                if (img) {
-                    img.src = cfGalleryThumbUrl(item.image);
-                    img.loading = 'lazy';
-                    img.decoding = 'async';
-                }
-
-                const alt = q(node, '.cf-gallery-alt');
-                if (alt) {
-                    alt.value = item.alt;
-                    alt.addEventListener('input', () => {
-                        state.items[index].alt = alt.value;
-                        writeGallery(row);
-                    });
-                }
-
-                const caption = q(node, '.cf-gallery-caption');
-                if (caption) {
-                    caption.value = item.caption;
-                    caption.addEventListener('input', () => {
-                        state.items[index].caption = caption.value;
-                        writeGallery(row);
-                    });
-                }
-
-                const link = q(node, '.cf-gallery-link');
-                if (link) {
-                    link.value = item.link;
-                    link.addEventListener('input', () => {
-                        state.items[index].link = link.value;
-                        writeGallery(row);
-                    });
-                }
-
-                const remove = q(node, '.cf-gallery-remove');
-                if (remove) {
-                    remove.addEventListener('click', () => {
-                        state.items.splice(index, 1);
-                        writeGallery(row);
-                        renderGallery(row);
-                    });
-                }
-
-                itemsBox.appendChild(node);
-            });
+            if (!row.__cfGalleryView) {
+                row.__cfGalleryView = galleryInitialView(row);
+            }
+            state.items.forEach((item) => itemsBox.appendChild(createGalleryNode(row, item)));
+            applyGalleryView(row, row.__cfGalleryView);
         }
 
-        const empty = q(row, '.cf-gallery-empty');
-        if (empty) empty.style.display = state.items.length ? 'none' : 'block';
+        updateGalleryNumbers(row);
+        updateGalleryEmpty(row);
     }
 
     function ensureGallery(row) {
         const wrap = q(row, '.cf-w-gallery');
         if (!wrap) return;
 
+        if (!row.__cfGalleryView) {
+            row.__cfGalleryView = galleryInitialView(row);
+        }
+
         if (!wrap.__cfGalleryBound) {
             wrap.__cfGalleryBound = true;
+
+            const itemsBox = q(row, '.cf-gallery-items');
+            const addItems = (urls) => {
+                const state = galleryState(row);
+                const added = [];
+                (urls || []).forEach((url) => {
+                    if (!url) return;
+                    const item = { image: url, alt: '', caption: '', link: '' };
+                    state.items.push(item);
+                    added.push(item);
+                });
+                if (added.length) appendGalleryItems(row, added);
+            };
 
             const addBtn = q(row, '.cf-gallery-add');
             if (addBtn) {
@@ -2094,14 +2752,7 @@ mediaItems.forEach(item => {
                     if (!window.ModoMediaPicker || typeof window.ModoMediaPicker.open !== 'function') return;
                     window.ModoMediaPicker.open({
                         multiple: true,
-                        onSelect: (urls) => {
-                            const state = galleryState(row);
-                            (urls || []).forEach((url) => {
-                                if (url) state.items.push({ image: url, alt: '', caption: '', link: '' });
-                            });
-                            writeGallery(row);
-                            renderGallery(row);
-                        }
+                        onSelect: (urls) => addItems(urls)
                     });
                 });
             }
@@ -2123,56 +2774,216 @@ mediaItems.forEach(item => {
                             .then((data) => (data && data.location) ? data.location : '')
                             .catch(() => '');
                     })).then((urls) => {
-                        const state = galleryState(row);
-                        urls.filter(Boolean).forEach((url) => {
-                            state.items.push({ image: url, alt: '', caption: '', link: '' });
-                        });
-                        writeGallery(row);
-                        renderGallery(row);
+                        addItems(urls.filter(Boolean));
                     });
 
                     fileIn.value = '';
                 });
             }
 
-            const itemsBox = q(row, '.cf-gallery-items');
+            const bulk = q(row, '.cf-gallery-bulk');
+            if (bulk && itemsBox) {
+                bulk.addEventListener('click', (event) => {
+                    const button = event.target.closest('[data-action]');
+                    if (!button) return;
+                    const action = button.getAttribute('data-action');
+
+                    if (action === 'reverse') {
+                        galleryNodes(row).reverse().forEach((node) => itemsBox.appendChild(node));
+                        syncGalleryOrder(row);
+                        return;
+                    }
+
+                    if (action === 'sort-asc' || action === 'sort-desc') {
+                        const direction = action === 'sort-asc' ? 1 : -1;
+                        galleryNodes(row).sort((a, b) => {
+                            const aName = galleryFileName(a.__cfItem ? a.__cfItem.image : '');
+                            const bName = galleryFileName(b.__cfItem ? b.__cfItem.image : '');
+                            const result = galleryCollator
+                                ? galleryCollator.compare(aName, bName)
+                                : aName.localeCompare(bName, undefined, { numeric: true });
+                            return result * direction;
+                        }).forEach((node) => itemsBox.appendChild(node));
+                        syncGalleryOrder(row);
+                        return;
+                    }
+
+                    if (action === 'move-start' || action === 'move-end') {
+                        const selected = gallerySelectedNodes(row);
+                        if (!selected.length) return;
+                        const fragment = document.createDocumentFragment();
+                        selected.forEach((node) => fragment.appendChild(node));
+                        if (action === 'move-start') {
+                            itemsBox.insertBefore(fragment, itemsBox.firstChild);
+                        } else {
+                            itemsBox.appendChild(fragment);
+                        }
+                        syncGalleryOrder(row);
+                        return;
+                    }
+
+                    if (action === 'remove-selected') {
+                        const selected = gallerySelectedNodes(row);
+                        if (!selected.length) return;
+                        const message = button.getAttribute('data-confirm') || '';
+                        if (selected.length > 1 && message && !window.confirm(message)) return;
+                        removeGalleryNodes(row, selected);
+                    }
+                });
+            }
+
+            const selectAll = q(row, '.cf-gallery-select-all');
+            if (selectAll) {
+                selectAll.addEventListener('change', () => {
+                    galleryNodes(row).forEach((node) => {
+                        const checkbox = q(node, '.cf-gallery-checkbox');
+                        if (checkbox) checkbox.checked = selectAll.checked;
+                    });
+                    updateGallerySelection(row);
+                });
+            }
+
+            const viewToggle = q(row, '.cf-gallery-view-toggle');
+            if (viewToggle) {
+                viewToggle.addEventListener('click', (event) => {
+                    const button = event.target.closest('.cf-gallery-view-btn');
+                    if (!button) return;
+                    const view = button.getAttribute('data-view');
+                    applyGalleryView(row, view);
+                    try {
+                        window.localStorage.setItem('modoGalleryView', view);
+                    } catch (e) {
+                        /* ignore */
+                    }
+                });
+            }
+
             if (itemsBox) {
-                let dragItem = null;
+                itemsBox.addEventListener('input', (event) => {
+                    const node = event.target.closest('.cf-gallery-item');
+                    if (!node || !node.__cfItem) return;
+                    const item = node.__cfItem;
+
+                    if (event.target.classList.contains('cf-gallery-alt')) {
+                        item.alt = event.target.value;
+                        const image = q(node, 'img');
+                        if (image) image.alt = item.alt;
+                    } else if (event.target.classList.contains('cf-gallery-caption')) {
+                        item.caption = event.target.value;
+                    } else if (event.target.classList.contains('cf-gallery-link')) {
+                        item.link = event.target.value;
+                    } else {
+                        return;
+                    }
+                    writeGallery(row);
+                });
+
+                itemsBox.addEventListener('change', (event) => {
+                    if (event.target.classList.contains('cf-gallery-checkbox')) {
+                        updateGallerySelection(row);
+                        return;
+                    }
+                    if (event.target.classList.contains('cf-gallery-position')) {
+                        const node = event.target.closest('.cf-gallery-item');
+                        if (node) moveGalleryNode(row, node, parseInt(event.target.value, 10) - 1);
+                    }
+                });
+
+                itemsBox.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' && event.target.classList.contains('cf-gallery-position')) {
+                        event.preventDefault();
+                        const node = event.target.closest('.cf-gallery-item');
+                        if (node) moveGalleryNode(row, node, parseInt(event.target.value, 10) - 1);
+                        event.target.blur();
+                    }
+                });
+
+                itemsBox.addEventListener('click', (event) => {
+                    const node = event.target.closest('.cf-gallery-item');
+                    if (!node) return;
+
+                    if (event.target.closest('.cf-gallery-remove')) {
+                        removeGalleryNodes(row, [node]);
+                        return;
+                    }
+                    if (event.target.closest('.cf-gallery-edit')) {
+                        openGalleryEditModal(row, node);
+                        return;
+                    }
+                    if (event.target.closest('.cf-gallery-up')) {
+                        moveGalleryNode(row, node, galleryNodes(row).indexOf(node) - 1);
+                        return;
+                    }
+                    if (event.target.closest('.cf-gallery-down')) {
+                        moveGalleryNode(row, node, galleryNodes(row).indexOf(node) + 1);
+                    }
+                });
+
+                let dragNode = null;
 
                 itemsBox.addEventListener('dragstart', (event) => {
+                    const node = event.target.closest('.cf-gallery-item');
+                    const isGrid = row.__cfGalleryView === 'grid';
                     const handle = event.target.closest('.cf-gallery-drag');
-                    if (!handle) {
+
+                    if (!node || (!isGrid && !handle) || event.target.closest('input, button, label, a')) {
                         event.preventDefault();
                         return;
                     }
-                    dragItem = handle.closest('.cf-gallery-item');
-                    if (dragItem) {
-                        dragItem.classList.add('is-dragging');
+
+                    dragNode = node;
+                    node.classList.add('is-dragging');
+                    if (event.dataTransfer) {
                         event.dataTransfer.effectAllowed = 'move';
+                        try {
+                            event.dataTransfer.setData('text/plain', node.__cfItem ? node.__cfItem.image : '');
+                        } catch (e) {
+                            /* ignore */
+                        }
                     }
                 });
 
-                itemsBox.addEventListener('dragend', () => {
-                    if (!dragItem) return;
-                    dragItem.classList.remove('is-dragging');
-                    const order = Array.from(itemsBox.querySelectorAll('.cf-gallery-item'))
-                        .map((node) => parseInt(node.getAttribute('data-index'), 10))
-                        .filter((index) => !isNaN(index));
-                    const state = galleryState(row);
-                    state.items = order.map((index) => state.items[index]).filter(Boolean);
-                    dragItem = null;
-                    writeGallery(row);
-                    renderGallery(row);
+                itemsBox.addEventListener('dragover', (event) => {
+                    if (!dragNode) return;
+                    event.preventDefault();
+                    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+
+                    const margin = 80;
+                    if (event.clientY < margin) {
+                        window.scrollBy(0, -14);
+                    } else if (event.clientY > window.innerHeight - margin) {
+                        window.scrollBy(0, 14);
+                    }
+
+                    const target = event.target.closest('.cf-gallery-item');
+                    if (!target || target === dragNode) return;
+
+                    const rect = target.getBoundingClientRect();
+                    let after;
+                    if (row.__cfGalleryView === 'grid') {
+                        const withinRow = event.clientY >= rect.top && event.clientY <= rect.bottom;
+                        after = withinRow
+                            ? event.clientX > rect.left + rect.width / 2
+                            : event.clientY > rect.top + rect.height / 2;
+                    } else {
+                        after = (event.clientY - rect.top) > rect.height / 2;
+                    }
+
+                    const reference = after ? target.nextSibling : target;
+                    if (reference !== dragNode) {
+                        itemsBox.insertBefore(dragNode, reference);
+                    }
                 });
 
-                itemsBox.addEventListener('dragover', (event) => {
-                    event.preventDefault();
-                    if (!dragItem) return;
-                    const target = event.target.closest('.cf-gallery-item');
-                    if (!target || target === dragItem) return;
-                    const rect = target.getBoundingClientRect();
-                    const after = (event.clientY - rect.top) > rect.height / 2;
-                    itemsBox.insertBefore(dragItem, after ? target.nextSibling : target);
+                itemsBox.addEventListener('drop', (event) => {
+                    if (dragNode) event.preventDefault();
+                });
+
+                itemsBox.addEventListener('dragend', () => {
+                    if (!dragNode) return;
+                    dragNode.classList.remove('is-dragging');
+                    dragNode = null;
+                    syncGalleryOrder(row);
                 });
             }
 
