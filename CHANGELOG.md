@@ -4,7 +4,7 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
-## [Unreleased]
+## [3.6.0] — 2026-11-09
 
 ### Dodane
 
