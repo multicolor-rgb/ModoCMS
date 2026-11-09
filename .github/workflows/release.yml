@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.4.0.
+# Release notes for Modo CMS 3.5.0.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,15 +53,15 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.4.0
-            - **Gallery ordering:** grid/list layouts, drag & drop, position fields, natural A–Z/Z–A sorting, reverse order and bulk selection.
-            - **Media picker:** remembers the last used folder until the browser tab is closed.
-            - **Content list:** Posts, Pages and All now leave the Trash view, and Trash shows every deleted document without type filters.
+            ### What's new in 3.5.0
+            - **Manual content ordering:** an optional setting for ordering posts and pages by drag and drop or arrow buttons.
+            - **Theme loops follow the order:** blog archives, tag/category archives, recent posts, the new `get_pages()` helper and the fallback page menu.
+            - **Responsive content list:** secondary columns are hidden progressively, keeping titles, status and actions readable on smaller laptops, tablets and phones.
 
-            ### Najważniejsze zmiany w 3.4.0
-            - **Kolejność galerii:** widok siatki/listy, przeciąganie, pole pozycji, sortowanie naturalne A–Z/Z–A, odwracanie kolejności i zaznaczanie zbiorcze.
-            - **Media picker:** zapamiętuje ostatnio używany folder do zamknięcia karty przeglądarki.
-            - **Lista treści:** Wpisy, Strony i Wszystkie wychodzą z Kosza, a Kosz pokazuje wszystkie usunięte dokumenty bez filtra typu.
+            ### Najważniejsze zmiany w 3.5.0
+            - **Ręczne porządkowanie treści:** opcjonalne ustawienie kolejności wpisów i stron przez przeciąganie lub strzałki.
+            - **Pętle motywu korzystają z kolejności:** archiwa bloga, tagów i kategorii, ostatnie wpisy, nowa funkcja `get_pages()` oraz fallbackowe menu stron.
+            - **Responsywna lista treści:** drugorzędne kolumny są ukrywane progresywnie, a tytuł, status i akcje pozostają czytelne na mniejszych laptopach, tabletach i telefonach.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
