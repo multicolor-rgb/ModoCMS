@@ -1708,8 +1708,18 @@ html.media-modal-open body {
 }
 
 .content-table .col-actions > div {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+    gap: 6px;
+}
+
+.content-table .col-actions .btn {
+    flex: 0 0 auto;
+}
+
+.content-table .col-actions .btn-danger-ghost {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm, 6px);
 }
 
 .content-order-controls {

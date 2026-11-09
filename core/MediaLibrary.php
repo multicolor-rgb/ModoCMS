@@ -157,6 +157,26 @@ final class MediaLibrary
     }
 
     /**
+     * Public URL with a file-mtime cache buster. Use this for previews and
+     * editors that must reload the original after an overwrite.
+     */
+    public static function versionedUrlForStoredPath(string $storedPath): string
+    {
+        $url = self::urlForStoredPath($storedPath);
+        if (preg_match('#^https?://#i', $url) === 1 || !str_starts_with($url, self::baseUrl() . '/uploads/')) {
+            return $url;
+        }
+
+        $absolute = self::absoluteFromStoredPath($storedPath);
+        $mtime = $absolute !== null ? (int) @filemtime($absolute) : 0;
+        if ($mtime <= 0) {
+            return $url;
+        }
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . 'v=' . $mtime;
+    }
+
+    /**
      * Lists all folders directly below /uploads with their image counts.
      *
      * @return array<int,array{name:string,count:int,path:string}>

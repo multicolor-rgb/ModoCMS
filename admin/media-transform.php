@@ -113,7 +113,7 @@ try {
 echo json_encode([
     'ok' => true,
     'path' => $saved['path'] ?? '',
-    'url' => $saved['url'] ?? '',
+    'url' => MediaLibrary::versionedUrlForStoredPath((string) ($saved['path'] ?? '')),
     'filename' => $saved['filename'] ?? '',
     'width' => $result['width'] ?? null,
     'height' => $result['height'] ?? null,

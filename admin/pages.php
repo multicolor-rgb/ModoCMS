@@ -603,7 +603,7 @@ require_once __DIR__ . '/views/header.php';
                 <th class="col-lang" style="width: 70px; text-align: center;"><?= _e('Lang') ?></th>
                 <th class="col-author" style="width: 120px;"><?= _e('Author') ?></th>
                 <th class="col-updated" style="width: 130px;"><?= _e('Updated') ?></th>
-                <th class="col-actions" style="text-align: right; width: 100px; white-space: nowrap;"><?= _e('Actions') ?></th>
+                <th class="col-actions" style="text-align: right; width: 120px; white-space: nowrap;"><?= _e('Actions') ?></th>
             </tr>
         </thead>
         <tbody id="pages-tree-body">

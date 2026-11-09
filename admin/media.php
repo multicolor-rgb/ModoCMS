@@ -559,7 +559,8 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
     <?php else: ?>
         <?php foreach ($pageItems as $itemIndex => $item):
             $filePath = (string) $item['filepath'];
-            $fullUrl = MediaLibrary::urlForStoredPath($filePath);
+            $publicUrl = MediaLibrary::urlForStoredPath($filePath);
+            $fullUrl = MediaLibrary::versionedUrlForStoredPath($filePath);
             $thumbUrl = MediaLibrary::thumbnailUrl($filePath, 240);
             $itemFolder = MediaLibrary::folderOfStoredPath($filePath);
             $itemFolderLabel = $itemFolder === '' ? __('Root') : $itemFolder;
@@ -605,7 +606,7 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
                             <?= _e('Edit') ?>
                         </button>
                         <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; flex-grow: 1;"
-                                onclick="copyMediaUrl(<?= $jsonAttr($fullUrl) ?>, this)">
+                                onclick="copyMediaUrl(<?= $jsonAttr($publicUrl) ?>, this)">
                             <?= _e('Copy URL') ?>
                         </button>
                         <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; flex-grow: 1;"
@@ -900,7 +901,7 @@ $mediaToolsItems = [];
 foreach ($pageItems as $item) {
     $storedPath = (string) $item['filepath'];
     $mediaToolsItems[] = [
-        'url'    => MediaLibrary::urlForStoredPath($storedPath),
+        'url'    => MediaLibrary::versionedUrlForStoredPath($storedPath),
         'path'   => $storedPath,
         'name'   => (string) $item['filename'],
         'folder' => MediaLibrary::folderOfStoredPath($storedPath),
