@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.3.1.
+# Release notes for Modo CMS 3.4.0.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,11 +53,15 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.3.1
-            - **Media uploads fixed:** files can be uploaded from the Media tab again; the request no longer fails on an undefined CSRF variable.
+            ### What's new in 3.4.0
+            - **Gallery ordering:** grid/list layouts, drag & drop, position fields, natural A–Z/Z–A sorting, reverse order and bulk selection.
+            - **Media picker:** remembers the last used folder until the browser tab is closed.
+            - **Content list:** Posts, Pages and All now leave the Trash view, and Trash shows every deleted document without type filters.
 
-            ### Najważniejsze zmiany w 3.3.1
-            - **Naprawiony upload w Mediach:** pliki znów wgrywają się z zakładki Media; żądanie nie przerywa się już na niezdefiniowanej zmiennej CSRF.
+            ### Najważniejsze zmiany w 3.4.0
+            - **Kolejność galerii:** widok siatki/listy, przeciąganie, pole pozycji, sortowanie naturalne A–Z/Z–A, odwracanie kolejności i zaznaczanie zbiorcze.
+            - **Media picker:** zapamiętuje ostatnio używany folder do zamknięcia karty przeglądarki.
+            - **Lista treści:** Wpisy, Strony i Wszystkie wychodzą z Kosza, a Kosz pokazuje wszystkie usunięte dokumenty bez filtra typu.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 

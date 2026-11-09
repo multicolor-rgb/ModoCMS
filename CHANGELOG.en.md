@@ -4,7 +4,7 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.4.0] — 2026-11-09
 
 ### Added
 
