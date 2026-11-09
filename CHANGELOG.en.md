@@ -4,6 +4,20 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **New media image editor** — Cropper.js with crop, ±90° rotation, horizontal/vertical flips, zoom and aspect ratios.
+- **Server-side image transforms** — EXIF auto-orient, rotate, flip, crop, resize and encoding on the server with Imagick → ImageMagick CLI → GD backends.
+- **Faster bulk image transforms** — no full-size uploads from the browser, limited concurrency and progress reporting.
+- **Edit action icon in the content list** — Edit is now a consistent pencil icon.
+
+### Fixed
+
+- **Content table on large screens** — removed the empty strip on the right and improved column distribution.
+- **Image rotation** — consistent preview and result for JPEG/PNG/WebP and EXIF-oriented photos.
+
 ## [3.5.0] — 2026-11-09
 
 ### Added

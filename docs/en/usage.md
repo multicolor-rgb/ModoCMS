@@ -142,8 +142,14 @@ thumbnails and, when enabled, a WebP copy.
 ## 5. Media library
 
 **Media** supports folders, drag-and-drop upload, search/filter, ALT text and
-captions, bulk editing and image transforms (rotate, flip, resize, quality).
+captions, bulk editing and image transforms.
 
+- The single-image editor uses Cropper.js: crop, ±90° rotation, horizontal and
+  vertical flips, zoom and aspect ratios.
+- Transformations run on the server (EXIF auto-orient, rotate, flip, crop,
+  resize), so editing no longer uploads the full image from the browser.
+- Bulk transforms send only file paths, use limited concurrency and report
+  progress; large photos no longer freeze the browser.
 - Use ALT text for accessibility and SEO.
 - **Force regenerate thumbnails** in Settings → Performance rebuilds previews,
   gallery sizes and WebP copies.

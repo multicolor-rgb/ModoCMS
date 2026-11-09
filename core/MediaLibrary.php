@@ -970,6 +970,22 @@ final class MediaLibrary
         ];
     }
 
+    /**
+     * Resolves a public uploads path to an absolute file path.
+     */
+    public static function absolutePath(string $storedPath): ?string
+    {
+        return self::absoluteFromStoredPath($storedPath);
+    }
+
+    /**
+     * Returns the ImageMagick CLI binary, when available.
+     */
+    public static function imageCliBinary(): ?string
+    {
+        return self::cliConvertBinary();
+    }
+
     private static function extensionForMime(string $mime): ?string
     {
         return match ($mime) {

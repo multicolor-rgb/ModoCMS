@@ -4,6 +4,20 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [Unreleased]
+
+### Dodane
+
+- **Nowy edytor zdjęć w Mediach** — Cropper.js z cropem, obrotem ±90°, odbiciem poziomym/pionowym, zoomem i proporcjami.
+- **Serwerowe transformacje obrazów** — auto-orient EXIF, obrót, flip, crop, skalowanie i kodowanie po stronie serwera z backendami Imagick → ImageMagick CLI → GD.
+- **Szybsza masowa obróbka zdjęć** — bez wysyłania pełnych plików z przeglądarki, z ograniczoną równoległością i postępem.
+- **Ikona edycji w liście treści** — akcja Edytuj jest teraz spójną ikoną ołówka.
+
+### Poprawione
+
+- **Tabela treści na dużych ekranach** — usunięta pusta przestrzeń po prawej stronie i lepsze rozłożenie kolumn.
+- **Obracanie zdjęć** — spójny podgląd i wynik dla plików JPEG/PNG/WebP oraz zdjęć z orientacją EXIF.
+
 ## [3.5.0] — 2026-11-09
 
 ### Dodane

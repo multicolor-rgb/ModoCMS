@@ -67,6 +67,9 @@ unset($_SESSION['admin_theme_reset']);
     </script>
 
     <link rel="stylesheet" href="assets/css/admin.css?v=<?= (int) @filemtime(__DIR__ . '/../assets/css/admin.css') ?>">
+    <?php if ($currentPage === 'media.php'): ?>
+    <link rel="stylesheet" href="assets/vendor/cropperjs/cropper.min.css">
+    <?php endif; ?>
     <?php Hooks::doAction('admin_head'); ?>
 </head>
 <body>

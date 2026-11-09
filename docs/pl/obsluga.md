@@ -140,9 +140,14 @@ przy włączonej opcji także kopię WebP.
 ## 5. Biblioteka mediów
 
 **Media** obsługuje foldery, przeciąganie plików, wyszukiwanie/filtrowanie,
-ALT i podpisy, masową edycję oraz obróbkę zdjęć (obrót, odbicie, rozmiar,
-jakość).
+ALT i podpisy, masową edycję oraz obróbkę zdjęć.
 
+- Edytor pojedynczego zdjęcia korzysta z Cropper.js: crop, obrót ±90°, odbicie
+  poziome/pionowe, zoom i proporcje.
+- Transformacje wykonuje serwer (auto-orient EXIF, obrót, odbicie, crop,
+  skalowanie), więc edycja nie wysyła pełnego zdjęcia z przeglądarki.
+- Masowa obróbka działa po ścieżkach plików, z ograniczoną równoległością i
+  paskiem postępu; nie blokuje przeglądarki przy dużych plikach.
 - ALT jest ważny dla dostępności i SEO.
 - **Wymuś regenerację miniatur** w Ustawienia → Wydajność odtwarza podglądy,
   rozmiary galerii i kopie WebP.

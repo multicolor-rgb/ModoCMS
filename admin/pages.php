@@ -603,7 +603,7 @@ require_once __DIR__ . '/views/header.php';
                 <th class="col-lang" style="width: 70px; text-align: center;"><?= _e('Lang') ?></th>
                 <th class="col-author" style="width: 120px;"><?= _e('Author') ?></th>
                 <th class="col-updated" style="width: 130px;"><?= _e('Updated') ?></th>
-                <th class="col-actions" style="text-align: right; width: 110px;"><?= _e('Actions') ?></th>
+                <th class="col-actions" style="text-align: right; width: 100px; white-space: nowrap;"><?= _e('Actions') ?></th>
             </tr>
         </thead>
         <tbody id="pages-tree-body">
@@ -709,8 +709,8 @@ require_once __DIR__ . '/views/header.php';
                                         </button>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <a href="page-edit.php?id=<?= $item['id'] ?>" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;">
-                                        <?= _e('Edit') ?>
+                                    <a href="page-edit.php?id=<?= $item['id'] ?>" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;" title="<?= _e('Edit') ?>" aria-label="<?= _e('Edit') ?>">
+                                        <svg style="width: 14px; height: 14px; vertical-align: middle;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.862 4.487"/></svg>
                                     </a>
                                     <a href="page-edit.php?id=<?= $item['id'] ?>#revisions-card" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; line-height: 1;" title="<?= _e('Revision History') ?>" aria-label="<?= _e('Revision History') ?>">
                                         <svg style="width: 14px; height: 14px; vertical-align: middle;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

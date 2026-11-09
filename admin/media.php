@@ -876,18 +876,8 @@ $flashErrorKey = isset($_GET['err']) && is_string($_GET['err']) ? $_GET['err'] :
         </div>
 
         <div class="media-editor-stage">
-            <div id="editor-canvas-wrap" class="media-editor-canvas-wrap">
-                <canvas id="editor-canvas"></canvas>
-                <div id="editor-crop" class="media-editor-crop">
-                    <span class="media-editor-handle" data-handle="nw"></span>
-                    <span class="media-editor-handle" data-handle="n"></span>
-                    <span class="media-editor-handle" data-handle="ne"></span>
-                    <span class="media-editor-handle" data-handle="e"></span>
-                    <span class="media-editor-handle" data-handle="se"></span>
-                    <span class="media-editor-handle" data-handle="s"></span>
-                    <span class="media-editor-handle" data-handle="sw"></span>
-                    <span class="media-editor-handle" data-handle="w"></span>
-                </div>
+            <div class="media-editor-cropper-wrap">
+                <img id="editor-image" src="" alt="">
             </div>
         </div>
 
@@ -923,6 +913,7 @@ $mediaToolsCfg = [
     'items'   => $mediaToolsItems,
     'csrf'    => $csrfToken,
     'saveUrl' => 'media-save.php',
+    'transformUrl' => 'media-transform.php',
     'i18n'    => [
         'close'                => __('Close'),
         'imagePreview'         => __('Image preview'),
@@ -970,6 +961,7 @@ $mediaToolsJsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
 <script>
 window.MEDIA_TOOLS_CFG = <?= json_encode($mediaToolsCfg, $mediaToolsJsonFlags) ?>;
 </script>
+<script src="assets/vendor/cropperjs/cropper.min.js"></script>
 <script src="assets/js/media-tools.js?v=<?= (int) @filemtime(__DIR__ . '/assets/js/media-tools.js') ?>"></script>
 <script>
 const MEDIA_CURRENT_FOLDER = <?= json_encode($currentFolder ?? '', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;

@@ -622,7 +622,7 @@ body {
     width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-gutter: stable;
+    scrollbar-gutter: auto;
 }
 
 /* Page hierarchy tree */
@@ -1694,8 +1694,17 @@ html.media-modal-open body {
 /* ==========================================================================
    Content list: responsive columns and manual ordering controls
    ========================================================================== */
+.content-table {
+    width: 100%;
+    table-layout: auto;
+}
+
 .content-table .col-title strong a {
     overflow-wrap: anywhere;
+}
+
+.content-table .col-actions {
+    white-space: nowrap;
 }
 
 .content-table .col-actions > div {
@@ -1821,5 +1830,31 @@ tr.is-order-dragging {
 
     .content-table .content-order-handle {
         display: none;
+    }
+}
+
+/* Cropper.js-based media editor */
+.media-editor-cropper-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 420px;
+}
+
+.media-editor-cropper-wrap > img {
+    display: block;
+    max-width: 100%;
+    max-height: 62vh;
+}
+
+.media-editor-cropper-wrap .cropper-container {
+    width: 100%;
+}
+
+@media (max-width: 760px) {
+    .media-editor-cropper-wrap {
+        min-height: 260px;
     }
 }
