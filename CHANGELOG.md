@@ -4,6 +4,13 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [3.6.1] — 2026-11-09
+
+### Poprawione
+
+- **Podgląd pełnego zdjęcia po edycji** — lightbox i edytor używają teraz URL z wersją `?v=mtime`, więc po obróceniu lub cropie nie pokazują już wersji z cache. Miniatury i pełny plik odświeżają się razem.
+- **Akcje w liście treści** — Edytuj, Historia i Usuń są zawsze w jednej linii, a przycisk usuwania ma taką samą obramówkę jak pozostałe akcje.
+
 ## [3.6.0] — 2026-11-09
 
 ### Dodane

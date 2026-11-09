@@ -4,6 +4,13 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [3.6.1] — 2026-11-09
+
+### Fixed
+
+- **Full image preview after editing** — the lightbox and editor now use versioned `?v=mtime` URLs, so rotating or cropping no longer leaves a stale cached image behind. Thumbnails and the full file refresh together.
+- **Content list actions** — Edit, History and Delete always stay on one line, and the delete button now has the same visible border as the other actions.
+
 ## [3.6.0] — 2026-11-09
 
 ### Added

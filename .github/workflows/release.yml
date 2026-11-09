@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.6.0.
+# Release notes for Modo CMS 3.6.1.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,17 +53,13 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.6.0
-            - **New media image editor:** Cropper.js-based crop, ±90° rotation, flips, zoom and aspect ratios.
-            - **Server-side transforms:** EXIF auto-orient, rotate, flip, crop and resize with Imagick/ImageMagick CLI/GD.
-            - **Faster bulk editing:** no full-size uploads, limited concurrency and progress reporting.
-            - **Content list polish:** pencil icon for Edit and no more empty strip on the right of the table on large screens.
+            ### What's new in 3.6.1
+            - **Fresh full-size previews:** edited images now reload in the lightbox and editor instead of showing a cached copy.
+            - **Content list actions:** Edit, History and Delete stay on one line, with a consistent border on the delete button.
 
-            ### Najważniejsze zmiany w 3.6.0
-            - **Nowy edytor zdjęć:** crop, obrót ±90°, odbicie, zoom i proporcje w oparciu o Cropper.js.
-            - **Transformacje serwerowe:** auto-orientacja EXIF, obrót, flip, crop i skalowanie przez Imagick/ImageMagick CLI/GD.
-            - **Szybsza masowa edycja:** bez wysyłania pełnych plików, z ograniczoną równoległością i postępem.
-            - **Poprawki listy treści:** ikona ołówka dla Edytuj i brak pustej przestrzeni po prawej stronie tabeli na dużych ekranach.
+            ### Najważniejsze zmiany w 3.6.1
+            - **Świeży podgląd pełnego zdjęcia:** po edycji lightbox i edytor ładują nowy plik zamiast wersji z cache.
+            - **Akcje listy treści:** Edytuj, Historia i Usuń są w jednej linii, a przycisk usuwania ma spójną obramówkę.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
