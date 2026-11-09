@@ -1,4 +1,4 @@
-# Release notes for Modo CMS 3.6.1.
+# Release notes for Modo CMS 3.7.0.
 # Builds a clean Modo CMS distribution and publishes it as a GitHub Release.
 # The archive comes from `git archive`, so .gitattributes export-ignore rules
 # keep CI/site/tooling out of the package. Trigger by pushing a tag (v*.*.*).
@@ -53,13 +53,15 @@ jobs:
           body: |
             **Modo CMS** — a lightweight, fast and modular CMS built on PHP 8 and SQLite3.
 
-            ### What's new in 3.6.1
-            - **Fresh full-size previews:** edited images now reload in the lightbox and editor instead of showing a cached copy.
-            - **Content list actions:** Edit, History and Delete stay on one line, with a consistent border on the delete button.
+            ### What's new in 3.7.0
+            - **Field ordering:** drag or arrow controls for page type fields and custom field settings, persisted in the database.
+            - **Polish slug transliteration:** ą, ć, ę, ł, ń, ó, ś, ź and ż become readable ASCII slugs, together with other common Latin diacritics.
+            - **Consistent slugs:** the shared slugifier is used by pages, page types, categories, menus, tags, snippets, the API and plugins.
 
-            ### Najważniejsze zmiany w 3.6.1
-            - **Świeży podgląd pełnego zdjęcia:** po edycji lightbox i edytor ładują nowy plik zamiast wersji z cache.
-            - **Akcje listy treści:** Edytuj, Historia i Usuń są w jednej linii, a przycisk usuwania ma spójną obramówkę.
+            ### Najważniejsze zmiany w 3.7.0
+            - **Kolejność pól:** przeciąganie lub strzałki dla pól typów stron i ustawień pól niestandardowych, zapisywane w bazie.
+            - **Polskie slugi:** ą, ć, ę, ł, ń, ó, ś, ź i ż zamieniają się na czytelne znaki ASCII, podobnie jak inne znaki łacińskie.
+            - **Spójne slugi:** wspólny mechanizm działa dla stron, typów stron, kategorii, menu, tagów, snippetów, API i pluginów.
 
             Pełna lista zmian: [CHANGELOG.md](CHANGELOG.md).
 
