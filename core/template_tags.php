@@ -6,6 +6,7 @@ use Core\Hooks;
 use Core\Router;
 use Core\Security;
 use Core\I18n;
+use Core\ContentOrder;
 
 /**
  * Modo CMS — Theme Template Tags.
@@ -163,7 +164,7 @@ if (!function_exists('render_pages_fallback_menu')) {
             FROM pages
             WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL AND (published_at IS NULL OR published_at <= datetime('now')) AND parent_id = 0
               AND (lang = :lg OR lang = '')
-            ORDER BY id ASC
+            ORDER BY " . ContentOrder::pagesOrder('') . "
         ");
         $stmt->execute([':lg' => $currentLang]);
         $pages = $stmt->fetchAll();
@@ -292,11 +293,61 @@ if (!function_exists('get_recent_posts')) {
             LEFT JOIN users u ON p.author_id = u.id
             WHERE p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now'))
               AND (p.lang = :lg OR p.lang = '')
-            ORDER BY p.created_at DESC
+            ORDER BY " . ContentOrder::postsOrder('p', 'created_at') . "
             LIMIT :limit
         ");
         $stmt->bindValue(':lg', $currentLang, PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+}
+
+/**
+ * Returns published pages, optionally filtered by parent, language and limit.
+ * When manual content ordering is enabled the result follows the order set in
+ * the Content list; otherwise it keeps the historical id order.
+ *
+ * Supported arguments: parent_id (int), lang (string|'all'), limit (int).
+ */
+if (!function_exists('get_pages')) {
+    function get_pages(array $args = []): array {
+        $db = Database::getConnection();
+        $lang = isset($args['lang']) ? (string) $args['lang'] : I18n::getLocale();
+        $parentId = array_key_exists('parent_id', $args) ? (int) $args['parent_id'] : null;
+        $limit = max(0, (int) ($args['limit'] ?? 0));
+
+        $where = [
+            "p.type = 'page'",
+            "p.status = 'published'",
+            "p.deleted_at IS NULL",
+            "(p.published_at IS NULL OR p.published_at <= datetime('now'))",
+        ];
+        $params = [];
+
+        if ($parentId !== null) {
+            $where[] = 'p.parent_id = :parent_id';
+            $params[':parent_id'] = $parentId;
+        }
+        if ($lang !== 'all') {
+            $where[] = "(p.lang = :lang OR p.lang = '')";
+            $params[':lang'] = $lang;
+        }
+
+        $sql = 'SELECT p.* FROM pages p WHERE ' . implode(' AND ', $where)
+            . ' ORDER BY ' . ContentOrder::pagesOrder('p');
+        if ($limit > 0) {
+            $sql .= ' LIMIT :limit';
+        }
+
+        $stmt = $db->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_STR);
+        }
+        if ($limit > 0) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        }
         $stmt->execute();
 
         return $stmt->fetchAll();

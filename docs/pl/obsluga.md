@@ -71,6 +71,19 @@ wszystkie**, a stan rozwinięcia jest zapamiętywany w przeglądarce. Filtry zaw
 zachowują pasujące wiersze: jeśli rodzic został odfiltrowany, jego dziecko jest
 pokazywane na poziomie głównym. Widok kosza pozostaje płaską listą.
 
+### Ręczne porządkowanie treści
+
+W **Ustawienia → Treść** włącz **Ręczne porządkowanie wpisów i stron**. Po
+włączeniu w widoku **Treść → Wpisy** możesz przeciągać wpisy, a w **Treść →
+Strony** — strony w obrębie tego samego rodzica. Obok uchwytu dostępne są też
+strzałki ↑/↓, wygodniejsze na urządzeniach dotykowych. Nowe dokumenty trafiają
+na koniec swojej grupy.
+
+Kolejność jest używana przez pętlę wpisów, archiwa tagów i kategorii,
+`get_recent_posts()`, `get_pages()` oraz fallbackowe menu stron. Wyłączenie
+opcji przywraca sortowanie według daty (wpisy) lub ID (strony) i nie usuwa
+zapisanej kolejności.
+
 ### Kategorie
 
 Kategorie wpisów obsługują wiele poziomów zagnieżdżenia. W **Treść → Kategorie**

@@ -1619,5 +1619,10 @@
   "Remove selected": "Eliminar seleccionadas",
   "Remove selected images?": "¿Eliminar las imágenes seleccionadas?",
   "Edit image": "Editar imagen",
-  "Position": "Posición"
+  "Position": "Posición",
+  "Content Ordering": "Orden del contenido",
+  "Enable manual ordering for posts and pages": "Activar el orden manual de entradas y páginas",
+  "When enabled, drag posts and pages in the Content list to set their order in theme loops. Posts are ordered separately from pages; pages are reordered within their sibling group. Turning this off restores the default date-based order.": "Al activarlo, arrastra entradas y páginas en la lista de Contenido para establecer su orden en los bucles del tema. Las entradas se ordenan por separado de las páginas; las páginas se reordenan dentro de su mismo padre. Al desactivarlo se restaura el orden predeterminado por fecha.",
+  "Content ordering": "Orden del contenido",
+  "Could not save the new content order.": "No se pudo guardar el nuevo orden del contenido."
 }

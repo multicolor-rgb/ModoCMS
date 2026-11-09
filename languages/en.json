@@ -1629,5 +1629,10 @@
   "Remove selected": "Remove selected",
   "Remove selected images?": "Remove selected images?",
   "Edit image": "Edit image",
-  "Position": "Position"
+  "Position": "Position",
+  "Content Ordering": "Content Ordering",
+  "Enable manual ordering for posts and pages": "Enable manual ordering for posts and pages",
+  "When enabled, drag posts and pages in the Content list to set their order in theme loops. Posts are ordered separately from pages; pages are reordered within their sibling group. Turning this off restores the default date-based order.": "When enabled, drag posts and pages in the Content list to set their order in theme loops. Posts are ordered separately from pages; pages are reordered within their sibling group. Turning this off restores the default date-based order.",
+  "Content ordering": "Content ordering",
+  "Could not save the new content order.": "Could not save the new content order."
 }

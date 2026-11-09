@@ -1629,5 +1629,10 @@
   "Remove selected": "Usuń zaznaczone",
   "Remove selected images?": "Usunąć zaznaczone zdjęcia?",
   "Edit image": "Edytuj zdjęcie",
-  "Position": "Pozycja"
+  "Position": "Pozycja",
+  "Content Ordering": "Kolejność treści",
+  "Enable manual ordering for posts and pages": "Włącz ręczne porządkowanie wpisów i stron",
+  "When enabled, drag posts and pages in the Content list to set their order in theme loops. Posts are ordered separately from pages; pages are reordered within their sibling group. Turning this off restores the default date-based order.": "Po włączeniu przeciągaj wpisy i strony na liście Treść, aby ustawić ich kolejność w pętlach motywu. Wpisy są porządkowane osobno od stron; strony można przenosić w obrębie tego samego rodzica. Wyłączenie opcji przywraca domyślną kolejność według daty.",
+  "Content ordering": "Kolejność treści",
+  "Could not save the new content order.": "Nie udało się zapisać nowej kolejności treści."
 }

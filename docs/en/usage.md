@@ -72,6 +72,19 @@ the expansion state is remembered in the browser. Filters always keep matching
 rows visible: if a parent is filtered out, its child is shown at the top level.
 The trash view remains a flat list.
 
+### Manual content ordering
+
+In **Settings → Content**, enable **Enable manual ordering for posts and pages**.
+Then drag posts in **Content → Posts** and pages in **Content → Pages**; pages
+can be reordered only within the same parent. The ↑/↓ buttons next to the drag
+handle are a convenient alternative on touch devices. New documents are appended
+to the end of their group.
+
+The order is used by the post loop, tag and category archives,
+`get_recent_posts()`, `get_pages()` and the fallback page menu. Disabling the
+option restores date order for posts and id order for pages without deleting the
+saved positions.
+
 ### Categories
 
 Blog categories support multiple nesting levels. In **Content → Categories**

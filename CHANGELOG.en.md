@@ -4,6 +4,13 @@ All notable changes to Modo CMS. Format based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Manual ordering for posts and pages** — an optional setting in Settings → Content lets you order posts and pages by drag and drop or arrow buttons. The order is used by the post loop, tag and category archives, `get_recent_posts()`, the new `get_pages()` helper and the fallback page menu.
+- **Responsive content table** — the document list adapts to smaller laptops, tablets and phones: secondary columns are hidden progressively, while the title, status and actions stay visible without horizontal scrolling.
+
 ## [3.4.0] — 2026-11-09
 
 ### Added

@@ -198,6 +198,20 @@ foreach (get_recent_posts(3) as $p) {
 }
 ```
 
+### `get_pages(array $args = []): array`
+
+Returns published pages. Supported arguments: `parent_id` (int), `lang`
+(language code or `all`) and `limit` (int, `0` = no limit). When manual
+content ordering is enabled in **Settings → Content**, the result follows the
+order set in **Content → Pages**; otherwise pages keep the historical id order.
+
+```php
+foreach (get_pages(['parent_id' => 0, 'limit' => 6]) as $p) {
+    echo '<a href="' . htmlspecialchars(page_url($p, false), ENT_QUOTES, 'UTF-8') . '">'
+       . htmlspecialchars($p['title'], ENT_QUOTES, 'UTF-8') . '</a>';
+}
+```
+
 ---
 
 ## 4. Tags and categories
@@ -574,7 +588,7 @@ Same, but prints it escaped.
 
 ## Quick index
 
-`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `get_categories`, `get_category_tree`, `get_category_children`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
+`site_title`, `site_desc`, `site_logo`, `site_url`, `get_site_title`, `get_site_description`, `get_site_url`, `page_title`, `page_content`, `page_date`, `page_author`, `has_image`, `page_image`, `page_thumbnail_image`, `page_image_srcset`, `page_url`, `resolve_page_hierarchy_path`, `have_posts`, `the_post`, `post_title`, `post_url`, `post_image`, `post_thumbnail_image`, `post_image_srcset`, `post_excerpt`, `get_recent_posts`, `get_pages`, `get_post_tags`, `has_tags`, `post_tags`, `get_post_categories`, `get_categories`, `get_category_tree`, `get_category_children`, `has_categories`, `post_categories`, `menu`, `get_theme_menu`, `get_theme_menu_items`, `lang_switch`, `hreflang_tags`, `modo_locale_url`, `theme_head`, `theme_footer`, `get_header`, `get_footer`, `theme_header`, `resolve_media_url`, `webp_url`, `get_theme_url`, `active_grid`, `grid_css_urls`, `get_theme_mod`, `the_theme_mod`, `get_theme_mod_link`, `the_theme_mod_link`, `get_theme_mod_html`, `the_theme_mod_html`, `customizer_css`, `get_meta`, `the_meta`, `get_all_meta`, `get_page_type`, `page_type_slug`, `is_page_type`, `snippet_content`, `the_snippet`, `render_snippets`, `content_to_text`, `content_excerpt`, `__`, `_e`.
 
 ---
 

@@ -370,13 +370,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         \Core\Revisions::snapshot($id, 'save');
     }
 
+    $oldParentId = 0;
+    $oldType = '';
+    $oldSortOrder = 0;
+    if ($id > 0) {
+        $oldStmt = $db->prepare("SELECT parent_id, type, sort_order FROM pages WHERE id = :id LIMIT 1");
+        $oldStmt->execute([':id' => $id]);
+        if ($oldRow = $oldStmt->fetch()) {
+            $oldParentId = (int) ($oldRow['parent_id'] ?? 0);
+            $oldType = (string) ($oldRow['type'] ?? '');
+            $oldSortOrder = (int) ($oldRow['sort_order'] ?? 0);
+        }
+    }
+
+    $manualOrderEnabled = class_exists(\Core\ContentOrder::class) && \Core\ContentOrder::isEnabled();
+    $sortOrder = $oldSortOrder;
+    if ($manualOrderEnabled) {
+        $movedGroup = $id === 0 || $oldType !== $type || ($type === 'page' && $oldParentId !== $parentId);
+        if ($movedGroup) {
+            $sortOrder = \Core\ContentOrder::nextSortOrder($type, $parentId, $lang);
+        }
+    } elseif ($id === 0) {
+        $sortOrder = 0;
+    }
+
     if ($id > 0) {
         $stmt = $db->prepare("
             UPDATE pages 
             SET title = :t, slug = :s, content = :c, type = :tp, page_type_id = :ptid, status = :st,
                 parent_id = :p, lang = :lg, translation_group = :tg,
                 featured_image = :img, meta_title = :mt, meta_description = :md, 
-                published_at = :pub,
+                published_at = :pub, sort_order = :sort,
                 updated_at = CURRENT_TIMESTAMP 
             WHERE id = :id
         ");
@@ -385,15 +409,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':ptid' => $pageTypeId > 0 ? $pageTypeId : null, ':st' => $status,
             ':p' => $parentId, ':lg' => $lang, ':tg' => $translation_group, 
             ':img' => $featured_image, ':mt' => $meta_title, ':md' => $meta_description, 
-            ':pub' => $publishedAt, ':id' => $id
+            ':pub' => $publishedAt, ':sort' => $sortOrder, ':id' => $id
         ]);
     } else {
         $stmt = $db->prepare("
             INSERT INTO pages (
                 title, slug, content, type, page_type_id, status, parent_id, lang,
-                translation_group, featured_image, meta_title, meta_description, author_id, published_at
+                translation_group, featured_image, meta_title, meta_description, author_id, published_at, sort_order
             ) VALUES (
-                :t, :s, :c, :tp, :ptid, :st, :p, :lg, :tg, :img, :mt, :md, :aid, :pub
+                :t, :s, :c, :tp, :ptid, :st, :p, :lg, :tg, :img, :mt, :md, :aid, :pub, :sort
             )
         ");
         $stmt->execute([
@@ -401,7 +425,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':ptid' => $pageTypeId > 0 ? $pageTypeId : null, ':st' => $status,
             ':p' => $parentId, ':lg' => $lang, ':tg' => $translation_group, 
             ':img' => $featured_image, ':mt' => $meta_title, ':md' => $meta_description, 
-            ':aid' => Auth::id(), ':pub' => $publishedAt
+            ':aid' => Auth::id(), ':pub' => $publishedAt, ':sort' => $sortOrder
         ]);
         $id = (int)$db->lastInsertId();
     }

@@ -4,6 +4,13 @@ Wszystkie istotne zmiany w projekcie Modo CMS. Format oparty na
 [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie zgodne
 z [Semantic Versioning](https://semver.org/lang/pl/).
 
+## [Unreleased]
+
+### Dodane
+
+- **Ręczne porządkowanie wpisów i stron** — opcjonalna opcja w Ustawienia → Treść pozwala ustawiać kolejność wpisów i stron przez przeciąganie lub strzałki. Kolejność trafia do pętli wpisów, archiwów tagów i kategorii, `get_recent_posts()`, nowej funkcji `get_pages()` oraz fallbackowego menu stron.
+- **Responsywna tabela treści** — lista dokumentów dopasowuje się do mniejszych laptopów, tabletów i telefonów: drugorzędne kolumny są ukrywane progresywnie, a tytuł, status i akcje pozostają widoczne bez poziomego przewijania.
+
 ## [3.4.0] — 2026-11-09
 
 ### Dodane

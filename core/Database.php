@@ -85,6 +85,7 @@ final class Database {
                 status TEXT DEFAULT 'published',
                 lang TEXT NOT NULL DEFAULT 'en',
                 translation_group TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
                 featured_image TEXT,
                 meta_title TEXT,
                 meta_description TEXT,
@@ -102,6 +103,7 @@ final class Database {
             CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang);
             CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at);
             CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at);
+            CREATE INDEX IF NOT EXISTS idx_pages_type_parent_sort ON pages(type, parent_id, sort_order);
 
             -- Tabela na pola niestandardowe (Custom Fields) z obsługą typów danych
             CREATE TABLE IF NOT EXISTS page_meta (
@@ -580,6 +582,7 @@ final class Database {
         self::ensureColumn($db, 'media', 'alt_text', 'TEXT');
         self::ensureColumn($db, 'media', 'caption', 'TEXT');
         self::ensureColumn($db, 'pages', 'page_type_id', 'INTEGER');
+        self::ensureColumn($db, 'pages', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($db, 'page_meta', 'meta_label', 'TEXT');
         self::ensureColumn($db, 'page_revisions', 'page_type_id', 'INTEGER');
         self::ensureColumn($db, 'categories', 'parent_id', 'INTEGER NOT NULL DEFAULT 0');
@@ -590,6 +593,7 @@ final class Database {
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_type_status_lang ON pages(type, status, lang)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_status_created ON pages(status, created_at)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at)");
+            $db->exec("CREATE INDEX IF NOT EXISTS idx_pages_type_parent_sort ON pages(type, parent_id, sort_order)");
             $db->exec("CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id)");
         } catch (PDOException $e) {
             // Optional — ignore.

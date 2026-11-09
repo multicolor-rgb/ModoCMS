@@ -14,6 +14,7 @@ use Core\Config;
 use Core\Analytics;
 use Core\MediaLibrary;
 use Core\Updater;
+use Core\ContentOrder;
 
 Auth::requireCapability('manage_settings');
 
@@ -220,12 +221,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Standard settings save
         // -------------------------------------------------------------
         $multilingual = isset($_POST['multilingual_frontend']) ? '1' : '0';
+        $manualOrderWasEnabled = ContentOrder::isEnabled();
 
         $settings = [
             'site_title'             => trim($_POST['site_title'] ?? ''),
             'site_description'       => trim($_POST['site_description'] ?? ''),
             'site_url'               => trim($_POST['site_url'] ?? ''),
             'posts_per_page'         => (string)max(1, (int)($_POST['posts_per_page'] ?? 6)),
+            'manual_content_order'   => isset($_POST['manual_content_order']) ? '1' : '0',
             'active_theme'           => basename(trim($_POST['active_theme'] ?? 'default')),
             'homepage_type'          => in_array($_POST['homepage_type'] ?? '', ['page', 'posts'], true) ? $_POST['homepage_type'] : 'page',
             'homepage_page_id'       => (string)(int)($_POST['homepage_page_id'] ?? 0),
@@ -304,6 +307,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         foreach ($settings as $k => $v) {
             $stmt->execute([':k' => $k, ':v' => $v]);
+        }
+
+        if (!$manualOrderWasEnabled && ($settings['manual_content_order'] ?? '0') === '1') {
+            ContentOrder::normalizeMissing();
         }
 
         if (class_exists('Core\Sitemap')) {
@@ -791,6 +798,23 @@ require_once __DIR__ . '/views/header.php';
                 <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; line-height: 1.4;">
                     <?= _e('Extra CSS appended after the selected framework (frontend and editor). Useful with the "Custom" framework.') ?>
                 </small>
+            </div>
+        </div>
+
+        <!-- Manual content ordering -->
+        <div class="card settings-panel" data-tab="content">
+            <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main);">
+                <?= _e('Content Ordering') ?>
+            </h3>
+
+            <div class="form-group" style="padding: 14px; background: var(--bg-surface, #1e293b); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 0;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: var(--text-main);">
+                    <input type="checkbox" name="manual_content_order" value="1" <?= Router::getOption('manual_content_order', '0') === '1' ? 'checked' : '' ?>>
+                    <?= _e('Enable manual ordering for posts and pages') ?>
+                </label>
+                <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.5;">
+                    <?= _e('When enabled, drag posts and pages in the Content list to set their order in theme loops. Posts are ordered separately from pages; pages are reordered within their sibling group. Turning this off restores the default date-based order.') ?>
+                </p>
             </div>
         </div>
 

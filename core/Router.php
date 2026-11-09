@@ -72,7 +72,7 @@ final class Router {
             FROM pages p 
             LEFT JOIN users u ON p.author_id = u.id 
             WHERE p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
-            ORDER BY p.created_at DESC 
+            ORDER BY " . ContentOrder::postsOrder('p', 'created_at') . "
             LIMIT :lim OFFSET :off
         ");
         $postsStmt->bindValue(':lang', $activeLocale);
@@ -533,7 +533,7 @@ final class Router {
                 JOIN page_tags pt ON pt.page_id = p.id
                 LEFT JOIN users u ON p.author_id = u.id
                 WHERE pt.tag_id = :tid AND p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
-                ORDER BY p.created_at DESC 
+                ORDER BY " . ContentOrder::postsOrder('p', 'created_at') . "
                 LIMIT :lim OFFSET :off
             ");
             $postsStmt->bindValue(':tid', $tag['id'], \PDO::PARAM_INT);
@@ -593,7 +593,7 @@ final class Router {
                 JOIN page_categories pc ON pc.page_id = p.id
                 LEFT JOIN users u ON p.author_id = u.id
                 WHERE pc.category_id = :cid AND p.type = 'post' AND p.status = 'published' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at <= datetime('now')) AND (p.lang = :lang OR p.lang = '')
-                ORDER BY p.created_at DESC 
+                ORDER BY " . ContentOrder::postsOrder('p', 'created_at') . "
                 LIMIT :lim OFFSET :off
             ");
             $postsStmt->bindValue(':cid', $category['id'], \PDO::PARAM_INT);

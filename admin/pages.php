@@ -7,6 +7,7 @@ use Core\Auth;
 use Core\MediaLibrary;
 use Core\PageTypes;
 use Core\Sitemap;
+use Core\ContentOrder;
 
 Auth::requireCapability('manage_pages');
 
@@ -22,6 +23,8 @@ if ($showTrash) {
     $currentPageType = 0;
 }
 $pageTypes = PageTypes::all();
+$manualOrderEnabled = ContentOrder::isEnabled();
+$canReorder = $manualOrderEnabled && !$showTrash && in_array($currentType, ['post', 'page'], true);
 
 // Fetch all pages to calculate full hierarchical URL paths
 $allPagesStmt = $db->query("SELECT id, parent_id, slug, lang, type FROM pages");
@@ -398,7 +401,9 @@ if (!empty($conditions)) {
     $sql .= " WHERE " . implode(" AND ", $conditions);
 }
 
-$sql .= " ORDER BY p.updated_at DESC";
+$sql .= " ORDER BY " . ($canReorder
+    ? "p.sort_order ASC, p.updated_at DESC, p.id DESC"
+    : "p.updated_at DESC");
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $items = $stmt->fetchAll();
@@ -584,25 +589,27 @@ require_once __DIR__ . '/views/header.php';
 </div>
 <?php endif; ?>
 
+<?php $colCount = 9 + ($canReorder ? 1 : 0); ?>
 <div class="table-container card table-responsive" style="padding: 0; border: 1px solid var(--border-subtle);">
-    <table class="pro-table table-wide">
+    <table class="pro-table table-wide content-table">
         <thead>
             <tr>
-                <?php if (!$showTrash): ?><th style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" aria-label="<?= _e('Select all') ?>"></th><?php else: ?><th style="width: 40px;"></th><?php endif; ?>
-                <th style="width: 54px; text-align: center;"><?= _e('Image') ?></th>
-                <th><?= _e('Title & Route') ?></th>
-                <th style="width: 90px;"><?= _e('Type') ?></th>
-                <th style="width: 100px;"><?= _e('Status') ?></th>
-                <th style="width: 70px; text-align: center;"><?= _e('Lang') ?></th>
-                <th style="width: 120px;"><?= _e('Author') ?></th>
-                <th style="width: 130px;"><?= _e('Updated') ?></th>
-                <th style="text-align: right; width: 110px;"><?= _e('Actions') ?></th>
+                <?php if (!$showTrash): ?><th class="col-check" style="width: 40px; text-align: center;"><input type="checkbox" id="bulk-select-all" aria-label="<?= _e('Select all') ?>"></th><?php else: ?><th class="col-check" style="width: 40px;"></th><?php endif; ?>
+                <?php if ($canReorder): ?><th class="col-reorder" style="width: 56px; text-align: center;" title="<?= _e('Drag to reorder') ?>"><?= _e('Order') ?></th><?php endif; ?>
+                <th class="col-image" style="width: 54px; text-align: center;"><?= _e('Image') ?></th>
+                <th class="col-title"><?= _e('Title & Route') ?></th>
+                <th class="col-type" style="width: 90px;"><?= _e('Type') ?></th>
+                <th class="col-status" style="width: 100px;"><?= _e('Status') ?></th>
+                <th class="col-lang" style="width: 70px; text-align: center;"><?= _e('Lang') ?></th>
+                <th class="col-author" style="width: 120px;"><?= _e('Author') ?></th>
+                <th class="col-updated" style="width: 130px;"><?= _e('Updated') ?></th>
+                <th class="col-actions" style="text-align: right; width: 110px;"><?= _e('Actions') ?></th>
             </tr>
         </thead>
         <tbody id="pages-tree-body">
             <?php if (empty($treeItems)): ?>
                 <tr>
-                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 48px 20px;">
+                    <td colspan="<?= $colCount ?>" style="text-align: center; color: var(--text-muted); padding: 48px 20px;">
                         <p style="margin: 0; font-size: 14px;"><?= _e('No matching documents found.') ?></p>
                     </td>
                 </tr>
@@ -616,12 +623,21 @@ require_once __DIR__ . '/views/header.php';
                         data-parent-id="<?= (int) ($item['parent_id'] ?? 0) ?>"
                         data-depth="<?= $treeDepth ?>"
                         data-has-children="<?= !empty($item['has_children']) ? '1' : '0' ?>">
-                        <td style="text-align: center; vertical-align: middle;">
+                        <td class="col-check" style="text-align: center; vertical-align: middle;">
                             <?php if (!$showTrash): ?>
                                 <input type="checkbox" class="bulk-checkbox" name="ids[]" value="<?= (int)$item['id'] ?>" aria-label="<?= _e('Select') ?>">
                             <?php endif; ?>
                         </td>
-                        <td style="text-align: center; vertical-align: middle;">
+                        <?php if ($canReorder): ?>
+                        <td class="col-reorder" style="text-align: center; vertical-align: middle;">
+                            <div class="content-order-controls">
+                                <span class="content-order-handle" draggable="true" title="<?= _e('Drag to reorder') ?>" aria-hidden="true">&#8942;&#8942;</span>
+                                <button type="button" class="content-order-up" title="<?= _e('Move up') ?>" aria-label="<?= _e('Move up') ?>">&uarr;</button>
+                                <button type="button" class="content-order-down" title="<?= _e('Move down') ?>" aria-label="<?= _e('Move down') ?>">&darr;</button>
+                            </div>
+                        </td>
+                        <?php endif; ?>
+                        <td class="col-image" style="text-align: center; vertical-align: middle;">
                             <?php if (!empty($item['featured_image'])): ?>
                                 <img src="<?= htmlspecialchars(MediaLibrary::thumbnailUrl((string) $item['featured_image'], 80), ENT_QUOTES, 'UTF-8') ?>"
                                      alt="Thumb" 
@@ -633,7 +649,7 @@ require_once __DIR__ . '/views/header.php';
                                 </div>
                             <?php endif; ?>
                         </td>
-                        <td>
+                        <td class="col-title">
                             <div style="display: flex; align-items: flex-start; gap: 6px; padding-left: <?= $treeDepth * 20 ?>px;">
                                 <?php if (!$showTrash && !empty($item['has_children'])): ?>
                                     <button type="button" class="page-tree-toggle" data-target-id="<?= (int) $item['id'] ?>" aria-expanded="true" aria-label="<?= _e('Toggle subpages') ?>" title="<?= _e('Toggle subpages') ?>">
@@ -654,12 +670,12 @@ require_once __DIR__ . '/views/header.php';
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td class="col-type">
                             <span class="badge" style="background: var(--bg-surface, #1e293b); color: var(--text-muted); border: 1px solid var(--border-subtle); font-size: 11px;" title="<?= $item['type'] === 'post' ? _e('Blog Post') : _e('Static Page') ?>">
                                 <?= !empty($item['page_type_name']) ? Security::sanitize((string) $item['page_type_name']) : ($item['type'] === 'post' ? _e('Post') : _e('Page')) ?>
                             </span>
                         </td>
-                        <td>
+                        <td class="col-status">
                             <?php if ($showTrash): ?>
                                 <span class="badge badge-warning" style="font-size: 11px;"><?= _e('Deleted') ?></span>
                             <?php else: ?>
@@ -668,18 +684,18 @@ require_once __DIR__ . '/views/header.php';
                                 </span>
                             <?php endif; ?>
                         </td>
-                        <td style="text-align: center;">
+                        <td class="col-lang" style="text-align: center;">
                             <span class="badge" style="background: rgba(59, 130, 246, 0.12); color: var(--accent, #60a5fa); border: 1px solid rgba(59, 130, 246, 0.25); font-size: 11px; font-weight: 700;">
                                 <?= strtoupper(Security::sanitize($item['lang'])) ?>
                             </span>
                         </td>
-                        <td style="color: var(--text-muted); font-size: 13px;">
+                        <td class="col-author" style="color: var(--text-muted); font-size: 13px;">
                             <?= Security::sanitize($item['author_name'] ?? 'System') ?>
                         </td>
-                        <td style="color: var(--text-muted); font-size: 12px;">
+                        <td class="col-updated" style="color: var(--text-muted); font-size: 12px;">
                             <?= date('d.m.Y H:i', strtotime((string)($showTrash && !empty($item['deleted_at']) ? $item['deleted_at'] : $item['updated_at']))) ?>
                         </td>
-                        <td style="text-align: right; vertical-align: middle;">
+                        <td class="col-actions" style="text-align: right; vertical-align: middle;">
                             <div style="display: inline-flex; gap: 6px;">
                                 <?php if ($showTrash): ?>
                                     <button type="button" class="btn btn-secondary" style="padding: 4px 9px; font-size: 12px;"
@@ -957,6 +973,18 @@ delModal.addEventListener('click', (e) => {
     apply();
 })();
 </script>
+<?php endif; ?>
+
+<?php if ($canReorder): ?>
+<script type="application/json" id="content-order-config"><?= json_encode([
+    'type' => $currentType,
+    'lang' => $currentLang,
+    'csrf' => Security::generateCsrfToken(),
+    'endpoint' => 'reorder.php',
+    'errorTitle' => __('Content ordering'),
+    'error' => __('Could not save the new content order.'),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+<script src="assets/js/content-order.js?v=<?= (int) @filemtime(__DIR__ . '/assets/js/content-order.js') ?>"></script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/views/footer.php'; ?>
